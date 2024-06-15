@@ -18,6 +18,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>{/* You can add additional head elements here if needed */}</head>
       <body className={`${inter.className} antialiased`}>{children}</body>
     </html>
   );
