@@ -22,10 +22,10 @@ const FormSchema = z.object({
   date: z.string(),
 });
 
-// .................Create Invoice
+// Schema for creating a new invoice
 const CreateInvoice = FormSchema.omit({ id: true, date: true });
 
-// This is temporary until @types/react-dom is updated
+// TypeScript type for state management
 export type State = {
   errors?: {
     customerId?: string[];
@@ -35,15 +35,14 @@ export type State = {
   message?: string | null;
 };
 
+// Function to create a new invoice
 export async function createInvoice(prevState: State, formData: FormData) {
-  // Validate form fields using Zod
   const validatedFields = CreateInvoice.safeParse({
     customerId: formData.get('customerId'),
     amount: formData.get('amount'),
     status: formData.get('status'),
   });
 
-  // If form validation fails, return errors early. Otherwise, continue.
   if (!validatedFields.success) {
     return {
       errors: validatedFields.error.flatten().fieldErrors,
@@ -51,11 +50,9 @@ export async function createInvoice(prevState: State, formData: FormData) {
     };
   }
   const { customerId, amount, status } = validatedFields.data;
-
   const amountInCents = amount * 100;
   const date = new Date().toISOString().split('T')[0];
 
-  // Insert data into the database
   try {
     await sql`
       INSERT INTO invoices (customer_id, amount, status, date)
@@ -69,25 +66,18 @@ export async function createInvoice(prevState: State, formData: FormData) {
 
   revalidatePath('/dashboard/invoices');
   redirect('/dashboard/invoices');
-
-  // Test it out:
-  //   console.log({ customerId, amount, status, date });
-  //   console.log(typeof customerId);
-  //   console.log(typeof amount);
-  //   console.log(typeof status);
 }
-// .................Create Invoice
 
-// .............Update Invoice
-// Use Zod to update the expected types
+// Schema for updating an invoice
 const UpdateInvoice = FormSchema.omit({ id: true, date: true });
 
+// Function to update an existing invoice
 export async function updateInvoice(
   id: string,
   prevState: State,
   formData: FormData,
 ) {
-  const validatedFields = UpdateInvoice.parse({
+  const validatedFields = UpdateInvoice.safeParse({
     customerId: formData.get('customerId'),
     amount: formData.get('amount'),
     status: formData.get('status'),
@@ -101,7 +91,6 @@ export async function updateInvoice(
   }
 
   const { customerId, amount, status } = validatedFields.data;
-
   const amountInCents = amount * 100;
 
   try {
@@ -117,9 +106,8 @@ export async function updateInvoice(
   revalidatePath('/dashboard/invoices');
   redirect('/dashboard/invoices');
 }
-// .......................Update Invoice
 
-// .......................Delete Invoice
+// Function to delete an invoice
 export async function deleteInvoice(id: string) {
   try {
     await sql`DELETE FROM invoices WHERE id = ${id}`;
@@ -129,9 +117,8 @@ export async function deleteInvoice(id: string) {
     return { message: 'Database Error: Failed to Delete Invoice.' };
   }
 }
-// .......................Delete Invoice
 
-// .......................Login Authentication
+// Function to handle user authentication
 export async function authenticate(
   prevState: string | undefined,
   formData: FormData,
