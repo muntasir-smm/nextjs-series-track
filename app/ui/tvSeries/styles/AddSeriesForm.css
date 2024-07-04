@@ -1,0 +1,35 @@
+/* app/ui/tvSeries/styles/AddSeriesForm.css */
+
+.add-series-form {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.add-series-form label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.add-series-form input,
+.add-series-form select {
+  width: 100%;
+  padding: 8px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.add-series-form button {
+  width: 50%;
+  margin-top: 10px;
+  padding: 12px 24px;
+  background-color: #27b949;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.add-series-form button:hover {
+  background-color: #88217a;
+}

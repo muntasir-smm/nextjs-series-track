@@ -1,0 +1,17 @@
+/* app/ui/tvSeries/styles/TvSeries.css */
+
+.add-series-search-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  /* Adjust alignment as needed */
+  margin-bottom: 20px;
+}
+
+.add-series-container {
+  flex: 0 0 60%;
+}
+
+.search-container {
+  flex: 0 0 30%;
+}

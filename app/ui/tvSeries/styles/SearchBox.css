@@ -1,0 +1,21 @@
+/* app/ui/tvSeries/styles/SearchBox.css */
+
+.search-container {
+  margin: 20px 0; /* Increased margin for better spacing */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.search-container input {
+  padding: 15px; /* Increased padding for a larger input field */
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 18px; /* Increased font size for better readability */
+  outline: none;
+}
+
+.search-container input:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+}

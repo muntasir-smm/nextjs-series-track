@@ -1,0 +1,49 @@
+/* app/ui/tvSeries/styles/SeriesList.css */
+
+.series-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px; /* Gap between series details */
+  width: 100%;
+  overflow: auto;
+}
+
+.series-detail {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+  border: 2px solid #000000; /* Border for the entire table */
+  border-radius: 20px;
+}
+
+.series-detail th,
+.series-detail td {
+  padding: 10px;
+  border-bottom: 2px solid #000000; /* Border between table rows */
+}
+
+.series-detail th {
+  text-align: left;
+  background-color: #ff5050; /* Header row background color */
+}
+
+.series-detail .watched-seasons {
+  display: flex;
+  gap: 5px;
+}
+
+/* Apply alternating row colors */
+.series-detail tr:nth-child(even) {
+  background-color: #00eeff; /* Light cyan */
+}
+
+.series-detail tr:nth-child(odd) {
+  background-color: #ffee00; /* Light yellow */
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .series-detail {
+    width: 100%; /* Adjust width for smaller screens */
+  }
+}
