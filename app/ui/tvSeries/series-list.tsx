@@ -10,7 +10,7 @@ interface Series {
   id: string;
   name: string;
   totalSeasons: number;
-  upcomingSeasons: string[];
+  upcomingSeasons: string[]; // Ensure this matches your data structure
   watchedSeasons: boolean[];
   watchProgress: number;
 }
@@ -62,6 +62,15 @@ const SeriesList: React.FC<SeriesListProps> = ({
     ));
   };
 
+  const renderUpcomingSeasons = (upcomingSeasons: string[]): string => {
+    if (upcomingSeasons.length === 0) {
+      return 'N/A'; // Handle case when there are no upcoming seasons
+    } else {
+      const lastSeason = upcomingSeasons[upcomingSeasons.length - 1];
+      return lastSeason.replace('Season', 'S');
+    }
+  };
+
   // Add a check for series to prevent map on undefined
   return (
     <div className="series-list">
@@ -82,7 +91,7 @@ const SeriesList: React.FC<SeriesListProps> = ({
               <tr key={s.id}>
                 <td>{s.name}</td>
                 <td>{s.totalSeasons}</td>
-                <td>{s.upcomingSeasons.join(', ')}</td>
+                <td>{renderUpcomingSeasons(s.upcomingSeasons)}</td>
                 <td>
                   <div className="watched-seasons">
                     {renderWatchedSeasons(s.watchedSeasons, seriesIndex)}
