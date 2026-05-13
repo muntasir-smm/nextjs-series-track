@@ -13,7 +13,7 @@ interface Series {
   id: string;
   name: string;
   totalSeasons: number;
-  upcomingSeasons: string[]; // Ensure upcomingSeasons is string[]
+  upcomingSeasons: string[];
   watchedSeasons: boolean[];
   watchProgress: number;
 }
@@ -24,24 +24,24 @@ const SeriesPage: React.FC = () => {
 
   useEffect(() => {
     const storedSeries =
-      JSON.parse(localStorage.getItem('series')!) || SeriesData; // Use non-null assertion operator (!) if you're sure it's not null
+      JSON.parse(localStorage.getItem('series')!) || SeriesData;
     setSeries(storedSeries);
   }, []);
 
   const addSeries = (
     name: string,
     totalSeasons: number,
-    upcomingSeasons: string[], // Ensure upcomingSeasons is string[]
+    upcomingSeasons: string[], 
   ) => {
     const newSeries: Series = {
-      id: `series-${Date.now()}`, // Generate unique ID
+      id: `series-${Date.now()}`,
       name,
       totalSeasons,
       upcomingSeasons,
       watchedSeasons: Array.from({ length: totalSeasons }, () => false),
       watchProgress: 0,
     };
-    const updatedSeries = [newSeries, ...series]; // Prepend new series to the existing list
+    const updatedSeries = [newSeries, ...series];
     setSeries(updatedSeries);
     localStorage.setItem('series', JSON.stringify(updatedSeries));
   };
@@ -63,7 +63,7 @@ const SeriesPage: React.FC = () => {
 
   return (
     <div className="container">
-      <h1>Munna&apos;s TV Series Tracker</h1>
+      <h1 className='text-center'>Munna&apos;s TV Series Tracker</h1>
       <div className="add-series-search-container">
         <div className="add-series-container">
           <AddSeriesForm addSeries={addSeries} />
