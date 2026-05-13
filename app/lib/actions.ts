@@ -2,9 +2,8 @@
 
 "use server";
 
-import { signIn } from "@/auth";
+import { signIn } from "@/app/lib/auth";
 import { AuthError } from "next-auth";
-import { redirect } from "next/navigation";
 
 export async function authenticate(
   prevState: string | undefined,
@@ -14,7 +13,7 @@ export async function authenticate(
     await signIn("credentials", {
       email: formData.get("email"),
       password: formData.get("password"),
-      redirectTo: "/dashboard", // or wherever you want after login
+      redirectTo: "/dashboard",
     });
   } catch (error) {
     if (error instanceof AuthError) {
@@ -27,7 +26,4 @@ export async function authenticate(
     }
     throw error;
   }
-
-  // If successful, redirect happens in signIn
-  //   return undefined;
 }
