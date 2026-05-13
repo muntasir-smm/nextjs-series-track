@@ -63,7 +63,7 @@ const SeriesPage: React.FC = () => {
 
   return (
     <div className="container">
-      <h1>Munna's TV Series Tracker</h1>
+      <h1>Munna&apos;s TV Series Tracker</h1>
       <div className="add-series-search-container">
         <div className="add-series-container">
           <AddSeriesForm addSeries={addSeries} />

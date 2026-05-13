@@ -2,7 +2,7 @@
 
 const SeriesData = [
   {
-    id: 1,
+    id: "01",
     name: '18 Again',
     totalSeasons: 2,
     upcomingSeasons: ['S 03'],
@@ -10,7 +10,7 @@ const SeriesData = [
     watchProgress: 50,
   },
   {
-    id: 2,
+    id: "02",
     name: '3 Body Problem',
     totalSeasons: 2,
     upcomingSeasons: ['S 03'],
@@ -18,7 +18,7 @@ const SeriesData = [
     watchProgress: 50,
   },
   {
-    id: 3,
+    id: "03",
     name: '9-1-1 Lone Star',
     totalSeasons: 3,
     upcomingSeasons: ['S 04'],
@@ -26,7 +26,7 @@ const SeriesData = [
     watchProgress: 67,
   },
   {
-    id: 4,
+    id: "04",
     name: '9-1-1',
     totalSeasons: 3,
     upcomingSeasons: ['S 04'],
@@ -34,7 +34,7 @@ const SeriesData = [
     watchProgress: 67,
   },
   {
-    id: 5,
+    id: "05",
     name: 'Avatar The Last Airbender',
     totalSeasons: 2,
     upcomingSeasons: ['S 03'],
@@ -42,7 +42,7 @@ const SeriesData = [
     watchProgress: 50,
   },
   {
-    id: 6,
+    id: "06",
     name: 'Banshee',
     totalSeasons: 5,
     upcomingSeasons: ['S 06'],
@@ -50,7 +50,7 @@ const SeriesData = [
     watchProgress: 60,
   },
   {
-    id: 7,
+    id: "07",
     name: 'Berlin',
     totalSeasons: 2,
     upcomingSeasons: ['S 03'],
@@ -58,7 +58,7 @@ const SeriesData = [
     watchProgress: 50,
   },
   {
-    id: 8,
+    id: "08",
     name: 'Bodies',
     totalSeasons: 2,
     upcomingSeasons: ['S 03'],
@@ -66,7 +66,7 @@ const SeriesData = [
     watchProgress: 50,
   },
   {
-    id: 9,
+    id: "09",
     name: 'Echo',
     totalSeasons: 2,
     upcomingSeasons: ['S 03'],
@@ -74,7 +74,7 @@ const SeriesData = [
     watchProgress: 50,
   },
   {
-    id: 10,
+    id: "10",
     name: 'Fallout',
     totalSeasons: 2,
     upcomingSeasons: ['S 03'],
@@ -82,7 +82,7 @@ const SeriesData = [
     watchProgress: 50,
   },
   {
-    id: 11,
+    id: "11",
     name: 'Fargo',
     totalSeasons: 1,
     upcomingSeasons: ['S 03'],
@@ -90,7 +90,7 @@ const SeriesData = [
     watchProgress: 50,
   },
   {
-    id: 12,
+    id: "12",
     name: 'Gen V',
     totalSeasons: 1,
     upcomingSeasons: ['S 03'],
@@ -98,7 +98,7 @@ const SeriesData = [
     watchProgress: 50,
   },
   {
-    id: 13,
+    id: "13",
     name: 'HALO',
     totalSeasons: 3,
     upcomingSeasons: ['S 04'],
@@ -106,7 +106,7 @@ const SeriesData = [
     watchProgress: 33,
   },
   {
-    id: 14,
+    id: "14",
     name: 'La Brea',
     totalSeasons: 4,
     upcomingSeasons: ['S 05'],
@@ -114,7 +114,7 @@ const SeriesData = [
     watchProgress: 75,
   },
   {
-    id: 15,
+    id: "15",
     name: 'Loki',
     totalSeasons: 3,
     upcomingSeasons: ['S 04'],
@@ -122,7 +122,7 @@ const SeriesData = [
     watchProgress: 67,
   },
   {
-    id: 16,
+    id: "16",
     name: 'Lupin',
     totalSeasons: 2,
     upcomingSeasons: ['S 03'],
@@ -130,7 +130,7 @@ const SeriesData = [
     watchProgress: 50,
   },
   {
-    id: 17,
+    id: "17",
     name: 'Manifest',
     totalSeasons: 2,
     upcomingSeasons: ['S 03'],
@@ -138,7 +138,7 @@ const SeriesData = [
     watchProgress: 50,
   },
   {
-    id: 18,
+    id: "18",
     name: 'Monarch Legacy of Monsters',
     totalSeasons: 2,
     upcomingSeasons: ['S 03'],
@@ -146,7 +146,7 @@ const SeriesData = [
     watchProgress: 50,
   },
   {
-    id: 19,
+    id: "19",
     name: 'Mr and Mrs Smith',
     totalSeasons: 2,
     upcomingSeasons: ['S 03'],
@@ -154,7 +154,7 @@ const SeriesData = [
     watchProgress: 50,
   },
   {
-    id: 20,
+    id: "20",
     name: 'Mr. Robot',
     totalSeasons: 5,
     upcomingSeasons: ['S 06'],
@@ -162,7 +162,7 @@ const SeriesData = [
     watchProgress: 80,
   },
   {
-    id: 21,
+    id: "21",
     name: 'One Piece',
     totalSeasons: 2,
     upcomingSeasons: ['S 03'],
@@ -170,7 +170,7 @@ const SeriesData = [
     watchProgress: 50,
   },
   {
-    id: 22,
+    id: "22",
     name: 'Panchayat',
     totalSeasons: 4,
     upcomingSeasons: ['S 05'],
@@ -178,7 +178,7 @@ const SeriesData = [
     watchProgress: 75,
   },
   {
-    id: 23,
+    id: "23",
     name: 'Percy Jackson and the Olympians',
     totalSeasons: 2,
     upcomingSeasons: ['S 03'],
@@ -186,7 +186,7 @@ const SeriesData = [
     watchProgress: 50,
   },
   {
-    id: 24,
+    id: "24",
     name: 'Reacher',
     totalSeasons: 3,
     upcomingSeasons: ['S 04'],
@@ -194,7 +194,7 @@ const SeriesData = [
     watchProgress: 67,
   },
   {
-    id: 25,
+    id: "25",
     name: 'Resident Alien',
     totalSeasons: 2,
     upcomingSeasons: ['S 03'],
@@ -202,7 +202,7 @@ const SeriesData = [
     watchProgress: 50,
   },
   {
-    id: 26,
+    id: "26",
     name: 'Secret Invasion Season',
     totalSeasons: 2,
     upcomingSeasons: ['S 03'],
@@ -210,7 +210,7 @@ const SeriesData = [
     watchProgress: 50,
   },
   {
-    id: 27,
+    id: "27",
     name: 'Sex Education',
     totalSeasons: 5,
     upcomingSeasons: ['S 06'],
@@ -218,7 +218,7 @@ const SeriesData = [
     watchProgress: 80,
   },
   {
-    id: 28,
+    id: "28",
     name: 'Sherlock Holmes',
     totalSeasons: 4,
     upcomingSeasons: ['S 05'],
@@ -226,7 +226,7 @@ const SeriesData = [
     watchProgress: 75,
   },
   {
-    id: 29,
+    id: "29",
     name: 'Silo Season',
     totalSeasons: 2,
     upcomingSeasons: ['S 03'],
@@ -234,7 +234,7 @@ const SeriesData = [
     watchProgress: 50,
   },
   {
-    id: 30,
+    id: "30",
     name: 'Stan Lees Lucky Man',
     totalSeasons: 4,
     upcomingSeasons: ['S 05'],
@@ -242,7 +242,7 @@ const SeriesData = [
     watchProgress: 75,
   },
   {
-    id: 31,
+    id: "31",
     name: 'Sweet Tooth',
     totalSeasons: 3,
     upcomingSeasons: ['S 04'],
@@ -250,7 +250,7 @@ const SeriesData = [
     watchProgress: 67,
   },
   {
-    id: 32,
+    id: "32",
     name: 'Tehran',
     totalSeasons: 3,
     upcomingSeasons: ['S 04'],
@@ -258,7 +258,7 @@ const SeriesData = [
     watchProgress: 67,
   },
   {
-    id: 33,
+    id: "33",
     name: 'The Bear',
     totalSeasons: 2,
     upcomingSeasons: ['S 03'],
@@ -266,7 +266,7 @@ const SeriesData = [
     watchProgress: 50,
   },
   {
-    id: 34,
+    id: "34",
     name: 'The Good Doctor',
     totalSeasons: 7,
     upcomingSeasons: ['S 08'],
@@ -274,7 +274,7 @@ const SeriesData = [
     watchProgress: 86,
   },
   {
-    id: 35,
+    id: "35",
     name: 'The Night Agent',
     totalSeasons: 2,
     upcomingSeasons: ['S 03'],
@@ -282,7 +282,7 @@ const SeriesData = [
     watchProgress: 50,
   },
   {
-    id: 36,
+    id: "36",
     name: 'The Umbrella Academy',
     totalSeasons: 4,
     upcomingSeasons: ['S 05'],
@@ -290,7 +290,7 @@ const SeriesData = [
     watchProgress: 75,
   },
   {
-    id: 37,
+    id: "37",
     name: 'The Walking Dead',
     totalSeasons: 11,
     upcomingSeasons: ['S 12'],
@@ -310,7 +310,7 @@ const SeriesData = [
     watchProgress: 91,
   },
   {
-    id: 38,
+    id: "38",
     name: 'Tom Clancys Jack Ryan',
     totalSeasons: 5,
     upcomingSeasons: ['S 06'],
@@ -318,7 +318,7 @@ const SeriesData = [
     watchProgress: 80,
   },
   {
-    id: 39,
+    id: "39",
     name: 'Under the Dome',
     totalSeasons: 4,
     upcomingSeasons: ['S 05'],
@@ -326,7 +326,7 @@ const SeriesData = [
     watchProgress: 75,
   },
   {
-    id: 40,
+    id: "40",
     name: 'Young Sheldon',
     totalSeasons: 7,
     upcomingSeasons: ['S 08'],
@@ -334,7 +334,7 @@ const SeriesData = [
     watchProgress: 86,
   },
   {
-    id: 41,
+    id: "41",
     name: 'Brooklyn Nine Nine',
     totalSeasons: 9,
     upcomingSeasons: ['S 10'],
@@ -342,7 +342,7 @@ const SeriesData = [
     watchProgress: 56,
   },
   {
-    id: 42,
+    id: "42",
     name: 'Better Call Saul',
     totalSeasons: 7,
     upcomingSeasons: ['S 08'],
@@ -350,7 +350,7 @@ const SeriesData = [
     watchProgress: 86,
   },
   {
-    id: 43,
+    id: "43",
     name: 'Breaking Bad',
     totalSeasons: 6,
     upcomingSeasons: ['Series Ended'],

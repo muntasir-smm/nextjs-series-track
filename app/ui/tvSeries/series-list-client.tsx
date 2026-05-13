@@ -16,7 +16,7 @@ const SeriesListClient: React.FC<{ series: typeof SeriesData }> = ({
     setSeriesList(updatedSeries);
   };
 
-  const deleteSeries = (id: number) => {
+  const deleteSeries = (id: string) => {
     const updatedSeries = seriesList.filter((series) => series.id !== id);
     setSeriesList(updatedSeries);
   };
