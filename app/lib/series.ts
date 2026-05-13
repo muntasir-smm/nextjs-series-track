@@ -1,0 +1,139 @@
+// app/lib/series.ts
+
+"use server";
+
+import { auth } from "@/app/lib/auth";
+import { sql } from "@/app/lib/db";
+import { revalidatePath } from "next/cache";
+
+export interface Series {
+  id: string;
+  name: string;
+  totalSeasons: number;
+  upcomingSeasons: string[];
+  watchedSeasons: boolean[];
+  watchProgress: number;
+}
+
+// Get all series for the current user
+export async function getUserSeries(): Promise<Series[]> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return [];
+  }
+
+  try {
+    const series = await sql`
+      SELECT 
+        series_id as id,
+        name,
+        total_seasons as "totalSeasons",
+        upcoming_seasons as "upcomingSeasons",
+        watched_seasons as "watchedSeasons",
+        watch_progress as "watchProgress"
+      FROM user_series
+      WHERE user_id = ${session.user.id}::uuid
+      ORDER BY created_at DESC
+    `;
+
+    return series as Series[];
+  } catch (error) {
+    console.error("Error fetching user series:", error);
+    return [];
+  }
+}
+
+// Add a new series
+export async function addSeries(
+  name: string,
+  totalSeasons: number,
+  upcomingSeasons: string[],
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error("Not authenticated");
+  }
+
+  const seriesId = `series-${Date.now()}`;
+  const watchedSeasons = Array.from({ length: totalSeasons }, () => false);
+  const watchProgress = 0;
+
+  try {
+    await sql`
+      INSERT INTO user_series (
+        user_id, 
+        series_id, 
+        name, 
+        total_seasons, 
+        upcoming_seasons, 
+        watched_seasons, 
+        watch_progress
+      ) VALUES (
+        ${session.user.id}::uuid,
+        ${seriesId},
+        ${name},
+        ${totalSeasons},
+        ${upcomingSeasons},
+        ${watchedSeasons},
+        ${watchProgress}
+      )
+    `;
+
+    revalidatePath("/dashboard/tv-series");
+    return { success: true };
+  } catch (error) {
+    console.error("Error adding series:", error);
+    return { success: false, error: "Failed to add series" };
+  }
+}
+
+// Update series
+export async function updateSeries(updatedSeries: Series) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error("Not authenticated");
+  }
+
+  try {
+    await sql`
+      UPDATE user_series
+      SET 
+        name = ${updatedSeries.name},
+        total_seasons = ${updatedSeries.totalSeasons},
+        upcoming_seasons = ${updatedSeries.upcomingSeasons},
+        watched_seasons = ${updatedSeries.watchedSeasons},
+        watch_progress = ${updatedSeries.watchProgress},
+        updated_at = NOW()
+      WHERE user_id = ${session.user.id}::uuid
+      AND series_id = ${updatedSeries.id}
+    `;
+
+    revalidatePath("/dashboard/tv-series");
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating series:", error);
+    return { success: false, error: "Failed to update series" };
+  }
+}
+
+// Delete a series
+export async function deleteSeries(seriesId: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error("Not authenticated");
+  }
+
+  try {
+    await sql`
+      DELETE FROM user_series
+      WHERE user_id = ${session.user.id}::uuid
+      AND series_id = ${seriesId}
+    `;
+
+    revalidatePath("/dashboard/tv-series");
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting series:", error);
+    return { success: false, error: "Failed to delete series" };
+  }
+}

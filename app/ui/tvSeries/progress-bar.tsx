@@ -1,49 +1,72 @@
 // app/ui/tvSeries/progress-bar.tsx
 
-'use client';
+"use client";
 
-import React from 'react';
-import styled from 'styled-components';
+import React from "react";
+import clsx from "clsx";
 
 type ProgressBarProps = {
   width: string;
   children: React.ReactNode;
+  showPercentage?: boolean;
+  size?: "sm" | "md" | "lg";
 };
 
-const BarContainer = styled.div`
-  height: 20px;
-  background-color: #f5f5f5;
-  border-radius: 4px;
-  overflow: hidden;
-  position: relative;
-`;
+const ProgressBar: React.FC<ProgressBarProps> = ({
+  width,
+  children,
+  showPercentage = true,
+  size = "md",
+}) => {
+  const heights = {
+    sm: "h-2",
+    md: "h-5",
+    lg: "h-8",
+  };
 
-const BarFill = styled.div<{ width: string }>`
-  height: 100%;
-  background-color: #007bff;
-  width: ${(props) => props.width || '0%'};
-  transition: width 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-`;
+  const textSizes = {
+    sm: "text-xs",
+    md: "text-sm",
+    lg: "text-base",
+  };
 
-const BarText = styled.span`
-  position: absolute;
-  width: 100%;
-  text-align: center;
-  line-height: 20px;
-  color: white;
-  font-weight: bold;
-`;
+  return (
+    <div
+      className={clsx(
+        "relative w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700",
+        heights[size],
+      )}
+    >
+      <div
+        className={clsx(
+          "flex h-full items-center justify-center bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-500 ease-out",
+          {
+            "rounded-full": size === "sm",
+            "rounded-md": size === "md" || size === "lg",
+          },
+        )}
+        style={{ width: width || "0%" }}
+      >
+        {showPercentage && size !== "sm" && (
+          <span
+            className={clsx(
+              "absolute inset-0 flex items-center justify-center font-bold text-white",
+              textSizes[size],
+            )}
+          >
+            {children}
+          </span>
+        )}
+      </div>
 
-const ProgressBar: React.FC<ProgressBarProps> = ({ width, children }) => (
-  <BarContainer>
-    <BarFill width={width}>
-      <BarText>{children}</BarText>
-    </BarFill>
-  </BarContainer>
-);
+      {/* Show percentage outside for small size */}
+      {showPercentage && size === "sm" && (
+        <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-gray-700 dark:text-gray-300">
+          {children}
+        </span>
+      )}
+    </div>
+  );
+};
 
 export default ProgressBar;

@@ -60,7 +60,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           console.log("User authenticated:", email);
 
           return {
-            id: String(user.id),
+            id: user.id,
             email: user.email,
             name: user.name,
           };

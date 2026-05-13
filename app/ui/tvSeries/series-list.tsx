@@ -1,22 +1,21 @@
-// @/app/ui/tvSeries/series-list.tsx
+// app/ui/tvSeries/series-list.tsx
 
-'use client';
-import React from 'react';
-import ProgressBar from './progress-bar';
-import './styles/SeriesList.css';
-import { TrashIcon } from '@heroicons/react/24/outline';
+"use client";
+import React from "react";
+import ProgressBar from "./progress-bar";
+import { TrashIcon } from "@heroicons/react/24/outline";
 
 interface Series {
   id: string;
   name: string;
   totalSeasons: number;
-  upcomingSeasons: string[]; // Ensure this matches your data structure
+  upcomingSeasons: string[];
   watchedSeasons: boolean[];
   watchProgress: number;
 }
 
 interface SeriesListProps {
-  series: Series[] | undefined; // Make series prop optional to handle undefined
+  series: Series[] | undefined;
   updateSeries: (updatedSeries: Series[]) => void;
   deleteSeries: (id: string) => void;
 }
@@ -27,11 +26,11 @@ const SeriesList: React.FC<SeriesListProps> = ({
   deleteSeries,
 }) => {
   const formatProgress = (progress: number): string => {
-    return progress % 1 !== 0 ? progress.toFixed(2) : progress.toFixed(0);
+    return Math.round(progress).toString();
   };
 
   const toggleWatched = (seriesIndex: number, seasonIndex: number) => {
-    if (!series) return; // Early return if series is undefined
+    if (!series) return;
     const updatedSeries = [...series];
     updatedSeries[seriesIndex].watchedSeasons[seasonIndex] =
       !updatedSeries[seriesIndex].watchedSeasons[seasonIndex];
@@ -51,71 +50,126 @@ const SeriesList: React.FC<SeriesListProps> = ({
     seriesIndex: number,
   ) => {
     return watchedSeasons.map((watched, seasonIndex) => (
-      <label key={seasonIndex}>
+      <label
+        key={seasonIndex}
+        className="inline-flex items-center gap-1 text-xs cursor-pointer hover:text-blue-600 transition-colors"
+      >
         <input
           type="checkbox"
           checked={watched}
           onChange={() => toggleWatched(seriesIndex, seasonIndex)}
+          className="rounded border-gray-300 text-blue-500 focus:ring-blue-500 cursor-pointer"
         />
         S{seasonIndex + 1}
       </label>
     ));
   };
 
-  const renderUpcomingSeasons = (upcomingSeasons: string[]): string => {
-    if (upcomingSeasons.length === 0) {
-      return 'N/A'; // Handle case when there are no upcoming seasons
-    } else {
-      const lastSeason = upcomingSeasons[upcomingSeasons.length - 1];
-      return lastSeason.replace('Season', 'S');
+  const renderUpcomingSeasons = (
+    upcomingSeasons: string[],
+    totalSeasons: number,
+  ): string => {
+    // If no upcoming seasons or empty array, series has ended
+    if (!upcomingSeasons || upcomingSeasons.length === 0) {
+      return "Series Ended";
     }
+
+    // Get the next season number (totalSeasons + 1)
+    const nextSeasonNumber = totalSeasons + 1;
+
+    // Check if the upcoming season matches the expected next season
+    const expectedNextSeason = `Season ${nextSeasonNumber}`;
+
+    if (upcomingSeasons.includes(expectedNextSeason)) {
+      // Format as S06 (with leading zero if needed)
+      const seasonNum = nextSeasonNumber.toString().padStart(2, "0");
+      return `S${seasonNum}`;
+    }
+
+    // If there are upcoming seasons but not the expected next season,
+    // show the first upcoming season with formatting
+    const firstUpcoming = upcomingSeasons[0];
+    const seasonNumber = firstUpcoming.match(/\d+/)?.[0];
+    if (seasonNumber) {
+      const paddedNum = seasonNumber.padStart(2, "0");
+      return `S${paddedNum}`;
+    }
+
+    return firstUpcoming.replace("Season", "S");
   };
 
-  // Add a check for series to prevent map on undefined
   return (
-    <div className="series-list">
-      <table className="series-detail">
-        <thead>
+    <div className="w-full overflow-auto">
+      <table className="w-full border-collapse rounded-lg overflow-hidden shadow-sm">
+        <thead className="bg-gradient-to-r from-blue-500 to-blue-600">
           <tr>
-            <th>Name</th>
-            <th>Total Seasons</th>
-            <th>Upcoming Seasons</th>
-            <th>Watched Seasons</th>
-            <th>Progress</th>
-            <th>Actions</th>
+            <th className="px-4 py-3 text-left text-sm font-semibold text-white">
+              Name
+            </th>
+            <th className="px-4 py-3 text-left text-sm font-semibold text-white">
+              Total Seasons
+            </th>
+            <th className="px-4 py-3 text-left text-sm font-semibold text-white">
+              Upcoming Seasons
+            </th>
+            <th className="px-4 py-3 text-left text-sm font-semibold text-white">
+              Watched Seasons
+            </th>
+            <th className="px-4 py-3 text-left text-sm font-semibold text-white">
+              Progress
+            </th>
+            <th className="px-4 py-3 text-center text-sm font-semibold text-white">
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody>
-          {series ? (
+          {series && series.length > 0 ? (
             series.map((s, seriesIndex) => (
-              <tr key={s.id}>
-                <td>{s.name}</td>
-                <td>{s.totalSeasons}</td>
-                <td>{renderUpcomingSeasons(s.upcomingSeasons)}</td>
-                <td>
-                  <div className="watched-seasons">
+              <tr
+                key={s.id}
+                className="border-b border-gray-200 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/50"
+              >
+                <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                  {s.name}
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                  {s.totalSeasons}
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                  {renderUpcomingSeasons(s.upcomingSeasons, s.totalSeasons)}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-2">
                     {renderWatchedSeasons(s.watchedSeasons, seriesIndex)}
                   </div>
                 </td>
-                <td>
-                  <ProgressBar width={`${s.watchProgress}%`}>
-                    {formatProgress(s.watchProgress)}%
-                  </ProgressBar>
+                <td className="px-4 py-3">
+                  <div className="min-w-[100px]">
+                    <ProgressBar width={`${s.watchProgress}%`}>
+                      {formatProgress(s.watchProgress)}%
+                    </ProgressBar>
+                  </div>
                 </td>
-                <td>
+                <td className="px-4 py-3 text-center">
                   <button
                     onClick={() => deleteSeries(s.id)}
-                    className="text-red rounded-md border bg-gray-100 p-2 hover:bg-red-500"
+                    className="inline-flex items-center justify-center rounded-md bg-red-100 p-2 text-red-600 transition-all hover:bg-red-500 hover:text-white dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-500 dark:hover:text-white"
+                    aria-label="Delete series"
                   >
-                    <span className="sr-only">Delete</span>
-                    <TrashIcon className=" w-5" />
+                    <TrashIcon className="h-5 w-5" />
                   </button>
                 </td>
               </tr>
             ))
           ) : (
             <tr>
-              <td colSpan={6}>No series available</td>
+              <td
+                colSpan={6}
+                className="px-4 py-8 text-center text-gray-500 dark:text-gray-400"
+              >
+                No series available. Add your first series above!
+              </td>
             </tr>
           )}
         </tbody>
