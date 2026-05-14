@@ -42,13 +42,19 @@ async function seed() {
     console.log("✅ User series table ready");
 
     // Seed users
+    // Check if user already exists before seeding
     for (const user of users) {
-      const hashedPassword = await bcrypt.hash(user.password, 10);
-      await sql`
-        INSERT INTO users (id, name, email, password)
-        VALUES (${user.id}, ${user.name}, ${user.email}, ${hashedPassword})
-        ON CONFLICT (id) DO NOTHING;
-      `;
+      const existingUser = await sql`
+    SELECT id FROM users WHERE email = ${user.email} LIMIT 1
+  `;
+
+      if (existingUser.length === 0) {
+        const hashedPassword = await bcrypt.hash(user.password, 10);
+        await sql`
+      INSERT INTO users (id, name, email, password)
+      VALUES (${user.id}, ${user.name}, ${user.email}, ${hashedPassword})
+    `;
+      }
     }
     console.log(`✅ Seeded ${users.length} users`);
 

@@ -134,7 +134,7 @@ export default function Page() {
       {/* Series List - Shows recent series with their watch progress */}
       <div className="rounded-lg bg-white shadow dark:bg-gray-800">
         <div className="border-b border-gray-200 p-4 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <h2 className="text-lg text-center font-semibold text-gray-900 dark:text-white">
             Recently Added Series
           </h2>
         </div>

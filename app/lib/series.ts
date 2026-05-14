@@ -94,6 +94,9 @@ export async function updateSeries(updatedSeries: Series) {
     throw new Error("Not authenticated");
   }
 
+  // Round the watch progress to an integer
+  const roundedProgress = Math.round(updatedSeries.watchProgress);
+
   try {
     await sql`
       UPDATE user_series
@@ -102,7 +105,7 @@ export async function updateSeries(updatedSeries: Series) {
         total_seasons = ${updatedSeries.totalSeasons},
         upcoming_seasons = ${updatedSeries.upcomingSeasons},
         watched_seasons = ${updatedSeries.watchedSeasons},
-        watch_progress = ${updatedSeries.watchProgress},
+        watch_progress = ${roundedProgress},
         updated_at = NOW()
       WHERE user_id = ${session.user.id}::uuid
       AND series_id = ${updatedSeries.id}
@@ -138,8 +141,6 @@ export async function deleteSeries(seriesId: string) {
   }
 }
 
-// Add this function to your app/lib/series.ts file
-
 // Update watch progress for a series
 export async function updateWatchProgress(
   seriesId: string,
@@ -150,6 +151,7 @@ export async function updateWatchProgress(
     throw new Error("Not authenticated");
   }
 
+  // Calculate and round the watch progress to an integer
   const watchProgress = Math.round(
     (watchedSeasons.filter((watched) => watched).length /
       watchedSeasons.length) *
@@ -167,8 +169,6 @@ export async function updateWatchProgress(
       AND series_id = ${seriesId}
     `;
 
-    revalidatePath("/dashboard/tv-series");
-    revalidatePath("/dashboard");
     return { success: true, watchProgress };
   } catch (error) {
     console.error("Error updating watch progress:", error);

@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import AddSeriesForm from "../../ui/tvSeries/add-series-form";
 import SeriesList from "../../ui/tvSeries/series-list";
@@ -24,7 +24,7 @@ const SeriesPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load series from database
+  // Load series from database - only once on mount
   useEffect(() => {
     const loadSeries = async () => {
       try {
@@ -41,57 +41,71 @@ const SeriesPage: React.FC = () => {
     };
 
     loadSeries();
-  }, []);
+  }, []); // Empty dependency array = only runs once
 
-  // Filter series based on URL search query
-  const filteredSeries = series.filter((s) =>
-    s.name.toLowerCase().includes(searchQuery.toLowerCase()),
+  // Filter series based on URL search query (memoized to prevent unnecessary recalculations)
+  const filteredSeries = React.useMemo(() => {
+    if (!searchQuery) return series;
+    return series.filter((s) =>
+      s.name.toLowerCase().includes(searchQuery.toLowerCase()),
+    );
+  }, [series, searchQuery]);
+
+  const addSeries = useCallback(
+    async (name: string, totalSeasons: number, upcomingSeasons: string[]) => {
+      try {
+        const result = await addSeriesAction(
+          name,
+          totalSeasons,
+          upcomingSeasons,
+        );
+        if (result.success) {
+          const updatedSeries = await getUserSeries();
+          setSeries(updatedSeries);
+        } else {
+          setError(result.error || "Failed to add series");
+        }
+      } catch (err) {
+        console.error("Error adding series:", err);
+        setError("Failed to add series. Please try again.");
+      }
+    },
+    [],
   );
 
-  const addSeries = async (
-    name: string,
-    totalSeasons: number,
-    upcomingSeasons: string[],
-  ) => {
-    try {
-      const result = await addSeriesAction(name, totalSeasons, upcomingSeasons);
-      if (result.success) {
-        const updatedSeries = await getUserSeries();
-        setSeries(updatedSeries);
-      } else {
-        setError(result.error || "Failed to add series");
-      }
-    } catch (err) {
-      console.error("Error adding series:", err);
-      setError("Failed to add series. Please try again.");
-    }
-  };
+  const updateSeries = useCallback(async (updatedSeries: Series[]) => {
+    // Update local state immediately
+    setSeries(updatedSeries);
 
-  const updateSeries = async (updatedSeries: Series[]) => {
+    // Save to database in background
     try {
       for (const seriesItem of updatedSeries) {
         await updateSeriesAction(seriesItem);
       }
-      setSeries(updatedSeries);
     } catch (err) {
       console.error("Error updating series:", err);
       setError("Failed to update series");
     }
-  };
+  }, []);
 
-  const deleteSeries = async (id: string) => {
+  const deleteSeries = useCallback(async (id: string) => {
+    // Update local state immediately
+    setSeries((prev) => prev.filter((s) => s.id !== id));
+
+    // Save to database in background
     try {
       const result = await deleteSeriesAction(id);
-      if (result.success) {
-        setSeries(series.filter((s) => s.id !== id));
-      } else {
+      if (!result.success) {
         setError(result.error || "Failed to delete series");
+        // Reload if deletion failed
+        const userSeries = await getUserSeries();
+        setSeries(userSeries);
       }
     } catch (err) {
       console.error("Error deleting series:", err);
       setError("Failed to delete series. Please try again.");
     }
-  };
+  }, []);
 
   if (isLoading) {
     return (
@@ -153,7 +167,6 @@ const SeriesPage: React.FC = () => {
                     const url = new URL(window.location.href);
                     url.searchParams.delete("query");
                     window.history.pushState({}, "", url.toString());
-                    // Force a re-render by dispatching a popstate event
                     window.dispatchEvent(new PopStateEvent("popstate"));
                   }}
                   className="text-xs text-blue-500 hover:text-blue-600"
@@ -169,7 +182,7 @@ const SeriesPage: React.FC = () => {
       <div className="rounded-lg bg-white shadow dark:bg-gray-800">
         <div className="border-b border-gray-200 p-4 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Your Series(TV Series page) ({filteredSeries.length})
+            Your Series ({filteredSeries.length})
           </h2>
         </div>
         <div className="p-4">

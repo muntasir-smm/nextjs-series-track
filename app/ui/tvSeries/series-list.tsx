@@ -1,10 +1,10 @@
 // app/ui/tvSeries/series-list.tsx
 
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import ProgressBar from "./progress-bar";
 import { TrashIcon } from "@heroicons/react/24/outline";
-import { updateWatchProgress } from "@/app/lib/series"; // Import the update function
+import { updateWatchProgress } from "@/app/lib/series";
 
 interface Series {
   id: string;
@@ -26,29 +26,45 @@ const SeriesList: React.FC<SeriesListProps> = ({
   updateSeries,
   deleteSeries,
 }) => {
+  // Local state for instant UI updates
+  const [localSeries, setLocalSeries] = useState<Series[] | undefined>(series);
+
+  // Update local state when props change
+  React.useEffect(() => {
+    setLocalSeries(series);
+  }, [series]);
+
   const formatProgress = (progress: number): string => {
     return Math.round(progress).toString();
   };
 
-  const toggleWatched = async (seriesIndex: number, seasonIndex: number) => {
-    if (!series) return;
-    const updatedSeries = [...series];
+  const toggleWatched = (seriesIndex: number, seasonIndex: number) => {
+    if (!localSeries) return;
+
+    // Create updated series array
+    const updatedSeries = [...localSeries];
     updatedSeries[seriesIndex].watchedSeasons[seasonIndex] =
       !updatedSeries[seriesIndex].watchedSeasons[seasonIndex];
     updatedSeries[seriesIndex].watchProgress = calculateProgress(
       updatedSeries[seriesIndex].watchedSeasons,
     );
 
-    // Save to database immediately
-    const currentSeries = updatedSeries[seriesIndex];
-    await updateWatchProgress(currentSeries.id, currentSeries.watchedSeasons);
+    // Update UI instantly with local state
+    setLocalSeries(updatedSeries);
 
-    updateSeries(updatedSeries);
+    // Save to database in background
+    const currentSeries = updatedSeries[seriesIndex];
+    updateWatchProgress(currentSeries.id, currentSeries.watchedSeasons)
+      .then(() => {
+        // Only update parent after successful save (optional)
+        updateSeries(updatedSeries);
+      })
+      .catch(console.error);
   };
 
   const calculateProgress = (watchedSeasons: boolean[]): number => {
     const watchedCount = watchedSeasons.filter(Boolean).length;
-    return (watchedCount / watchedSeasons.length) * 100;
+    return Math.round((watchedCount / watchedSeasons.length) * 100);
   };
 
   const renderWatchedSeasons = (
@@ -123,8 +139,8 @@ const SeriesList: React.FC<SeriesListProps> = ({
           </tr>
         </thead>
         <tbody>
-          {series && series.length > 0 ? (
-            series.map((s, seriesIndex) => (
+          {localSeries && localSeries.length > 0 ? (
+            localSeries.map((s, seriesIndex) => (
               <tr
                 key={s.id}
                 className="border-b border-gray-200 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/50"
