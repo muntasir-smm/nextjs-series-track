@@ -5,9 +5,14 @@
 import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import AddSeriesForm from "../../ui/tvSeries/add-series-form";
+import EditSeriesForm from "../../ui/tvSeries/edit-series-form";
 import SeriesList from "../../ui/tvSeries/series-list";
-import Search from "../../ui/search";
-import { PlusIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import {
+  PlusIcon,
+  MagnifyingGlassIcon,
+  PencilIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 import {
   getUserSeries,
   addSeries as addSeriesAction,
@@ -25,6 +30,11 @@ function SeriesContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchInputValue, setSearchInputValue] = useState(searchQuery);
+
+  // Modal states
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingSeries, setEditingSeries] = useState<Series | null>(null);
 
   // Load series from database
   useEffect(() => {
@@ -85,6 +95,7 @@ function SeriesContent() {
         if (result.success) {
           const updatedSeries = await getUserSeries();
           setSeries(updatedSeries);
+          setIsAddModalOpen(false); // Close modal on success
         } else {
           setError(result.error || "Failed to add series");
         }
@@ -108,18 +119,60 @@ function SeriesContent() {
     }
   }, []);
 
-  const deleteSeries = useCallback(async (id: string) => {
-    setSeries((prev) => prev.filter((s) => s.id !== id));
-    try {
-      const result = await deleteSeriesAction(id);
-      if (!result.success) {
-        setError(result.error || "Failed to delete series");
-        const userSeries = await getUserSeries();
-        setSeries(userSeries);
+  const handleEditSeries = useCallback(
+    async (
+      id: string,
+      name: string,
+      totalSeasons: number,
+      upcomingSeasons: string[],
+    ) => {
+      const seriesToUpdate = series.find((s) => s.id === id);
+      if (!seriesToUpdate) return;
+
+      const updatedSeriesObj = {
+        ...seriesToUpdate,
+        name,
+        totalSeasons,
+        upcomingSeasons,
+      };
+
+      try {
+        const result = await updateSeriesAction(updatedSeriesObj);
+        if (result.success) {
+          const updatedSeries = await getUserSeries();
+          setSeries(updatedSeries);
+          setIsEditModalOpen(false);
+          setEditingSeries(null);
+        } else {
+          setError(result.error || "Failed to edit series");
+        }
+      } catch (err) {
+        console.error("Error editing series:", err);
+        setError("Failed to edit series. Please try again.");
       }
-    } catch (err) {
-      console.error("Error deleting series:", err);
-      setError("Failed to delete series. Please try again.");
+    },
+    [series],
+  );
+
+  const openEditModal = (seriesItem: Series) => {
+    setEditingSeries(seriesItem);
+    setIsEditModalOpen(true);
+  };
+
+  const deleteSeries = useCallback(async (id: string) => {
+    if (confirm("Are you sure you want to delete this series?")) {
+      setSeries((prev) => prev.filter((s) => s.id !== id));
+      try {
+        const result = await deleteSeriesAction(id);
+        if (!result.success) {
+          setError(result.error || "Failed to delete series");
+          const userSeries = await getUserSeries();
+          setSeries(userSeries);
+        }
+      } catch (err) {
+        console.error("Error deleting series:", err);
+        setError("Failed to delete series. Please try again.");
+      }
     }
   }, []);
 
@@ -138,6 +191,56 @@ function SeriesContent() {
 
   return (
     <div className="space-y-6">
+      {/* Add Series Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl dark:bg-gray-800">
+            <button
+              onClick={() => setIsAddModalOpen(false)}
+              className="absolute right-4 top-4 rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+            <div className="p-6">
+              <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">
+                Add New Series
+              </h2>
+              <AddSeriesForm addSeries={addSeries} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Series Modal */}
+      {isEditModalOpen && editingSeries && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl dark:bg-gray-800">
+            <button
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setEditingSeries(null);
+              }}
+              className="absolute right-4 top-4 rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+            <div className="p-6">
+              <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">
+                Edit Series
+              </h2>
+              <EditSeriesForm
+                series={editingSeries}
+                onSave={handleEditSeries}
+                onCancel={() => {
+                  setIsEditModalOpen(false);
+                  setEditingSeries(null);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="rounded-lg bg-red-50 p-4 dark:bg-red-900/20">
           <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
@@ -153,52 +256,35 @@ function SeriesContent() {
         </p>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6">
-        <div className="lg:w-2/3">
-          <div className="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-            <div className="flex items-center gap-2 mb-4">
-              <PlusIcon className="h-5 w-5 text-blue-500" />
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Add New Series
-              </h2>
-            </div>
-            <AddSeriesForm addSeries={addSeries} />
-          </div>
-        </div>
+      <div className="flex flex-col sm:flex-row gap-3">
+        <button
+          onClick={() => setIsAddModalOpen(true)}
+          className="flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:from-blue-600 hover:to-blue-700 sm:w-auto"
+        >
+          <PlusIcon className="h-4 w-4" />
+          Add New Series
+        </button>
 
-        <div className="lg:w-1/3">
-          <div className="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Search Series
-            </h2>
-            <div className="relative">
-              <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={searchInputValue}
-                onChange={(e) => {
-                  setSearchInputValue(e.target.value);
-                  handleSearch(e.target.value);
-                }}
-                placeholder="Search series..."
-                className="peer block w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pl-11 pr-4 text-sm outline-none transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:bg-gray-700"
-              />
-            </div>
-            {searchQuery && (
-              <div className="mt-2 flex items-center justify-between">
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Showing results for: &ldquo;
-                  <span className="font-medium">{searchQuery}</span>&rdquo;
-                </p>
-                <button
-                  onClick={clearSearch}
-                  className="text-xs text-blue-500 hover:text-blue-600"
-                >
-                  Clear
-                </button>
-              </div>
-            )}
-          </div>
+        <div className="flex-1 relative">
+          <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={searchInputValue}
+            onChange={(e) => {
+              setSearchInputValue(e.target.value);
+              handleSearch(e.target.value);
+            }}
+            placeholder="Search series..."
+            className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          />
+          {searchQuery && (
+            <button
+              onClick={clearSearch}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -214,7 +300,7 @@ function SeriesContent() {
               <p className="text-gray-600 dark:text-gray-400">
                 {searchQuery
                   ? `No series found matching "${searchQuery}"`
-                  : "No series added yet. Add your first series above!"}
+                  : "No series added yet. Click 'Add New Series' to get started!"}
               </p>
             </div>
           ) : (
@@ -222,6 +308,7 @@ function SeriesContent() {
               series={filteredSeries}
               updateSeries={updateSeries}
               deleteSeries={deleteSeries}
+              onEditSeries={openEditModal}
             />
           )}
         </div>

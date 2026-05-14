@@ -1,4 +1,5 @@
 // app/page.tsx
+// Landing Page - Without Login
 
 "use client";
 
@@ -10,7 +11,6 @@ import {
   UserGroupIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
-import Image from "next/image";
 
 interface SampleSeries {
   id: string;
