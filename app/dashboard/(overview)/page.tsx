@@ -1,20 +1,24 @@
 // app/dashboard/(overview)/page.tsx
 
-// Dashboard - after login
-
 "use client";
 
 import { lusitana } from "@/app/ui/fonts";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { getUserSeries, addSeries as addSeriesAction } from "@/app/lib/series";
 import Link from "next/link";
-import { PlusIcon, XMarkIcon, EyeIcon } from "@heroicons/react/24/outline";
+import {
+  PlusIcon,
+  XMarkIcon,
+  EyeIcon,
+  ArrowPathIcon,
+} from "@heroicons/react/24/outline";
 import AddSeriesForm from "@/app/ui/tvSeries/add-series-form";
 
 export default function Page() {
   const [seriesData, setSeriesData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
 
   const loadSeries = useCallback(async () => {
     try {
@@ -32,23 +36,29 @@ export default function Page() {
     loadSeries();
   }, [loadSeries]);
 
-  const handleAddSeries = async (
-    name: string,
-    totalSeasons: number,
-    upcomingSeasons: string[],
-  ) => {
-    try {
-      const result = await addSeriesAction(name, totalSeasons, upcomingSeasons);
-      if (result.success) {
-        await loadSeries(); // Reload to show new series
-        setIsModalOpen(false); // Close modal on success
-      } else {
-        console.error("Failed to add series:", result.error);
+  const handleAddSeries = useCallback(
+    async (name: string, totalSeasons: number, upcomingSeasons: string[]) => {
+      setIsAdding(true);
+      try {
+        const result = await addSeriesAction(
+          name,
+          totalSeasons,
+          upcomingSeasons,
+        );
+        if (result.success) {
+          await loadSeries();
+          setIsModalOpen(false);
+        } else {
+          console.error("Failed to add series:", result.error);
+        }
+      } catch (error) {
+        console.error("Error adding series:", error);
+      } finally {
+        setIsAdding(false);
       }
-    } catch (error) {
-      console.error("Error adding series:", error);
-    }
-  };
+    },
+    [loadSeries],
+  );
 
   // Memoized stats calculations
   const stats = useMemo(() => {
@@ -79,6 +89,28 @@ export default function Page() {
     };
   }, [seriesData]);
 
+  const getUpcomingText = useCallback(
+    (upcomingSeasons: string[], totalSeasons: number) => {
+      if (!upcomingSeasons || upcomingSeasons.length === 0) {
+        return { show: true, text: "Series Ended", isUpcoming: false };
+      }
+
+      const upcomingSeason = upcomingSeasons[0];
+      const seasonNum = parseInt(upcomingSeason.match(/\d+/)?.[0] || "0");
+
+      if (seasonNum > totalSeasons) {
+        return {
+          show: true,
+          text: `${upcomingSeason.replace("Season", "S")} coming soon`,
+          isUpcoming: true,
+        };
+      }
+
+      return { show: true, text: "Series Ended", isUpcoming: false };
+    },
+    [],
+  );
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
@@ -96,11 +128,12 @@ export default function Page() {
     <main className="space-y-6">
       {/* Add Series Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl dark:bg-gray-800">
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute right-4 top-4 rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
+              className="absolute right-4 top-4 rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
+              disabled={isAdding}
             >
               <XMarkIcon className="h-5 w-5" />
             </button>
@@ -108,12 +141,16 @@ export default function Page() {
               <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">
                 Add New Series
               </h2>
-              <AddSeriesForm addSeries={handleAddSeries} />
+              <AddSeriesForm
+                addSeries={handleAddSeries}
+                isSubmitting={isAdding}
+              />
             </div>
           </div>
         </div>
       )}
 
+      {/* Header */}
       <div className="text-center">
         <h1
           className={`${lusitana.className} mb-2 text-2xl font-bold text-gray-900 dark:text-white md:text-3xl`}
@@ -127,7 +164,7 @@ export default function Page() {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
+        <div className="rounded-lg bg-white p-4 shadow transition-all hover:shadow-md dark:bg-gray-800">
           <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">
             Total Series
           </h3>
@@ -135,7 +172,7 @@ export default function Page() {
             {stats.totalSeries}
           </p>
         </div>
-        <div className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
+        <div className="rounded-lg bg-white p-4 shadow transition-all hover:shadow-md dark:bg-gray-800">
           <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">
             Total Seasons
           </h3>
@@ -143,7 +180,7 @@ export default function Page() {
             {stats.totalSeasons}
           </p>
         </div>
-        <div className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
+        <div className="rounded-lg bg-white p-4 shadow transition-all hover:shadow-md dark:bg-gray-800">
           <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">
             Seasons Watched
           </h3>
@@ -151,7 +188,7 @@ export default function Page() {
             {stats.totalWatchedSeasons}
           </p>
         </div>
-        <div className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
+        <div className="rounded-lg bg-white p-4 shadow transition-all hover:shadow-md dark:bg-gray-800">
           <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">
             Overall Progress
           </h3>
@@ -170,7 +207,7 @@ export default function Page() {
             </h2>
             <Link
               href="/dashboard/tvSeries"
-              className="flex items-center gap-1 text-sm text-blue-500 hover:text-blue-600"
+              className="flex items-center gap-1 text-sm text-blue-500 transition-colors hover:text-blue-600"
             >
               View All
               <PlusIcon className="h-4 w-4" />
@@ -185,57 +222,63 @@ export default function Page() {
               </p>
             </div>
           ) : (
-            <div className="grid gap-4">
-              {stats.recentlyAdded.map((series) => (
-                <div
-                  key={series.id}
-                  className="flex items-center justify-between rounded-lg border border-gray-100 p-4 transition-all hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50"
-                >
-                  <div className="flex-1">
-                    <h3 className="font-medium text-gray-900 dark:text-white">
-                      {series.name}
-                    </h3>
-                    <div className="mt-1 flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                      <span>{series.totalSeasons} seasons</span>
-                      <div className="flex items-center gap-2">
-                        <span>Progress:</span>
-                        <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all"
-                            style={{ width: `${series.watchProgress}%` }}
-                          />
+            <div className="grid gap-3">
+              {stats.recentlyAdded.map((series) => {
+                const upcomingInfo = getUpcomingText(
+                  series.upcomingSeasons,
+                  series.totalSeasons,
+                );
+                return (
+                  <div
+                    key={series.id}
+                    className="flex items-center justify-between rounded-lg border border-gray-100 p-4 transition-all hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-gray-900 dark:text-white truncate">
+                        {series.name}
+                      </h3>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
+                        <span>{series.totalSeasons} seasons</span>
+                        <div className="flex items-center gap-2">
+                          <span>Progress:</span>
+                          <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
+                              style={{ width: `${series.watchProgress}%` }}
+                            />
+                          </div>
+                          <span className="text-xs font-medium">
+                            {Math.round(series.watchProgress)}%
+                          </span>
                         </div>
-                        <span className="text-xs font-medium">
-                          {Math.round(series.watchProgress)}%
-                        </span>
                       </div>
-                    </div>
-                    {series.upcomingSeasons &&
-                      series.upcomingSeasons.length > 0 && (
-                        <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
-                          {series.upcomingSeasons[0].replace("Season", "S")}{" "}
-                          coming soon
+                      {upcomingInfo.show && (
+                        <p
+                          className={`mt-1 text-xs ${upcomingInfo.isUpcoming ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"}`}
+                        >
+                          {upcomingInfo.text}
                         </p>
                       )}
+                    </div>
+                    <Link
+                      href={`/dashboard/tvSeries/${series.id}`}
+                      className="ml-4 inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-blue-600 transition-all hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                      aria-label="View details"
+                    >
+                      <EyeIcon className="h-4 w-4" />
+                      Details
+                    </Link>
                   </div>
-                  <Link
-                    href={`/dashboard/tvSeries/${series.id}`}
-                    className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-blue-600 transition-all hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-900/20"
-                    aria-label="View details"
-                  >
-                    <EyeIcon className="h-4 w-4" />
-                    Details
-                  </Link>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       </div>
 
       {/* Quick Action Card */}
-      <div className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 p-6 text-white shadow-lg">
-        <div className="flex items-center justify-between">
+      <div className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 p-6 text-white shadow-lg transition-all hover:shadow-xl">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h3 className="text-xl font-semibold">Ready to add more?</h3>
             <p className="mt-1 text-blue-100">
@@ -244,7 +287,7 @@ export default function Page() {
           </div>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="rounded-lg bg-white px-6 py-2 text-blue-600 transition-all hover:bg-blue-50"
+            className="rounded-lg bg-white px-6 py-2 font-medium text-blue-600 transition-all hover:bg-blue-50 hover:shadow-md"
           >
             Add Series
           </button>

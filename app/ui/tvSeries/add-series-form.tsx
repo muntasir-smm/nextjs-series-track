@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 
 interface AddSeriesFormProps {
   addSeries: (
@@ -10,9 +10,13 @@ interface AddSeriesFormProps {
     totalSeasons: number,
     upcomingSeasons: string[],
   ) => void;
+  isSubmitting?: boolean; // Add this prop
 }
 
-const AddSeriesForm: React.FC<AddSeriesFormProps> = ({ addSeries }) => {
+const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
+  addSeries,
+  isSubmitting = false, // Default to false
+}) => {
   const [name, setName] = useState("");
   const [totalSeasons, setTotalSeasons] = useState<number | null>(null);
   const [hasUpcoming, setHasUpcoming] = useState<boolean | null>(null);
@@ -22,7 +26,7 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({ addSeries }) => {
     hasUpcoming?: string;
   }>({});
 
-  const validateForm = useCallback((): boolean => {
+  const validateForm = (): boolean => {
     const newErrors: {
       name?: string;
       totalSeasons?: string;
@@ -44,50 +48,43 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({ addSeries }) => {
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [name, totalSeasons, hasUpcoming]);
+  };
 
-  const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
 
-      if (!validateForm()) {
-        return;
-      }
+    if (!validateForm()) {
+      return;
+    }
 
-      let upcomingSeasons: string[] = [];
+    let upcomingSeasons: string[] = [];
 
-      if (hasUpcoming === true) {
-        const nextSeasonNumber = (totalSeasons as number) + 1;
-        upcomingSeasons = [`Season ${nextSeasonNumber}`];
-      }
+    if (hasUpcoming === true) {
+      const nextSeasonNumber = (totalSeasons as number) + 1;
+      upcomingSeasons = [`Season ${nextSeasonNumber}`];
+    }
 
-      addSeries(name, totalSeasons as number, upcomingSeasons);
+    addSeries(name, totalSeasons as number, upcomingSeasons);
 
-      // Reset form
-      setName("");
+    // Reset form
+    setName("");
+    setTotalSeasons(null);
+    setHasUpcoming(null);
+    setErrors({});
+  };
+
+  const handleTotalSeasonsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === "") {
       setTotalSeasons(null);
-      setHasUpcoming(null);
-      setErrors({});
-    },
-    [validateForm, hasUpcoming, totalSeasons, name, addSeries],
-  );
-
-  const handleTotalSeasonsChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
-      if (value === "") {
-        setTotalSeasons(null);
-      } else {
-        const numValue = parseInt(value);
-        setTotalSeasons(isNaN(numValue) ? null : numValue);
-      }
-    },
-    [],
-  );
+    } else {
+      const numValue = parseInt(value);
+      setTotalSeasons(isNaN(numValue) ? null : numValue);
+    }
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Rest of the JSX remains the same */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
           Series Name <span className="text-red-500">*</span>
@@ -96,7 +93,8 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({ addSeries }) => {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-1 ${
+          disabled={isSubmitting}
+          className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-1 disabled:opacity-50 disabled:cursor-not-allowed ${
             errors.name
               ? "border-red-500 focus:border-red-500 focus:ring-red-500"
               : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
@@ -116,8 +114,9 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({ addSeries }) => {
           type="number"
           value={totalSeasons === null ? "" : totalSeasons}
           onChange={handleTotalSeasonsChange}
+          disabled={isSubmitting}
           min={1}
-          className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-1 ${
+          className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-1 disabled:opacity-50 disabled:cursor-not-allowed ${
             errors.totalSeasons
               ? "border-red-500 focus:border-red-500 focus:ring-red-500"
               : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
@@ -141,6 +140,7 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({ addSeries }) => {
               value="yes"
               checked={hasUpcoming === true}
               onChange={() => setHasUpcoming(true)}
+              disabled={isSubmitting}
               className="h-4 w-4 border-gray-300 text-blue-500 focus:ring-blue-500"
             />
             <span className="text-sm text-gray-700 dark:text-gray-300">
@@ -154,6 +154,7 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({ addSeries }) => {
               value="no"
               checked={hasUpcoming === false}
               onChange={() => setHasUpcoming(false)}
+              disabled={isSubmitting}
               className="h-4 w-4 border-gray-300 text-blue-500 focus:ring-blue-500"
             />
             <span className="text-sm text-gray-700 dark:text-gray-300">No</span>
@@ -177,9 +178,10 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({ addSeries }) => {
 
       <button
         type="submit"
-        className="w-full rounded-md bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        disabled={isSubmitting}
+        className="w-full rounded-md bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        Add Series
+        {isSubmitting ? "Adding..." : "Add Series"}
       </button>
     </form>
   );

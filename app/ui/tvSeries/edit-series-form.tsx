@@ -18,25 +18,32 @@ interface EditSeriesFormProps {
     upcomingSeasons: string[],
   ) => void;
   onCancel: () => void;
+  isSubmitting?: boolean;
 }
 
 const EditSeriesForm: React.FC<EditSeriesFormProps> = ({
   series,
   onSave,
   onCancel,
+  isSubmitting = false,
 }) => {
   const [name, setName] = useState(series.name);
   const [totalSeasons, setTotalSeasons] = useState<number>(series.totalSeasons);
-  const [hasUpcoming, setHasUpcoming] = useState<boolean>(
+  const [hasUpcoming, setHasUpcoming] = useState<boolean | null>(
     series.upcomingSeasons.length > 0,
   );
   const [errors, setErrors] = useState<{
     name?: string;
     totalSeasons?: string;
+    hasUpcoming?: string;
   }>({});
 
   const validateForm = (): boolean => {
-    const newErrors: { name?: string; totalSeasons?: string } = {};
+    const newErrors: {
+      name?: string;
+      totalSeasons?: string;
+      hasUpcoming?: string;
+    } = {};
 
     if (!name.trim()) {
       newErrors.name = "Series name is required";
@@ -44,6 +51,10 @@ const EditSeriesForm: React.FC<EditSeriesFormProps> = ({
 
     if (totalSeasons < 1) {
       newErrors.totalSeasons = "Total seasons must be at least 1";
+    }
+
+    if (hasUpcoming === null) {
+      newErrors.hasUpcoming = "Please select Yes or No for upcoming season";
     }
 
     setErrors(newErrors);
@@ -59,7 +70,7 @@ const EditSeriesForm: React.FC<EditSeriesFormProps> = ({
 
     let upcomingSeasons: string[] = [];
 
-    if (hasUpcoming) {
+    if (hasUpcoming === true) {
       const nextSeasonNumber = totalSeasons + 1;
       upcomingSeasons = [`Season ${nextSeasonNumber}`];
     }
@@ -77,7 +88,8 @@ const EditSeriesForm: React.FC<EditSeriesFormProps> = ({
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-1 ${
+          disabled={isSubmitting}
+          className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-1 disabled:opacity-50 disabled:cursor-not-allowed ${
             errors.name
               ? "border-red-500 focus:border-red-500 focus:ring-red-500"
               : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
@@ -97,8 +109,9 @@ const EditSeriesForm: React.FC<EditSeriesFormProps> = ({
           type="number"
           value={totalSeasons}
           onChange={(e) => setTotalSeasons(parseInt(e.target.value) || 0)}
+          disabled={isSubmitting}
           min={1}
-          className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-1 ${
+          className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-1 disabled:opacity-50 disabled:cursor-not-allowed ${
             errors.totalSeasons
               ? "border-red-500 focus:border-red-500 focus:ring-red-500"
               : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
@@ -111,20 +124,48 @@ const EditSeriesForm: React.FC<EditSeriesFormProps> = ({
       </div>
 
       <div>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={hasUpcoming}
-            onChange={(e) => setHasUpcoming(e.target.checked)}
-            className="rounded border-gray-300 text-blue-500 focus:ring-blue-500"
-          />
-          <span className="text-sm text-gray-700 dark:text-gray-300">
-            Any Upcoming Season?
-          </span>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Any Upcoming Season? <span className="text-red-500">*</span>
         </label>
-        {hasUpcoming && (
+        <div className="flex gap-4">
+          <label className="inline-flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="hasUpcoming"
+              value="yes"
+              checked={hasUpcoming === true}
+              onChange={() => setHasUpcoming(true)}
+              disabled={isSubmitting}
+              className="h-4 w-4 border-gray-300 text-blue-500 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              Yes
+            </span>
+          </label>
+          <label className="inline-flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="hasUpcoming"
+              value="no"
+              checked={hasUpcoming === false}
+              onChange={() => setHasUpcoming(false)}
+              disabled={isSubmitting}
+              className="h-4 w-4 border-gray-300 text-blue-500 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700 dark:text-gray-300">No</span>
+          </label>
+        </div>
+        {errors.hasUpcoming && (
+          <p className="mt-1 text-xs text-red-500">{errors.hasUpcoming}</p>
+        )}
+        {hasUpcoming === true && !errors.hasUpcoming && (
           <p className="mt-2 text-xs text-green-600 dark:text-green-400">
             Season {totalSeasons + 1} will be added as upcoming
+          </p>
+        )}
+        {hasUpcoming === false && !errors.hasUpcoming && (
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            Series will be marked as ended
           </p>
         )}
       </div>
@@ -132,14 +173,16 @@ const EditSeriesForm: React.FC<EditSeriesFormProps> = ({
       <div className="flex gap-3 pt-2">
         <button
           type="submit"
-          className="flex-1 rounded-md bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600"
+          disabled={isSubmitting}
+          className="flex-1 rounded-md bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Save Changes
+          {isSubmitting ? "Saving..." : "Save Changes"}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+          disabled={isSubmitting}
+          className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
         >
           Cancel
         </button>

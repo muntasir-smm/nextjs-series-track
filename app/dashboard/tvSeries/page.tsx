@@ -10,7 +10,6 @@ import SeriesList from "../../ui/tvSeries/series-list";
 import {
   PlusIcon,
   MagnifyingGlassIcon,
-  PencilIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import {
@@ -35,6 +34,10 @@ function SeriesContent() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingSeries, setEditingSeries] = useState<Series | null>(null);
+
+  // Submission states
+  const [isAdding, setIsAdding] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   // Load series from database
   useEffect(() => {
@@ -86,6 +89,7 @@ function SeriesContent() {
 
   const addSeries = useCallback(
     async (name: string, totalSeasons: number, upcomingSeasons: string[]) => {
+      setIsAdding(true);
       try {
         const result = await addSeriesAction(
           name,
@@ -95,13 +99,15 @@ function SeriesContent() {
         if (result.success) {
           const updatedSeries = await getUserSeries();
           setSeries(updatedSeries);
-          setIsAddModalOpen(false); // Close modal on success
+          setIsAddModalOpen(false);
         } else {
           setError(result.error || "Failed to add series");
         }
       } catch (err) {
         console.error("Error adding series:", err);
         setError("Failed to add series. Please try again.");
+      } finally {
+        setIsAdding(false);
       }
     },
     [],
@@ -126,8 +132,12 @@ function SeriesContent() {
       totalSeasons: number,
       upcomingSeasons: string[],
     ) => {
+      setIsEditing(true);
       const seriesToUpdate = series.find((s) => s.id === id);
-      if (!seriesToUpdate) return;
+      if (!seriesToUpdate) {
+        setIsEditing(false);
+        return;
+      }
 
       const updatedSeriesObj = {
         ...seriesToUpdate,
@@ -149,6 +159,8 @@ function SeriesContent() {
       } catch (err) {
         console.error("Error editing series:", err);
         setError("Failed to edit series. Please try again.");
+      } finally {
+        setIsEditing(false);
       }
     },
     [series],
@@ -193,11 +205,12 @@ function SeriesContent() {
     <div className="space-y-6">
       {/* Add Series Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl dark:bg-gray-800">
             <button
               onClick={() => setIsAddModalOpen(false)}
-              className="absolute right-4 top-4 rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
+              className="absolute right-4 top-4 rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
+              disabled={isAdding}
             >
               <XMarkIcon className="h-5 w-5" />
             </button>
@@ -205,7 +218,7 @@ function SeriesContent() {
               <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">
                 Add New Series
               </h2>
-              <AddSeriesForm addSeries={addSeries} />
+              <AddSeriesForm addSeries={addSeries} isSubmitting={isAdding} />
             </div>
           </div>
         </div>
@@ -213,14 +226,15 @@ function SeriesContent() {
 
       {/* Edit Series Modal */}
       {isEditModalOpen && editingSeries && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl dark:bg-gray-800">
             <button
               onClick={() => {
                 setIsEditModalOpen(false);
                 setEditingSeries(null);
               }}
-              className="absolute right-4 top-4 rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
+              className="absolute right-4 top-4 rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
+              disabled={isEditing}
             >
               <XMarkIcon className="h-5 w-5" />
             </button>
@@ -235,18 +249,21 @@ function SeriesContent() {
                   setIsEditModalOpen(false);
                   setEditingSeries(null);
                 }}
+                isSubmitting={isEditing}
               />
             </div>
           </div>
         </div>
       )}
 
+      {/* Error Message */}
       {error && (
         <div className="rounded-lg bg-red-50 p-4 dark:bg-red-900/20">
           <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
         </div>
       )}
 
+      {/* Header */}
       <div className="border-b border-gray-200 pb-4 dark:border-gray-700">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white md:text-3xl">
           TV Series
@@ -256,10 +273,11 @@ function SeriesContent() {
         </p>
       </div>
 
+      {/* Actions Bar */}
       <div className="flex flex-col sm:flex-row gap-3">
         <button
           onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:from-blue-600 hover:to-blue-700 sm:w-auto"
+          className="flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:from-blue-600 hover:to-blue-700 hover:shadow-md sm:w-auto"
         >
           <PlusIcon className="h-4 w-4" />
           Add New Series
@@ -275,19 +293,20 @@ function SeriesContent() {
               handleSearch(e.target.value);
             }}
             placeholder="Search series..."
-            className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
           />
           {searchQuery && (
             <button
               onClick={clearSearch}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
             >
-              <XMarkIcon className="h-5 w-5" />
+              <XMarkIcon className="h-4 w-4" />
             </button>
           )}
         </div>
       </div>
 
+      {/* Series List */}
       <div className="rounded-lg bg-white shadow dark:bg-gray-800">
         <div className="border-b border-gray-200 p-4 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
