@@ -156,8 +156,8 @@ const SeriesPage: React.FC = () => {
             {searchQuery && (
               <div className="mt-2 flex items-center justify-between">
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Showing results for: "
-                  <span className="font-medium">{searchQuery}</span>"
+                  Showing results for: &ldquo;
+                  <span className="font-medium">{searchQuery}</span>&rdquo;
                 </p>
                 <button
                   onClick={() => {

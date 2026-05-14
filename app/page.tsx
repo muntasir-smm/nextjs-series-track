@@ -101,7 +101,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl">
-              Features you'll love
+              Features you&apos;ll love
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-xl text-gray-500 dark:text-gray-400 sm:mt-4">
               Everything you need to manage your TV series addiction
