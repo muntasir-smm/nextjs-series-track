@@ -2,12 +2,12 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import AddSeriesForm from "../../ui/tvSeries/add-series-form";
 import SeriesList from "../../ui/tvSeries/series-list";
 import Search from "../../ui/search";
-import { PlusIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import {
   getUserSeries,
   addSeries as addSeriesAction,
@@ -16,13 +16,15 @@ import {
   type Series,
 } from "@/app/lib/series";
 
-const SeriesPage: React.FC = () => {
+// Create a separate component that uses useSearchParams
+function SeriesContent() {
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get("query") || "";
 
   const [series, setSeries] = useState<Series[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchInputValue, setSearchInputValue] = useState(searchQuery);
 
   // Load series from database
   useEffect(() => {
@@ -43,6 +45,11 @@ const SeriesPage: React.FC = () => {
     loadSeries();
   }, []);
 
+  // Update search input when URL query changes
+  useEffect(() => {
+    setSearchInputValue(searchQuery);
+  }, [searchQuery]);
+
   // Filter series based on URL search query
   const filteredSeries = React.useMemo(() => {
     if (!searchQuery) return series;
@@ -51,7 +58,22 @@ const SeriesPage: React.FC = () => {
     );
   }, [series, searchQuery]);
 
-  // Need for add series
+  const handleSearch = (term: string) => {
+    const url = new URL(window.location.href);
+    if (term) {
+      url.searchParams.set("query", term);
+    } else {
+      url.searchParams.delete("query");
+    }
+    window.history.pushState({}, "", url.toString());
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  };
+
+  const clearSearch = () => {
+    setSearchInputValue("");
+    handleSearch("");
+  };
+
   const addSeries = useCallback(
     async (name: string, totalSeasons: number, upcomingSeasons: string[]) => {
       try {
@@ -76,7 +98,6 @@ const SeriesPage: React.FC = () => {
 
   const updateSeries = useCallback(async (updatedSeries: Series[]) => {
     setSeries(updatedSeries);
-
     try {
       for (const seriesItem of updatedSeries) {
         await updateSeriesAction(seriesItem);
@@ -89,12 +110,10 @@ const SeriesPage: React.FC = () => {
 
   const deleteSeries = useCallback(async (id: string) => {
     setSeries((prev) => prev.filter((s) => s.id !== id));
-
     try {
       const result = await deleteSeriesAction(id);
       if (!result.success) {
         setError(result.error || "Failed to delete series");
-
         const userSeries = await getUserSeries();
         setSeries(userSeries);
       }
@@ -152,7 +171,19 @@ const SeriesPage: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Search Series
             </h2>
-            <Search placeholder="Search series..." />
+            <div className="relative">
+              <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={searchInputValue}
+                onChange={(e) => {
+                  setSearchInputValue(e.target.value);
+                  handleSearch(e.target.value);
+                }}
+                placeholder="Search series..."
+                className="peer block w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pl-11 pr-4 text-sm outline-none transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:bg-gray-700"
+              />
+            </div>
             {searchQuery && (
               <div className="mt-2 flex items-center justify-between">
                 <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -160,13 +191,7 @@ const SeriesPage: React.FC = () => {
                   <span className="font-medium">{searchQuery}</span>&rdquo;
                 </p>
                 <button
-                  onClick={() => {
-                    const url = new URL(window.location.href);
-                    url.searchParams.delete("query");
-                    window.history.pushState({}, "", url.toString());
-                    window.dispatchEvent(new PopStateEvent("popstate"));
-                    window.dispatchEvent(new CustomEvent("clearSearch"));
-                  }}
+                  onClick={clearSearch}
                   className="text-xs text-blue-500 hover:text-blue-600"
                 >
                   Clear
@@ -203,6 +228,22 @@ const SeriesPage: React.FC = () => {
       </div>
     </div>
   );
-};
+}
 
-export default SeriesPage;
+// Main page component with Suspense boundary
+export default function SeriesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex justify-center items-center min-h-[400px]">
+          <div className="text-center">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <SeriesContent />
+    </Suspense>
+  );
+}
