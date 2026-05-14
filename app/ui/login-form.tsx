@@ -11,7 +11,7 @@ import {
   EyeIcon,
   EyeSlashIcon,
 } from "@heroicons/react/24/outline";
-import { ArrowRightIcon, ArrowPathIcon } from "@heroicons/react/20/solid";
+import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import { Button } from "./button";
 import { useFormState, useFormStatus } from "react-dom";
 import { authenticate } from "@/app/lib/actions";
@@ -190,15 +190,14 @@ function LoginButton() {
 
   return (
     <Button
-      className="mt-6 w-full bg-gradient-to-r from-blue-500 to-blue-600 py-3 text-white transition-all hover:from-blue-600 hover:to-blue-700 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-      aria-disabled={pending}
+      variant="gradient"
+      size="lg"
+      className="mt-6 w-full py-3"
+      isLoading={pending}
       disabled={pending}
     >
       {pending ? (
-        <span className="flex items-center justify-center gap-2">
-          <ArrowPathIcon className="h-5 w-5 animate-spin" />
-          Signing in...
-        </span>
+        "Signing in..."
       ) : (
         <>
           Sign In

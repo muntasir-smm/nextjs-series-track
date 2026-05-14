@@ -137,3 +137,41 @@ export async function deleteSeries(seriesId: string) {
     return { success: false, error: "Failed to delete series" };
   }
 }
+
+// Add this function to your app/lib/series.ts file
+
+// Update watch progress for a series
+export async function updateWatchProgress(
+  seriesId: string,
+  watchedSeasons: boolean[],
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error("Not authenticated");
+  }
+
+  const watchProgress = Math.round(
+    (watchedSeasons.filter((watched) => watched).length /
+      watchedSeasons.length) *
+      100,
+  );
+
+  try {
+    await sql`
+      UPDATE user_series
+      SET 
+        watched_seasons = ${watchedSeasons},
+        watch_progress = ${watchProgress},
+        updated_at = NOW()
+      WHERE user_id = ${session.user.id}::uuid
+      AND series_id = ${seriesId}
+    `;
+
+    revalidatePath("/dashboard/tv-series");
+    revalidatePath("/dashboard");
+    return { success: true, watchProgress };
+  } catch (error) {
+    console.error("Error updating watch progress:", error);
+    return { success: false, error: "Failed to update progress" };
+  }
+}

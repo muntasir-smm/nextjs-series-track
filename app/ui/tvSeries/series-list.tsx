@@ -4,6 +4,7 @@
 import React from "react";
 import ProgressBar from "./progress-bar";
 import { TrashIcon } from "@heroicons/react/24/outline";
+import { updateWatchProgress } from "@/app/lib/series"; // Import the update function
 
 interface Series {
   id: string;
@@ -29,7 +30,7 @@ const SeriesList: React.FC<SeriesListProps> = ({
     return Math.round(progress).toString();
   };
 
-  const toggleWatched = (seriesIndex: number, seasonIndex: number) => {
+  const toggleWatched = async (seriesIndex: number, seasonIndex: number) => {
     if (!series) return;
     const updatedSeries = [...series];
     updatedSeries[seriesIndex].watchedSeasons[seasonIndex] =
@@ -37,6 +38,11 @@ const SeriesList: React.FC<SeriesListProps> = ({
     updatedSeries[seriesIndex].watchProgress = calculateProgress(
       updatedSeries[seriesIndex].watchedSeasons,
     );
+
+    // Save to database immediately
+    const currentSeries = updatedSeries[seriesIndex];
+    await updateWatchProgress(currentSeries.id, currentSeries.watchedSeasons);
+
     updateSeries(updatedSeries);
   };
 
@@ -69,25 +75,18 @@ const SeriesList: React.FC<SeriesListProps> = ({
     upcomingSeasons: string[],
     totalSeasons: number,
   ): string => {
-    // If no upcoming seasons or empty array, series has ended
     if (!upcomingSeasons || upcomingSeasons.length === 0) {
       return "Series Ended";
     }
 
-    // Get the next season number (totalSeasons + 1)
     const nextSeasonNumber = totalSeasons + 1;
-
-    // Check if the upcoming season matches the expected next season
     const expectedNextSeason = `Season ${nextSeasonNumber}`;
 
     if (upcomingSeasons.includes(expectedNextSeason)) {
-      // Format as S06 (with leading zero if needed)
       const seasonNum = nextSeasonNumber.toString().padStart(2, "0");
       return `S${seasonNum}`;
     }
 
-    // If there are upcoming seasons but not the expected next season,
-    // show the first upcoming season with formatting
     const firstUpcoming = upcomingSeasons[0];
     const seasonNumber = firstUpcoming.match(/\d+/)?.[0];
     if (seasonNumber) {

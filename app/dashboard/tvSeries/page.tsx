@@ -3,10 +3,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import AddSeriesForm from "../../ui/tvSeries/add-series-form";
 import SeriesList from "../../ui/tvSeries/series-list";
-import SearchBox from "../../ui/tvSeries/search-box";
-import { PlusIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import Search from "../../ui/search";
+import { PlusIcon } from "@heroicons/react/24/outline";
 import {
   getUserSeries,
   addSeries as addSeriesAction,
@@ -16,8 +17,10 @@ import {
 } from "@/app/lib/series";
 
 const SeriesPage: React.FC = () => {
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams.get("query") || "";
+
   const [series, setSeries] = useState<Series[]>([]);
-  const [searchTerm, setSearchTerm] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,6 +43,11 @@ const SeriesPage: React.FC = () => {
     loadSeries();
   }, []);
 
+  // Filter series based on URL search query
+  const filteredSeries = series.filter((s) =>
+    s.name.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+
   const addSeries = async (
     name: string,
     totalSeasons: number,
@@ -48,7 +56,6 @@ const SeriesPage: React.FC = () => {
     try {
       const result = await addSeriesAction(name, totalSeasons, upcomingSeasons);
       if (result.success) {
-        // Reload series from database
         const updatedSeries = await getUserSeries();
         setSeries(updatedSeries);
       } else {
@@ -61,11 +68,9 @@ const SeriesPage: React.FC = () => {
   };
 
   const updateSeries = async (updatedSeries: Series[]) => {
-    // This updates multiple series - you might want to batch this
-    // For now, we'll update each series individually
     try {
-      for (const series of updatedSeries) {
-        await updateSeriesAction(series);
+      for (const seriesItem of updatedSeries) {
+        await updateSeriesAction(seriesItem);
       }
       setSeries(updatedSeries);
     } catch (err) {
@@ -88,10 +93,6 @@ const SeriesPage: React.FC = () => {
     }
   };
 
-  const filteredSeries = series.filter((s) =>
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
-
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
@@ -107,14 +108,12 @@ const SeriesPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Error Message */}
       {error && (
         <div className="rounded-lg bg-red-50 p-4 dark:bg-red-900/20">
           <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
         </div>
       )}
 
-      {/* Page Header */}
       <div className="border-b border-gray-200 pb-4 dark:border-gray-700">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white md:text-3xl">
           TV Series
@@ -124,9 +123,7 @@ const SeriesPage: React.FC = () => {
         </p>
       </div>
 
-      {/* Add Series and Search Section */}
       <div className="flex flex-col lg:flex-row gap-6">
-        {/* Add Series Form */}
         <div className="lg:w-2/3">
           <div className="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
             <div className="flex items-center gap-2 mb-4">
@@ -139,33 +136,48 @@ const SeriesPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Search Box */}
         <div className="lg:w-1/3">
           <div className="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-            <div className="flex items-center gap-2 mb-4">
-              <MagnifyingGlassIcon className="h-5 w-5 text-blue-500" />
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Search Series
-              </h2>
-            </div>
-            <SearchBox searchTerm={searchTerm} onSearch={setSearchTerm} />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Search Series
+            </h2>
+            <Search placeholder="Search series..." />
+            {searchQuery && (
+              <div className="mt-2 flex items-center justify-between">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Showing results for: "
+                  <span className="font-medium">{searchQuery}</span>"
+                </p>
+                <button
+                  onClick={() => {
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete("query");
+                    window.history.pushState({}, "", url.toString());
+                    // Force a re-render by dispatching a popstate event
+                    window.dispatchEvent(new PopStateEvent("popstate"));
+                  }}
+                  className="text-xs text-blue-500 hover:text-blue-600"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Series List */}
       <div className="rounded-lg bg-white shadow dark:bg-gray-800">
         <div className="border-b border-gray-200 p-4 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Your Series ({filteredSeries.length})
+            Your Series(TV Series page) ({filteredSeries.length})
           </h2>
         </div>
         <div className="p-4">
           {filteredSeries.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-600 dark:text-gray-400">
-                {searchTerm
-                  ? `No series found matching "${searchTerm}"`
+                {searchQuery
+                  ? `No series found matching "${searchQuery}"`
                   : "No series added yet. Add your first series above!"}
               </p>
             </div>
