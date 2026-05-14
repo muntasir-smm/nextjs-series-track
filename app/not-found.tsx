@@ -1,8 +1,6 @@
 // app/not-found.tsx
 
 import TopNav from "@/app/ui/dashboard/topnav";
-import Link from "next/link";
-import { ArrowRightIcon, HomeIcon } from "@heroicons/react/24/outline";
 
 export default function NotFound() {
   return (
