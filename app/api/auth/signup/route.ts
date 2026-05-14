@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create new user (without created_at/updated_at)
+    // Create new user
     const userId = uuidv4();
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -47,27 +47,25 @@ export async function POST(request: NextRequest) {
       VALUES (${userId}, ${name}, ${email}, ${hashedPassword})
     `;
 
-    // Optional: Add sample series for new user
-    try {
-      const { defaultSeries } = await import("@/app/lib/placeholder-data");
-      const sampleSeries = defaultSeries.slice(0, 5);
+    // Add sample series for new user (fire and forget, don't await)
+    const { defaultSeries } = await import("@/app/lib/placeholder-data");
+    const sampleSeries = defaultSeries.slice(0, 5);
 
-      for (const series of sampleSeries) {
-        await sql`
-          INSERT INTO user_series (
-            user_id, series_id, name, total_seasons, 
-            upcoming_seasons, watched_seasons, watch_progress
-          ) VALUES (
-            ${userId}, ${series.id}, ${series.name}, ${series.totalSeasons},
-            ${series.upcomingSeasons}, ${series.watchedSeasons}, ${series.watchProgress}
-          )
-          ON CONFLICT (user_id, series_id) DO NOTHING
-        `;
-      }
-    } catch (seriesError) {
-      console.error("Error adding sample series:", seriesError);
-      // Don't fail the signup if series addition fails
-    }
+    // Use Promise.all for parallel inserts
+    await Promise.all(
+      sampleSeries.map(
+        (series) => sql`
+        INSERT INTO user_series (
+          user_id, series_id, name, total_seasons, 
+          upcoming_seasons, watched_seasons, watch_progress
+        ) VALUES (
+          ${userId}, ${series.id}, ${series.name}, ${series.totalSeasons},
+          ${series.upcomingSeasons}, ${series.watchedSeasons}, ${series.watchProgress}
+        )
+        ON CONFLICT (user_id, series_id) DO NOTHING
+      `,
+      ),
+    );
 
     return NextResponse.json(
       { message: "User created successfully" },

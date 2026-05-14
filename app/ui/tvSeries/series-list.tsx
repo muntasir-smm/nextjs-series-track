@@ -1,7 +1,7 @@
 // app/ui/tvSeries/series-list.tsx
 
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ProgressBar from "./progress-bar";
 import { TrashIcon } from "@heroicons/react/24/outline";
 import { updateWatchProgress } from "@/app/lib/series";
@@ -26,11 +26,9 @@ const SeriesList: React.FC<SeriesListProps> = ({
   updateSeries,
   deleteSeries,
 }) => {
-  // Local state for instant UI updates
   const [localSeries, setLocalSeries] = useState<Series[] | undefined>(series);
 
-  // Update local state when props change
-  React.useEffect(() => {
+  useEffect(() => {
     setLocalSeries(series);
   }, [series]);
 
@@ -41,7 +39,6 @@ const SeriesList: React.FC<SeriesListProps> = ({
   const toggleWatched = (seriesIndex: number, seasonIndex: number) => {
     if (!localSeries) return;
 
-    // Create updated series array
     const updatedSeries = [...localSeries];
     updatedSeries[seriesIndex].watchedSeasons[seasonIndex] =
       !updatedSeries[seriesIndex].watchedSeasons[seasonIndex];
@@ -49,17 +46,14 @@ const SeriesList: React.FC<SeriesListProps> = ({
       updatedSeries[seriesIndex].watchedSeasons,
     );
 
-    // Update UI instantly with local state
+    // Update UI instantly
     setLocalSeries(updatedSeries);
 
-    // Save to database in background
+    // Save to database in background - DON'T update parent
     const currentSeries = updatedSeries[seriesIndex];
-    updateWatchProgress(currentSeries.id, currentSeries.watchedSeasons)
-      .then(() => {
-        // Only update parent after successful save (optional)
-        updateSeries(updatedSeries);
-      })
-      .catch(console.error);
+    updateWatchProgress(currentSeries.id, currentSeries.watchedSeasons).catch(
+      console.error,
+    );
   };
 
   const calculateProgress = (watchedSeasons: boolean[]): number => {

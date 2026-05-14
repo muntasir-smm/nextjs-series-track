@@ -3,7 +3,7 @@
 "use client";
 
 import { lusitana } from "@/app/ui/fonts";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { ClockIcon } from "@heroicons/react/24/outline";
 import { getUserSeries } from "@/app/lib/series";
 import SeriesList from "@/app/ui/tvSeries/series-list";
@@ -16,8 +16,7 @@ export default function Page() {
   const [seriesData, setSeriesData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load series from database on mount and after updates
-  const loadSeries = async () => {
+  const loadSeries = useCallback(async () => {
     try {
       setIsLoading(true);
       const series = await getUserSeries();
@@ -27,51 +26,76 @@ export default function Page() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadSeries();
-  }, []);
+  }, [loadSeries]);
 
-  const updateSeries = async (updatedSeries: any[]) => {
-    try {
-      for (const series of updatedSeries) {
-        await updateSeriesAction(series);
-      }
+  const updateSeries = useCallback(
+    async (updatedSeries: any[]) => {
+      // Update UI immediately
       setSeriesData(updatedSeries);
-      // Reload to ensure sync
-      await loadSeries();
-    } catch (error) {
-      console.error("Error updating series:", error);
-    }
-  };
 
-  const deleteSeries = async (id: string) => {
-    try {
-      await deleteSeriesAction(id);
-      await loadSeries(); // Reload after deletion
-    } catch (error) {
-      console.error("Error deleting series:", error);
-    }
-  };
+      // Save to database in background
+      try {
+        for (const series of updatedSeries) {
+          await updateSeriesAction(series);
+        }
+      } catch (error) {
+        console.error("Error updating series:", error);
+        // Reload to ensure sync if error
+        await loadSeries();
+      }
+    },
+    [loadSeries],
+  );
 
-  // Calculate stats from database data
-  const totalSeries = seriesData.length;
-  const totalSeasons = seriesData.reduce(
-    (acc, series) => acc + (series.totalSeasons || 0),
-    0,
+  const deleteSeries = useCallback(
+    async (id: string) => {
+      // Update UI immediately
+      setSeriesData((prev) => prev.filter((s) => s.id !== id));
+
+      // Save to database in background
+      try {
+        await deleteSeriesAction(id);
+      } catch (error) {
+        console.error("Error deleting series:", error);
+        // Reload to ensure sync if error
+        await loadSeries();
+      }
+    },
+    [loadSeries],
   );
-  const totalWatchedSeasons = seriesData.reduce(
-    (acc, series) => acc + (series.watchedSeasons?.filter(Boolean).length || 0),
-    0,
-  );
-  const overallProgress =
-    totalSeasons > 0
-      ? Math.round((totalWatchedSeasons / totalSeasons) * 100)
-      : 0;
-  const recentlyAdded = [...seriesData]
-    .sort((a, b) => b.id.localeCompare(a.id))
-    .slice(0, 5);
+
+  // Memoized stats calculations
+  const stats = useMemo(() => {
+    const totalSeries = seriesData.length;
+    const totalSeasons = seriesData.reduce(
+      (acc, series) => acc + (series.totalSeasons || 0),
+      0,
+    );
+    const totalWatchedSeasons = seriesData.reduce(
+      (acc, series) =>
+        acc + (series.watchedSeasons?.filter(Boolean).length || 0),
+      0,
+    );
+    const overallProgress =
+      totalSeasons > 0
+        ? Math.round((totalWatchedSeasons / totalSeasons) * 100)
+        : 0;
+    const recentlyAdded = [...seriesData]
+      .sort((a, b) => b.id.localeCompare(a.id))
+      .slice(0, 5);
+
+    return {
+      totalSeries,
+      totalSeasons,
+      totalWatchedSeasons,
+      overallProgress,
+      recentlyAdded,
+    };
+  }, [seriesData]);
 
   if (isLoading) {
     return (
@@ -99,26 +123,30 @@ export default function Page() {
         </p>
       </div>
 
-      {/* Stats Cards - Now showing real progress */}
+      {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
           <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">
             Total Series
           </h3>
-          <p className="text-2xl font-bold text-blue-600">{totalSeries}</p>
+          <p className="text-2xl font-bold text-blue-600">
+            {stats.totalSeries}
+          </p>
         </div>
         <div className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
           <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">
             Total Seasons
           </h3>
-          <p className="text-2xl font-bold text-blue-600">{totalSeasons}</p>
+          <p className="text-2xl font-bold text-blue-600">
+            {stats.totalSeasons}
+          </p>
         </div>
         <div className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
           <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">
             Seasons Watched
           </h3>
           <p className="text-2xl font-bold text-green-600">
-            {totalWatchedSeasons}
+            {stats.totalWatchedSeasons}
           </p>
         </div>
         <div className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
@@ -126,12 +154,12 @@ export default function Page() {
             Overall Progress
           </h3>
           <p className="text-2xl font-bold text-purple-600">
-            {overallProgress}%
+            {stats.overallProgress}%
           </p>
         </div>
       </div>
 
-      {/* Series List - Shows recent series with their watch progress */}
+      {/* Series List */}
       <div className="rounded-lg bg-white shadow dark:bg-gray-800">
         <div className="border-b border-gray-200 p-4 dark:border-gray-700">
           <h2 className="text-lg text-center font-semibold text-gray-900 dark:text-white">
@@ -139,7 +167,7 @@ export default function Page() {
           </h2>
         </div>
         <div className="p-4">
-          {recentlyAdded.length === 0 ? (
+          {stats.recentlyAdded.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-600 dark:text-gray-400">
                 No series added yet. Go to the TV Series page to add your first
@@ -148,7 +176,7 @@ export default function Page() {
             </div>
           ) : (
             <SeriesList
-              series={recentlyAdded}
+              series={stats.recentlyAdded}
               updateSeries={updateSeries}
               deleteSeries={deleteSeries}
             />

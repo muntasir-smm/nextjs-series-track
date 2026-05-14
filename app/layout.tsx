@@ -1,6 +1,6 @@
 // app/layout.tsx
 
-import "../app/ui/global.css";
+import "./ui/global.css"; // Fixed import path
 import { inter } from "@/app/ui/fonts";
 import { Metadata } from "next";
 
@@ -21,6 +21,9 @@ export const metadata: Metadata = {
     description: "Track your favorite TV series and never miss an episode",
     type: "website",
   },
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
@@ -30,11 +33,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#3b82f6" />
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-      </head>
       <body className={`${inter.className} antialiased`}>{children}</body>
     </html>
   );

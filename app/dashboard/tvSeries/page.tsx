@@ -24,7 +24,7 @@ const SeriesPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load series from database - only once on mount
+  // Load series from database
   useEffect(() => {
     const loadSeries = async () => {
       try {
@@ -41,9 +41,9 @@ const SeriesPage: React.FC = () => {
     };
 
     loadSeries();
-  }, []); // Empty dependency array = only runs once
+  }, []);
 
-  // Filter series based on URL search query (memoized to prevent unnecessary recalculations)
+  // Filter series based on URL search query
   const filteredSeries = React.useMemo(() => {
     if (!searchQuery) return series;
     return series.filter((s) =>
@@ -51,6 +51,7 @@ const SeriesPage: React.FC = () => {
     );
   }, [series, searchQuery]);
 
+  // Need for add series
   const addSeries = useCallback(
     async (name: string, totalSeasons: number, upcomingSeasons: string[]) => {
       try {
@@ -74,10 +75,8 @@ const SeriesPage: React.FC = () => {
   );
 
   const updateSeries = useCallback(async (updatedSeries: Series[]) => {
-    // Update local state immediately
     setSeries(updatedSeries);
 
-    // Save to database in background
     try {
       for (const seriesItem of updatedSeries) {
         await updateSeriesAction(seriesItem);
@@ -89,15 +88,13 @@ const SeriesPage: React.FC = () => {
   }, []);
 
   const deleteSeries = useCallback(async (id: string) => {
-    // Update local state immediately
     setSeries((prev) => prev.filter((s) => s.id !== id));
 
-    // Save to database in background
     try {
       const result = await deleteSeriesAction(id);
       if (!result.success) {
         setError(result.error || "Failed to delete series");
-        // Reload if deletion failed
+
         const userSeries = await getUserSeries();
         setSeries(userSeries);
       }
@@ -168,6 +165,7 @@ const SeriesPage: React.FC = () => {
                     url.searchParams.delete("query");
                     window.history.pushState({}, "", url.toString());
                     window.dispatchEvent(new PopStateEvent("popstate"));
+                    window.dispatchEvent(new CustomEvent("clearSearch"));
                   }}
                   className="text-xs text-blue-500 hover:text-blue-600"
                 >

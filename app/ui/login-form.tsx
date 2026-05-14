@@ -127,44 +127,6 @@ export default function LoginForm() {
             </p>
           </div>
         )}
-
-        {/* Divider */}
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="bg-white/80 px-3 text-gray-500 dark:bg-gray-800/80 dark:text-gray-400">
-              Or continue with
-            </span>
-          </div>
-        </div>
-
-        {/* Social Login Buttons */}
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            className="flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-          >
-            <img
-              src="https://www.google.com/favicon.ico"
-              alt="Google"
-              className="h-5 w-5"
-            />
-            Google
-          </button>
-          <button
-            type="button"
-            className="flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-          >
-            <img
-              src="https://www.facebook.com/favicon.ico"
-              alt="Facebook"
-              className="h-5 w-5"
-            />
-            Facebook
-          </button>
-        </div>
       </div>
     </form>
   );

@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 
 interface AddSeriesFormProps {
   addSeries: (
@@ -22,7 +22,7 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({ addSeries }) => {
     hasUpcoming?: string;
   }>({});
 
-  const validateForm = (): boolean => {
+  const validateForm = useCallback((): boolean => {
     const newErrors: {
       name?: string;
       totalSeasons?: string;
@@ -44,45 +44,50 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({ addSeries }) => {
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
+  }, [name, totalSeasons, hasUpcoming]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
 
-    if (!validateForm()) {
-      return;
-    }
+      if (!validateForm()) {
+        return;
+      }
 
-    let upcomingSeasons: string[] = [];
+      let upcomingSeasons: string[] = [];
 
-    if (hasUpcoming === true) {
-      // The next season should be totalSeasons + 1
-      const nextSeasonNumber = (totalSeasons as number) + 1;
-      upcomingSeasons = [`Season ${nextSeasonNumber}`];
-    }
-    // If hasUpcoming is false, upcomingSeasons remains empty array []
+      if (hasUpcoming === true) {
+        const nextSeasonNumber = (totalSeasons as number) + 1;
+        upcomingSeasons = [`Season ${nextSeasonNumber}`];
+      }
 
-    addSeries(name, totalSeasons as number, upcomingSeasons);
+      addSeries(name, totalSeasons as number, upcomingSeasons);
 
-    // Reset form
-    setName("");
-    setTotalSeasons(null);
-    setHasUpcoming(null);
-    setErrors({});
-  };
-
-  const handleTotalSeasonsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (value === "") {
+      // Reset form
+      setName("");
       setTotalSeasons(null);
-    } else {
-      const numValue = parseInt(value);
-      setTotalSeasons(isNaN(numValue) ? null : numValue);
-    }
-  };
+      setHasUpcoming(null);
+      setErrors({});
+    },
+    [validateForm, hasUpcoming, totalSeasons, name, addSeries],
+  );
+
+  const handleTotalSeasonsChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      if (value === "") {
+        setTotalSeasons(null);
+      } else {
+        const numValue = parseInt(value);
+        setTotalSeasons(isNaN(numValue) ? null : numValue);
+      }
+    },
+    [],
+  );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Rest of the JSX remains the same */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
           Series Name <span className="text-red-500">*</span>

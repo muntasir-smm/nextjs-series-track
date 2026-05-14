@@ -68,8 +68,6 @@
 ├── .eslintrc.json
 ├── .gitignore
 ├── .nvmrc
-├── auth.config.ts
-├── auth.ts
 ├── middleware.ts
 ├── next-env.d.ts
 ├── next.config.js

@@ -35,7 +35,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const { email, password } = validated.data;
 
         try {
-          // Query user from your Neon database
+          // Query user from Neon database
           const users = await sql`
             SELECT id, email, name, password 
             FROM users 
@@ -77,10 +77,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60,
-  },
-  jwt: {
-    maxAge: 30 * 24 * 60 * 60,
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -111,7 +108,7 @@ export async function getCurrentUser() {
 
   try {
     const users = await sql`
-      SELECT id, email, name, created_at 
+      SELECT id, email, name
       FROM users 
       WHERE email = ${session.user.email}
       LIMIT 1

@@ -4,7 +4,6 @@
 
 import { auth } from "@/app/lib/auth";
 import { sql } from "@/app/lib/db";
-import { revalidatePath } from "next/cache";
 
 export interface Series {
   id: string;
@@ -79,7 +78,6 @@ export async function addSeries(
       )
     `;
 
-    revalidatePath("/dashboard/tv-series");
     return { success: true };
   } catch (error) {
     console.error("Error adding series:", error);
@@ -94,7 +92,6 @@ export async function updateSeries(updatedSeries: Series) {
     throw new Error("Not authenticated");
   }
 
-  // Round the watch progress to an integer
   const roundedProgress = Math.round(updatedSeries.watchProgress);
 
   try {
@@ -105,13 +102,11 @@ export async function updateSeries(updatedSeries: Series) {
         total_seasons = ${updatedSeries.totalSeasons},
         upcoming_seasons = ${updatedSeries.upcomingSeasons},
         watched_seasons = ${updatedSeries.watchedSeasons},
-        watch_progress = ${roundedProgress},
-        updated_at = NOW()
+        watch_progress = ${roundedProgress}
       WHERE user_id = ${session.user.id}::uuid
       AND series_id = ${updatedSeries.id}
     `;
 
-    revalidatePath("/dashboard/tv-series");
     return { success: true };
   } catch (error) {
     console.error("Error updating series:", error);
@@ -133,7 +128,6 @@ export async function deleteSeries(seriesId: string) {
       AND series_id = ${seriesId}
     `;
 
-    revalidatePath("/dashboard/tv-series");
     return { success: true };
   } catch (error) {
     console.error("Error deleting series:", error);
@@ -141,7 +135,7 @@ export async function deleteSeries(seriesId: string) {
   }
 }
 
-// Update watch progress for a series
+// Update watch progress for a series - NO REVALIDATION
 export async function updateWatchProgress(
   seriesId: string,
   watchedSeasons: boolean[],
@@ -151,7 +145,6 @@ export async function updateWatchProgress(
     throw new Error("Not authenticated");
   }
 
-  // Calculate and round the watch progress to an integer
   const watchProgress = Math.round(
     (watchedSeasons.filter((watched) => watched).length /
       watchedSeasons.length) *
@@ -163,8 +156,7 @@ export async function updateWatchProgress(
       UPDATE user_series
       SET 
         watched_seasons = ${watchedSeasons},
-        watch_progress = ${watchProgress},
-        updated_at = NOW()
+        watch_progress = ${watchProgress}
       WHERE user_id = ${session.user.id}::uuid
       AND series_id = ${seriesId}
     `;
