@@ -10,15 +10,26 @@ import {
   PlusIcon,
   XMarkIcon,
   EyeIcon,
+  SparklesIcon,
   ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import AddSeriesForm from "@/app/ui/tvSeries/add-series-form";
 
+interface SuggestedSeries {
+  id: string;
+  name: string;
+  totalSeasons: number;
+  upcomingSeasons: string[];
+  watchProgress: number;
+}
+
 export default function Page() {
   const [seriesData, setSeriesData] = useState<any[]>([]);
+  const [suggestedSeries, setSuggestedSeries] = useState<SuggestedSeries[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+  const [addingSeriesId, setAddingSeriesId] = useState<string | null>(null);
 
   const loadSeries = useCallback(async () => {
     try {
@@ -34,6 +45,11 @@ export default function Page() {
 
   useEffect(() => {
     loadSeries();
+    // Load suggested series for discovery section
+    fetch("/api/suggested-series")
+      .then((res) => res.json())
+      .then(setSuggestedSeries)
+      .catch(console.error);
   }, [loadSeries]);
 
   const handleAddSeries = useCallback(
@@ -59,6 +75,39 @@ export default function Page() {
     },
     [loadSeries],
   );
+
+  const handleAddSuggestedSeries = useCallback(
+    async (series: SuggestedSeries) => {
+      setAddingSeriesId(series.id);
+      try {
+        const result = await addSeriesAction(
+          series.name,
+          series.totalSeasons,
+          series.upcomingSeasons,
+        );
+        if (result.success) {
+          await loadSeries();
+        } else {
+          console.error("Failed to add series:", result.error);
+        }
+      } catch (error) {
+        console.error("Error adding series:", error);
+      } finally {
+        setAddingSeriesId(null);
+      }
+    },
+    [loadSeries],
+  );
+
+  // Get series IDs that user already has
+  const userSeriesIds = useMemo(() => {
+    return new Set(seriesData.map((s) => s.id));
+  }, [seriesData]);
+
+  // Filter out series that user already has
+  const undiscoveredSeries = useMemo(() => {
+    return suggestedSeries.filter((s) => !userSeriesIds.has(s.id));
+  }, [suggestedSeries, userSeriesIds]);
 
   // Memoized stats calculations
   const stats = useMemo(() => {
@@ -162,7 +211,7 @@ export default function Page() {
         </p>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Always show */}
       <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-lg bg-white p-4 shadow transition-all hover:shadow-md dark:bg-gray-800">
           <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">
@@ -198,30 +247,24 @@ export default function Page() {
         </div>
       </div>
 
-      {/* Recently Added Section */}
-      <div className="rounded-lg bg-white shadow dark:bg-gray-800">
-        <div className="border-b border-gray-200 p-4 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Recently Added Series
-            </h2>
-            <Link
-              href="/dashboard/tvSeries"
-              className="flex items-center gap-1 text-sm text-blue-500 transition-colors hover:text-blue-600"
-            >
-              View All
-              <PlusIcon className="h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-        <div className="p-4">
-          {stats.recentlyAdded.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-600 dark:text-gray-400">
-                No series added yet. Add your first series!
-              </p>
+      {/* Your Series Section */}
+      {stats.recentlyAdded.length > 0 && (
+        <div className="rounded-lg bg-white shadow dark:bg-gray-800">
+          <div className="border-b border-gray-200 p-4 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Your Series
+              </h2>
+              <Link
+                href="/dashboard/tvSeries"
+                className="flex items-center gap-1 text-sm text-blue-500 transition-colors hover:text-blue-600"
+              >
+                View All ({stats.totalSeries})
+                <PlusIcon className="h-4 w-4" />
+              </Link>
             </div>
-          ) : (
+          </div>
+          <div className="p-4">
             <div className="grid gap-3">
               {stats.recentlyAdded.map((series) => {
                 const upcomingInfo = getUpcomingText(
@@ -272,17 +315,85 @@ export default function Page() {
                 );
               })}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Discover More Section - Always show if there are undiscovered series */}
+      {undiscoveredSeries.length > 0 && (
+        <div className="rounded-lg bg-gradient-to-r from-purple-50 to-blue-50 p-6 dark:from-purple-900/20 dark:to-blue-900/20">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <SparklesIcon className="h-6 w-6 text-purple-500" />
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                Discover More Series
+              </h2>
+            </div>
+            <Link
+              href="/dashboard/discover"
+              className="text-sm text-blue-500 hover:text-blue-600"
+            >
+              View All →
+            </Link>
+          </div>
+          <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+            Popular series you might enjoy. Add them to your collection!
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {undiscoveredSeries.slice(0, 6).map((series) => (
+              <div
+                key={series.id}
+                className="flex items-center justify-between rounded-lg bg-white p-3 shadow-sm transition-all hover:shadow-md dark:bg-gray-800"
+              >
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-medium text-gray-900 dark:text-white truncate">
+                    {series.name}
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {series.totalSeasons} seasons
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleAddSuggestedSeries(series)}
+                  disabled={addingSeriesId === series.id}
+                  className="ml-2 inline-flex shrink-0 items-center gap-1 rounded-md bg-blue-500 px-3 py-1.5 text-xs font-medium text-white transition-all hover:bg-blue-600 disabled:opacity-50"
+                >
+                  {addingSeriesId === series.id ? (
+                    <ArrowPathIcon className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <PlusIcon className="h-3 w-3" />
+                  )}
+                  Add
+                </button>
+              </div>
+            ))}
+          </div>
+          {undiscoveredSeries.length > 6 && (
+            <div className="mt-4 text-center">
+              <Link
+                href="/dashboard/discover"
+                className="text-sm text-blue-500 hover:text-blue-600"
+              >
+                And {undiscoveredSeries.length - 6} more...
+              </Link>
+            </div>
           )}
         </div>
-      </div>
+      )}
 
       {/* Quick Action Card */}
       <div className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 p-6 text-white shadow-lg transition-all hover:shadow-xl">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h3 className="text-xl font-semibold">Ready to add more?</h3>
+            <h3 className="text-xl font-semibold">
+              {stats.totalSeries === 0
+                ? "Start Your Collection"
+                : "Add More Series"}
+            </h3>
             <p className="mt-1 text-blue-100">
-              Track your next favorite series
+              {stats.totalSeries === 0
+                ? "Discover popular series or add your own"
+                : "Find your next favorite show"}
             </p>
           </div>
           <button

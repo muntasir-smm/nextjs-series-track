@@ -1,4 +1,4 @@
-// scripts/seed.js
+// scripts/seed.js - Run manually: node scripts/seed.js
 
 const { neon } = require("@neondatabase/serverless");
 const bcrypt = require("bcrypt");
@@ -10,7 +10,7 @@ async function seed() {
   try {
     console.log("🌱 Starting database seed...\n");
 
-    // Create users table
+    // Create tables if they don't exist
     await sql`
       CREATE TABLE IF NOT EXISTS users (
         id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -23,7 +23,6 @@ async function seed() {
     `;
     console.log("✅ Users table ready");
 
-    // Create user_series table
     await sql`
       CREATE TABLE IF NOT EXISTS user_series (
         id SERIAL PRIMARY KEY,
@@ -41,43 +40,54 @@ async function seed() {
     `;
     console.log("✅ User series table ready");
 
-    // Seed users
-    // Check if user already exists before seeding
+    // Seed demo users (only if they don't exist)
     for (const user of users) {
       const existingUser = await sql`
-    SELECT id FROM users WHERE email = ${user.email} LIMIT 1
-  `;
+        SELECT id FROM users WHERE email = ${user.email} LIMIT 1
+      `;
 
       if (existingUser.length === 0) {
         const hashedPassword = await bcrypt.hash(user.password, 10);
         await sql`
-      INSERT INTO users (id, name, email, password)
-      VALUES (${user.id}, ${user.name}, ${user.email}, ${hashedPassword})
-    `;
-      }
-    }
-    console.log(`✅ Seeded ${users.length} users`);
-
-    // Get demo user ID
-    const users_list = await sql`SELECT id FROM users LIMIT 1`;
-
-    if (users_list.length > 0) {
-      const userId = users_list[0].id;
-
-      // Seed default series
-      for (const series of defaultSeries) {
-        await sql`
-          INSERT INTO user_series (
-            user_id, series_id, name, total_seasons, 
-            upcoming_seasons, watched_seasons, watch_progress
-          ) VALUES (
-            ${userId}, ${series.id}, ${series.name}, ${series.totalSeasons},
-            ${series.upcomingSeasons}, ${series.watchedSeasons}, ${series.watchProgress}
-          )
-          ON CONFLICT (user_id, series_id) DO NOTHING;
+          INSERT INTO users (id, name, email, password)
+          VALUES (${user.id}, ${user.name}, ${user.email}, ${hashedPassword})
         `;
       }
-      console.log(`✅ Seeded ${defaultSeries.length} series for demo user`);
+    }
+    console.log(`✅ Seeded ${users.length} demo users`);
+
+    // Seed default series ONLY for the demo user
+    const demoUser = await sql`
+      SELECT id FROM users WHERE email = 'user@nextmail.com' LIMIT 1
+    `;
+
+    if (demoUser.length > 0) {
+      const userId = demoUser[0].id;
+
+      // Check if demo user already has series
+      const existingSeries = await sql`
+        SELECT COUNT(*) FROM user_series WHERE user_id = ${userId}
+      `;
+
+      if (existingSeries[0].count === 0) {
+        for (const series of defaultSeries) {
+          await sql`
+            INSERT INTO user_series (
+              user_id, series_id, name, total_seasons, 
+              upcoming_seasons, watched_seasons, watch_progress
+            ) VALUES (
+              ${userId}, ${series.id}, ${series.name}, ${series.totalSeasons},
+              ${series.upcomingSeasons}, ${series.watchedSeasons}, ${series.watchProgress}
+            )
+            ON CONFLICT (user_id, series_id) DO NOTHING;
+          `;
+        }
+        console.log(`✅ Seeded ${defaultSeries.length} series for demo user`);
+      } else {
+        console.log(
+          `✅ Demo user already has ${existingSeries[0].count} series`,
+        );
+      }
     }
 
     console.log("\n✅ Database seeded successfully!");

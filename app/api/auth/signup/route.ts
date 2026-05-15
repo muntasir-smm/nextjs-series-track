@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create new user
+    // Create new user (without any auto-added series)
     const userId = uuidv4();
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -47,25 +47,8 @@ export async function POST(request: NextRequest) {
       VALUES (${userId}, ${name}, ${email}, ${hashedPassword})
     `;
 
-    // Add sample series for new user (fire and forget, don't await)
-    const { defaultSeries } = await import("@/app/lib/placeholder-data");
-    const sampleSeries = defaultSeries.slice(0, 5);
-
-    // Use Promise.all for parallel inserts
-    await Promise.all(
-      sampleSeries.map(
-        (series) => sql`
-        INSERT INTO user_series (
-          user_id, series_id, name, total_seasons, 
-          upcoming_seasons, watched_seasons, watch_progress
-        ) VALUES (
-          ${userId}, ${series.id}, ${series.name}, ${series.totalSeasons},
-          ${series.upcomingSeasons}, ${series.watchedSeasons}, ${series.watchProgress}
-        )
-        ON CONFLICT (user_id, series_id) DO NOTHING
-      `,
-      ),
-    );
+    // REMOVED: No auto-add series for new users
+    // New users start with an empty collection
 
     return NextResponse.json(
       { message: "User created successfully" },

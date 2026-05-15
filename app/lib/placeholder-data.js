@@ -103,7 +103,7 @@ const defaultSeries = [
   {
     id: "11",
     name: "Fargo",
-    totalSeasons: 1,
+    totalSeasons: 2,
     upcomingSeasons: ["S 03"],
     watchedSeasons: [true, false],
     watchProgress: 50,
@@ -111,7 +111,7 @@ const defaultSeries = [
   {
     id: "12",
     name: "Gen V",
-    totalSeasons: 1,
+    totalSeasons: 2,
     upcomingSeasons: ["S 03"],
     watchedSeasons: [true, false],
     watchProgress: 50,
