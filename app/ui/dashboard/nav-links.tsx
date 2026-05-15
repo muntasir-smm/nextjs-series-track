@@ -11,6 +11,7 @@ import {
   MagnifyingGlassIcon,
   SparklesIcon,
   ShieldCheckIcon,
+  UserCircleIcon,
 } from "@heroicons/react/24/outline";
 import {
   HomeIcon as HomeIconSolid,
@@ -75,6 +76,14 @@ const allLinks = [
     adminOnly: true,
     showCount: false,
     description: "Admin panel",
+  },
+  {
+    name: "Profile",
+    href: "/dashboard/profile",
+    icon: UserCircleIcon,
+    solidIcon: UserCircleIcon,
+    showCount: false,
+    description: "View and edit your profile",
   },
 ];
 
