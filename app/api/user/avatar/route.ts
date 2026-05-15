@@ -3,36 +3,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/app/lib/auth";
 import { sql } from "@/app/lib/db";
-import { writeFile, unlink } from "fs/promises";
-import path from "path";
-import { v4 as uuidv4 } from "uuid";
-
-// Helper to save base64 image
-async function saveBase64Image(
-  base64String: string,
-  userId: string,
-): Promise<string> {
-  const matches = base64String.match(
-    /^data:image\/([A-Za-z-+\/]+);base64,(.+)$/,
-  );
-  if (!matches || matches.length !== 3) {
-    throw new Error("Invalid image data");
-  }
-
-  const ext = matches[1].split("/")[0];
-  const imageBuffer = Buffer.from(matches[2], "base64");
-  const fileName = `${userId}-${uuidv4()}.${ext}`;
-  const filePath = path.join(process.cwd(), "public/uploads/avatars", fileName);
-
-  // Ensure directory exists
-  await writeFile(filePath, imageBuffer);
-
-  return `/uploads/avatars/${fileName}`;
-}
+import { put, del } from "@vercel/blob";
 
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
+
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -44,45 +20,63 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    // Convert file to base64
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const base64 = `data:${file.type};base64,${buffer.toString("base64")}`;
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      return NextResponse.json(
+        { error: "File must be an image" },
+        { status: 400 },
+      );
+    }
 
-    // Save image
-    const avatarUrl = await saveBase64Image(base64, session.user.id);
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: "File must be less than 5MB" },
+        { status: 400 },
+      );
+    }
 
-    // Get old avatar to delete later
+    // Get file extension
+    const ext = file.type.split("/")[1];
+    const fileName = `avatars/${session.user.id}-${Date.now()}.${ext}`;
+
+    // Upload to Vercel Blob
+
+    const blob = await put(fileName, file, {
+      access: "public",
+    });
+
+    // Update database
+
+    const result = await sql`
+      UPDATE users 
+      SET avatar_url = ${blob.url}
+      WHERE email = ${session.user.email}
+      RETURNING id, email, avatar_url
+    `;
+
+    // Get old avatar URL to delete later
     const oldAvatar = await sql`
       SELECT avatar_url FROM users WHERE email = ${session.user.email}
     `;
 
-    // Update database
-    await sql`
-      UPDATE users 
-      SET avatar_url = ${avatarUrl}, updated_at = NOW()
-      WHERE email = ${session.user.email}
-    `;
-
-    // Delete old avatar file if exists
-    if (oldAvatar[0]?.avatar_url) {
+    // Delete old avatar from blob storage
+    if (oldAvatar[0]?.avatar_url && oldAvatar[0]?.avatar_url !== blob.url) {
       try {
-        const oldPath = path.join(
-          process.cwd(),
-          "public",
-          oldAvatar[0].avatar_url,
-        );
-        await unlink(oldPath);
+        const oldUrl = oldAvatar[0].avatar_url;
+        const oldUrlParts = oldUrl.split("/");
+        const oldBlobPath = oldUrlParts.slice(-2).join("/");
+        await del(oldBlobPath);
       } catch (e) {
         console.error("Failed to delete old avatar:", e);
       }
     }
 
-    return NextResponse.json({ avatarUrl });
+    return NextResponse.json({ avatarUrl: blob.url });
   } catch (error) {
     console.error("Avatar upload error:", error);
     return NextResponse.json(
-      { error: "Failed to upload avatar" },
+      { error: "Failed to upload avatar: " + (error as Error).message },
       { status: 500 },
     );
   }
@@ -103,19 +97,17 @@ export async function DELETE(request: NextRequest) {
     // Update database to remove avatar
     await sql`
       UPDATE users 
-      SET avatar_url = NULL, updated_at = NOW()
+      SET avatar_url = NULL
       WHERE email = ${session.user.email}
     `;
 
-    // Delete old avatar file if exists
+    // Delete old avatar from blob storage
     if (oldAvatar[0]?.avatar_url) {
       try {
-        const oldPath = path.join(
-          process.cwd(),
-          "public",
-          oldAvatar[0].avatar_url,
-        );
-        await unlink(oldPath);
+        const oldUrl = oldAvatar[0].avatar_url;
+        const oldUrlParts = oldUrl.split("/");
+        const oldBlobPath = oldUrlParts.slice(-2).join("/");
+        await del(oldBlobPath);
       } catch (e) {
         console.error("Failed to delete old avatar:", e);
       }

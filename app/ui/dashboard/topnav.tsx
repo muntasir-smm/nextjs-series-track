@@ -127,6 +127,7 @@ export default function TopNav() {
                   fill
                   className="object-contain brightness-0 invert"
                   priority
+                  sizes=""
                 />
               </div>
               <span className="text-sm font-bold text-white sm:text-base md:text-lg lg:text-xl">

@@ -3,7 +3,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import ProfileImageUpload from "@/app/ui/dashboard/profile-image-upload";
 import {
   UserIcon,
@@ -14,6 +13,7 @@ import {
   XMarkIcon,
   ArrowPathIcon,
 } from "@heroicons/react/24/outline";
+import Avatar from "@/app/ui/dashboard/avatar";
 
 interface UserProfile {
   id: string;
@@ -25,7 +25,6 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
-  const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -37,9 +36,8 @@ export default function ProfilePage() {
     type: "success" | "error";
     text: string;
   } | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null); // Moved inside component
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-  // Load profile data
   useEffect(() => {
     const loadProfile = async () => {
       try {
@@ -51,14 +49,12 @@ export default function ProfilePage() {
           setFormData({ name: data.name });
           setAvatarUrl(data.avatar_url);
         } else {
-          console.error("Failed to load profile:", data.error);
           setMessage({
             type: "error",
             text: data.error || "Failed to load profile",
           });
         }
       } catch (error) {
-        console.error("Error loading profile:", error);
         setMessage({ type: "error", text: "Network error loading profile" });
       } finally {
         setIsLoading(false);
@@ -86,7 +82,7 @@ export default function ProfilePage() {
         setIsEditing(false);
         setMessage({
           type: "success",
-          text: data.message || "Profile updated successfully!",
+          text: "Profile updated successfully!",
         });
         setTimeout(() => setMessage(null), 3000);
       } else {
@@ -96,17 +92,14 @@ export default function ProfilePage() {
         });
       }
     } catch (error) {
-      console.error("Error updating profile:", error);
       setMessage({ type: "error", text: "Network error updating profile" });
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Add avatar update handler
   const handleAvatarUpdate = (newAvatarUrl: string) => {
     setAvatarUrl(newAvatarUrl);
-    // Refresh profile to update navbar
     window.dispatchEvent(new Event("avatar-updated"));
   };
 
@@ -169,15 +162,11 @@ export default function ProfilePage() {
 
       {/* Profile Card */}
       <div className="rounded-lg bg-white shadow dark:bg-gray-800">
+        {/* Header with Avatar */}
         <div className="border-b border-gray-200 p-6 dark:border-gray-700">
-          <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-start justify-between flex-wrap gap-4">
             <div className="flex items-center gap-4">
-              {/* Avatar Upload Section */}
-              <ProfileImageUpload
-                currentAvatar={avatarUrl}
-                userName={profile.name}
-                onAvatarUpdate={handleAvatarUpdate}
-              />
+              <Avatar src={avatarUrl} name={profile.name} size="lg" />
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                   {profile.name}
@@ -199,10 +188,23 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="p-6 space-y-6">
+        {/* Content */}
+        <div className="p-6">
           {isEditing ? (
-            // Edit Form
-            <form onSubmit={handleUpdateProfile} className="space-y-4">
+            <form onSubmit={handleUpdateProfile} className="space-y-6">
+              {/* Avatar Upload */}
+              <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                <label className="mb-3 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Profile Picture
+                </label>
+                <ProfileImageUpload
+                  currentAvatar={avatarUrl}
+                  userName={profile.name}
+                  onAvatarUpdate={handleAvatarUpdate}
+                />
+              </div>
+
+              {/* Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Full Name
@@ -218,6 +220,7 @@ export default function ProfilePage() {
                 />
               </div>
 
+              {/* Email (read-only) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Email Address
@@ -233,6 +236,7 @@ export default function ProfilePage() {
                 </p>
               </div>
 
+              {/* Buttons */}
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
@@ -263,7 +267,7 @@ export default function ProfilePage() {
               </div>
             </form>
           ) : (
-            // Profile Info Display
+            // View Mode
             <div className="space-y-4">
               <div className="flex items-start gap-3">
                 <EnvelopeIcon className="h-5 w-5 text-gray-400 mt-0.5" />
@@ -307,24 +311,30 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Stats Card */}
-      <div className="rounded-lg bg-gradient-to-r from-blue-50 to-purple-50 p-6 dark:from-blue-900/20 dark:to-purple-900/20">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Account Statistics
-        </h3>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Account Status
-            </p>
-            <p className="text-green-600 dark:text-green-400">✓ Active</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Security</p>
-            <p className="text-gray-900 dark:text-white">Password Protected</p>
+      {/* Stats Card - Only in view mode */}
+      {!isEditing && (
+        <div className="rounded-lg bg-gradient-to-r from-blue-50 to-purple-50 p-6 dark:from-blue-900/20 dark:to-purple-900/20">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Account Statistics
+          </h3>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Account Status
+              </p>
+              <p className="text-green-600 dark:text-green-400">✓ Active</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Security
+              </p>
+              <p className="text-gray-900 dark:text-white">
+                Password Protected
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

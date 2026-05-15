@@ -43,37 +43,27 @@ export async function PUT(request: NextRequest) {
     const session = await auth();
 
     if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: "Unauthorized - No session" },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await request.json();
-    console.log("Request body:", body); // Debug log
-
-    const { name } = body;
+    const { name } = await request.json();
 
     if (!name || name.trim() === "") {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    // Update the user
     await sql`
       UPDATE users
-      SET name = ${name.trim()}, updated_at = NOW()
+      SET name = ${name.trim()}
       WHERE email = ${session.user.email}
     `;
 
-    // Fetch updated user
     const updatedUser = await sql`
-      SELECT id, name, email, role, created_at
+      SELECT id, name, email, role, created_at, avatar_url
       FROM users
       WHERE email = ${session.user.email}
       LIMIT 1
     `;
-
-    console.log("Updated user:", updatedUser[0]); // Debug log
 
     return NextResponse.json({
       success: true,
@@ -83,7 +73,7 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error("Error updating profile:", error);
     return NextResponse.json(
-      { error: "Failed to update profile: " + (error as Error).message },
+      { error: "Failed to update profile" },
       { status: 500 },
     );
   }

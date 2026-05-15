@@ -153,6 +153,7 @@ function DropdownMenu({
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const pathname = usePathname(); // Moved here to fix the hook warning
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -171,10 +172,10 @@ function DropdownMenu({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Close dropdown on route change
+  // Close dropdown on route change - fixed dependency
   useEffect(() => {
     setIsOpen(false);
-  }, [usePathname()]);
+  }, [pathname]);
 
   const toggleDropdown = () => setIsOpen(!isOpen);
 

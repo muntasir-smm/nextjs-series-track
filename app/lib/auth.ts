@@ -62,18 +62,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const user = users[0];
 
           if (!user) {
-            console.log("User not found:", email);
             return null;
           }
 
           // Verify password
           const isValid = await bcrypt.compare(password, user.password);
           if (!isValid) {
-            console.log("Invalid password for user:", email);
             return null;
           }
-
-          console.log("User authenticated:", email, "Role:", user.role);
 
           return {
             id: user.id,

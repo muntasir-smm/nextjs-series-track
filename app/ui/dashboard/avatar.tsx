@@ -2,9 +2,9 @@
 
 "use client";
 
-import Image from "next/image";
 import { UserCircleIcon } from "@heroicons/react/24/outline";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Image from "next/image";
 
 interface AvatarProps {
   src?: string | null;
@@ -14,9 +14,9 @@ interface AvatarProps {
 }
 
 const sizes = {
-  sm: "h-6 w-6 text-sm",
-  md: "h-8 w-8 text-base",
-  lg: "h-12 w-12 text-lg",
+  sm: "h-6 w-6 text-xs",
+  md: "h-8 w-8 text-sm",
+  lg: "h-12 w-12 text-base",
 };
 
 export default function Avatar({
@@ -26,8 +26,13 @@ export default function Avatar({
   className = "",
 }: AvatarProps) {
   const [imgError, setImgError] = useState(false);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
 
-  // Get initials from name
+  useEffect(() => {
+    setImageSrc(src || null);
+    setImgError(false);
+  }, [src]);
+
   const getInitials = () => {
     if (!name) return "?";
     return name
@@ -38,16 +43,21 @@ export default function Avatar({
       .slice(0, 2);
   };
 
-  // If image exists and no error, show image
-  if (src && !imgError) {
+  // If image exists and no error, show image using Next.js Image
+  if (imageSrc && !imgError) {
     return (
       <div className={`relative ${sizes[size]} ${className}`}>
         <Image
-          src={src}
+          src={imageSrc}
           alt={name || "Avatar"}
           fill
           className="rounded-full object-cover"
-          onError={() => setImgError(true)}
+          onError={() => {
+            console.error("Image failed to load:", imageSrc);
+            setImgError(true);
+          }}
+          onLoad={() => console.log("Image loaded:", imageSrc)}
+          unoptimized // Bypass optimization for external URLs
         />
       </div>
     );

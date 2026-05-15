@@ -8,7 +8,6 @@ import {
   XMarkIcon,
   ArrowPathIcon,
 } from "@heroicons/react/24/outline";
-import Image from "next/image";
 import Avatar from "./avatar";
 
 interface ProfileImageUploadProps {
@@ -23,17 +22,19 @@ export default function ProfileImageUpload({
   onAvatarUpdate,
 }: ProfileImageUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(currentAvatar);
   const [error, setError] = useState<string | null>(null);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleImageClick = () => {
+  const handleButtonClick = () => {
     fileInputRef.current?.click();
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      return;
+    }
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
@@ -50,14 +51,13 @@ export default function ProfileImageUpload({
     setError(null);
     setIsUploading(true);
 
-    // Create preview
+    // Show local preview immediately
     const reader = new FileReader();
     reader.onloadend = () => {
-      setPreviewUrl(reader.result as string);
+      setLocalPreview(reader.result as string);
     };
     reader.readAsDataURL(file);
 
-    // Upload to server
     const formData = new FormData();
     formData.append("avatar", file);
 
@@ -71,15 +71,20 @@ export default function ProfileImageUpload({
 
       if (response.ok) {
         onAvatarUpdate(data.avatarUrl);
+        setLocalPreview(null);
         setError(null);
+        // Clear the file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
       } else {
         setError(data.error || "Failed to upload image");
-        setPreviewUrl(currentAvatar);
+        setLocalPreview(null);
       }
     } catch (err) {
       console.error("Upload error:", err);
       setError("Failed to upload image. Please try again.");
-      setPreviewUrl(currentAvatar);
+      setLocalPreview(null);
     } finally {
       setIsUploading(false);
     }
@@ -98,8 +103,8 @@ export default function ProfileImageUpload({
       const data = await response.json();
 
       if (response.ok) {
-        setPreviewUrl(null);
         onAvatarUpdate("");
+        setLocalPreview(null);
         setError(null);
       } else {
         setError(data.error || "Failed to remove image");
@@ -112,20 +117,24 @@ export default function ProfileImageUpload({
     }
   };
 
+  // Use local preview if available, otherwise use currentAvatar
+  const displayAvatar = localPreview || currentAvatar;
+
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex flex-col items-center gap-3">
       {/* Avatar Preview */}
       <div className="relative">
         <button
-          onClick={handleImageClick}
+          onClick={handleButtonClick}
           className="group relative cursor-pointer focus:outline-none"
           disabled={isUploading}
+          type="button"
         >
           <Avatar
-            src={previewUrl}
+            src={displayAvatar}
             name={userName}
             size="lg"
-            className="ring-4 ring-white shadow-lg transition-all group-hover:ring-blue-200 dark:ring-gray-800"
+            className="ring-2 ring-gray-200 transition-all group-hover:ring-blue-400 dark:ring-gray-700"
           />
 
           {/* Upload Overlay */}
@@ -135,14 +144,15 @@ export default function ProfileImageUpload({
         </button>
 
         {/* Remove Button */}
-        {previewUrl && (
+        {currentAvatar && !localPreview && (
           <button
             onClick={handleRemoveAvatar}
             disabled={isUploading}
-            className="absolute -bottom-1 -right-1 rounded-full bg-red-500 p-1 text-white transition-all hover:bg-red-600 disabled:opacity-50"
+            className="absolute -bottom-1 -right-1 rounded-full bg-red-500 p-1.5 text-white transition-all hover:bg-red-600 disabled:opacity-50"
             title="Remove avatar"
+            type="button"
           >
-            <XMarkIcon className="h-4 w-4" />
+            <XMarkIcon className="h-3 w-3" />
           </button>
         )}
       </div>
@@ -166,8 +176,8 @@ export default function ProfileImageUpload({
         className="hidden"
       />
 
-      <p className="text-xs text-gray-500">
-        Click to upload • JPG, PNG, GIF, WEBP • Max 5MB
+      <p className="text-xs text-gray-400">
+        Click avatar to change • JPG, PNG, GIF, WEBP • Max 5MB
       </p>
     </div>
   );
