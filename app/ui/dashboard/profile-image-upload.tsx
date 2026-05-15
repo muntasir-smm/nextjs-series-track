@@ -9,6 +9,7 @@ import {
   ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import Avatar from "./avatar";
+import imageCompression from "browser-image-compression";
 
 interface ProfileImageUploadProps {
   currentAvatar: string | null;
@@ -26,15 +27,29 @@ export default function ProfileImageUpload({
   const [localPreview, setLocalPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleButtonClick = () => {
-    fileInputRef.current?.click();
+  const compressImage = async (file: File): Promise<File> => {
+    const options = {
+      maxSizeMB: 0.2, // Compress to max 200KB
+      maxWidthOrHeight: 512, // Max 512px width or height
+      useWebWorker: true,
+      fileType: "image/jpeg", // Convert to JPEG for better compression
+    };
+
+    try {
+      const compressedFile = await imageCompression(file, options);
+      console.log(
+        `Compressed from ${(file.size / 1024).toFixed(2)}KB to ${(compressedFile.size / 1024).toFixed(2)}KB`,
+      );
+      return compressedFile;
+    } catch (error) {
+      console.error("Compression error:", error);
+      return file; // Return original if compression fails
+    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
@@ -42,14 +57,8 @@ export default function ProfileImageUpload({
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setError("Image size must be less than 5MB");
-      return;
-    }
-
-    setError(null);
     setIsUploading(true);
+    setError(null);
 
     // Show local preview immediately
     const reader = new FileReader();
@@ -58,10 +67,15 @@ export default function ProfileImageUpload({
     };
     reader.readAsDataURL(file);
 
-    const formData = new FormData();
-    formData.append("avatar", file);
-
     try {
+      // Compress image before upload
+      const compressedFile = await compressImage(file);
+
+      const formData = new FormData();
+      // Convert to JPEG for better compression
+      const blob = compressedFile.slice(0, compressedFile.size, "image/jpeg");
+      formData.append("avatar", blob, `${file.name.split(".")[0]}.jpg`);
+
       const response = await fetch("/api/user/avatar", {
         method: "POST",
         body: formData,
@@ -73,7 +87,6 @@ export default function ProfileImageUpload({
         onAvatarUpdate(data.avatarUrl);
         setLocalPreview(null);
         setError(null);
-        // Clear the file input
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
@@ -83,7 +96,7 @@ export default function ProfileImageUpload({
       }
     } catch (err) {
       console.error("Upload error:", err);
-      setError("Failed to upload image. Please try again.");
+      setError("Failed to upload image. Please try a smaller image.");
       setLocalPreview(null);
     } finally {
       setIsUploading(false);
@@ -117,15 +130,13 @@ export default function ProfileImageUpload({
     }
   };
 
-  // Use local preview if available, otherwise use currentAvatar
   const displayAvatar = localPreview || currentAvatar;
 
   return (
     <div className="flex flex-col items-center gap-3">
-      {/* Avatar Preview */}
       <div className="relative">
         <button
-          onClick={handleButtonClick}
+          onClick={() => fileInputRef.current?.click()}
           className="group relative cursor-pointer focus:outline-none"
           disabled={isUploading}
           type="button"
@@ -137,13 +148,11 @@ export default function ProfileImageUpload({
             className="ring-2 ring-gray-200 transition-all group-hover:ring-blue-400 dark:ring-gray-700"
           />
 
-          {/* Upload Overlay */}
           <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
             <CameraIcon className="h-6 w-6 text-white" />
           </div>
         </button>
 
-        {/* Remove Button */}
         {currentAvatar && !localPreview && (
           <button
             onClick={handleRemoveAvatar}
@@ -157,17 +166,15 @@ export default function ProfileImageUpload({
         )}
       </div>
 
-      {/* Upload Status */}
       {isUploading && (
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <ArrowPathIcon className="h-4 w-4 animate-spin" />
-          Uploading...
+          Compressing & Uploading...
         </div>
       )}
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 
-      {/* Hidden File Input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -177,7 +184,8 @@ export default function ProfileImageUpload({
       />
 
       <p className="text-xs text-gray-400">
-        Click avatar to change • JPG, PNG, GIF, WEBP • Max 5MB
+        Click avatar to change • Images will be compressed automatically • Max
+        3MB
       </p>
     </div>
   );
