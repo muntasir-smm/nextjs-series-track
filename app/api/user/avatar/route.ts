@@ -3,12 +3,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/app/lib/auth";
 import { sql } from "@/app/lib/db";
-import { put, del } from "@vercel/blob";
+import { put, del, head } from "@vercel/blob";
 
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
-
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -36,39 +35,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get current user to check existing avatar
+    const currentUser = await sql`
+      SELECT avatar_url FROM users WHERE email = ${session.user.email}
+    `;
+    const oldAvatarUrl = currentUser[0]?.avatar_url;
+
     // Get file extension
     const ext = file.type.split("/")[1];
     const fileName = `avatars/${session.user.id}-${Date.now()}.${ext}`;
 
     // Upload to Vercel Blob
-
     const blob = await put(fileName, file, {
       access: "public",
     });
 
-    // Update database
-
-    const result = await sql`
+    // Update database with new avatar URL
+    await sql`
       UPDATE users 
       SET avatar_url = ${blob.url}
       WHERE email = ${session.user.email}
-      RETURNING id, email, avatar_url
     `;
 
-    // Get old avatar URL to delete later
-    const oldAvatar = await sql`
-      SELECT avatar_url FROM users WHERE email = ${session.user.email}
-    `;
-
-    // Delete old avatar from blob storage
-    if (oldAvatar[0]?.avatar_url && oldAvatar[0]?.avatar_url !== blob.url) {
+    // Delete old avatar from blob storage (if it exists and is different)
+    if (oldAvatarUrl && oldAvatarUrl !== blob.url) {
       try {
-        const oldUrl = oldAvatar[0].avatar_url;
-        const oldUrlParts = oldUrl.split("/");
-        const oldBlobPath = oldUrlParts.slice(-2).join("/");
-        await del(oldBlobPath);
+        // Extract the blob path from the URL
+        const urlParts = new URL(oldAvatarUrl);
+        const pathname = urlParts.pathname;
+        const blobPath = pathname.startsWith("/")
+          ? pathname.slice(1)
+          : pathname;
+
+        console.log("Deleting old avatar:", blobPath);
+        await del(blobPath);
+        console.log("Old avatar deleted successfully");
       } catch (e) {
         console.error("Failed to delete old avatar:", e);
+        // Don't fail the request if deletion fails
       }
     }
 
@@ -89,10 +93,11 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get old avatar
-    const oldAvatar = await sql`
+    // Get current user's avatar
+    const currentUser = await sql`
       SELECT avatar_url FROM users WHERE email = ${session.user.email}
     `;
+    const avatarUrl = currentUser[0]?.avatar_url;
 
     // Update database to remove avatar
     await sql`
@@ -101,15 +106,21 @@ export async function DELETE(request: NextRequest) {
       WHERE email = ${session.user.email}
     `;
 
-    // Delete old avatar from blob storage
-    if (oldAvatar[0]?.avatar_url) {
+    // Delete avatar from blob storage
+    if (avatarUrl) {
       try {
-        const oldUrl = oldAvatar[0].avatar_url;
-        const oldUrlParts = oldUrl.split("/");
-        const oldBlobPath = oldUrlParts.slice(-2).join("/");
-        await del(oldBlobPath);
+        const urlParts = new URL(avatarUrl);
+        const pathname = urlParts.pathname;
+        const blobPath = pathname.startsWith("/")
+          ? pathname.slice(1)
+          : pathname;
+
+        console.log("Deleting avatar:", blobPath);
+        await del(blobPath);
+        console.log("Avatar deleted successfully");
       } catch (e) {
-        console.error("Failed to delete old avatar:", e);
+        console.error("Failed to delete avatar:", e);
+        // Don't fail the request if deletion fails
       }
     }
 

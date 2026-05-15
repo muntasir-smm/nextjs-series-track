@@ -98,8 +98,22 @@ export default function ProfilePage() {
     }
   };
 
-  const handleAvatarUpdate = (newAvatarUrl: string) => {
-    setAvatarUrl(newAvatarUrl);
+  const handleAvatarUpdate = async (newAvatarUrl: string) => {
+    console.log("Avatar updated:", newAvatarUrl);
+
+    // Refresh the profile data from server
+    try {
+      const response = await fetch("/api/user/profile");
+      const data = await response.json();
+      if (response.ok) {
+        setProfile(data);
+        setAvatarUrl(data.avatar_url);
+      }
+    } catch (error) {
+      console.error("Error refreshing profile:", error);
+    }
+
+    // Dispatch event for navbar
     window.dispatchEvent(new Event("avatar-updated"));
   };
 
