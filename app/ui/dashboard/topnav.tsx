@@ -9,7 +9,6 @@ import {
   PowerIcon,
   Bars3Icon,
   XMarkIcon,
-  UserCircleIcon,
   UserIcon,
   ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
@@ -17,12 +16,15 @@ import { useState, useEffect, useRef } from "react";
 import clsx from "clsx";
 import { signOutAction } from "@/app/lib/signout-action";
 import { usePathname } from "next/navigation";
+import Avatar from "./avatar";
 
 export default function TopNav() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [userRole, setUserRole] = useState<string>("user");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string>("");
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
@@ -45,9 +47,9 @@ export default function TopNav() {
     setIsProfileOpen(false);
   }, [pathname]);
 
-  // Load user role
+  // Load user role and profile
   useEffect(() => {
-    const loadUserRole = async () => {
+    const loadUserData = async () => {
       try {
         const response = await fetch("/api/auth/session");
         const session = await response.json();
@@ -56,7 +58,40 @@ export default function TopNav() {
         console.error("Error loading user role:", error);
       }
     };
-    loadUserRole();
+    loadUserData();
+  }, []);
+
+  // Load user profile for avatar
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const response = await fetch("/api/user/profile");
+        const data = await response.json();
+        if (response.ok) {
+          setAvatarUrl(data.avatar_url);
+          setUserName(data.name);
+        }
+      } catch (error) {
+        console.error("Error loading profile:", error);
+      }
+    };
+    loadProfile();
+  }, []);
+
+  // Listen for avatar updates
+  useEffect(() => {
+    const handleAvatarUpdate = () => {
+      fetch("/api/user/profile")
+        .then((res) => res.json())
+        .then((data) => {
+          setAvatarUrl(data.avatar_url);
+          setUserName(data.name);
+        });
+    };
+
+    window.addEventListener("avatar-updated", handleAvatarUpdate);
+    return () =>
+      window.removeEventListener("avatar-updated", handleAvatarUpdate);
   }, []);
 
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -79,13 +114,12 @@ export default function TopNav() {
       <nav className="fixed top-0 z-50 w-full bg-white/95 backdrop-blur-sm shadow-md dark:bg-gray-900/95">
         <div className="mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
-            {/* Logo/Brand - Optimized for all screen sizes */}
+            {/* Logo/Brand */}
             <Link
               href="/dashboard"
               className="group flex items-center gap-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 px-3 py-1.5 transition-all duration-300 hover:shadow-lg hover:scale-105 sm:px-4 sm:py-2"
               onClick={closeMobileMenu}
             >
-              {/* Logo Image */}
               <div className="relative h-6 w-6 sm:h-7 sm:w-7">
                 <Image
                   src="/images/logo.png"
@@ -95,7 +129,6 @@ export default function TopNav() {
                   priority
                 />
               </div>
-              {/* Brand Name - Hidden on very small screens */}
               <span className="text-sm font-bold text-white sm:text-base md:text-lg lg:text-xl">
                 Series Tracker
               </span>
@@ -116,7 +149,7 @@ export default function TopNav() {
                   className="flex items-center gap-2 rounded-full p-1 text-gray-600 transition-all hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
                   aria-label="Profile menu"
                 >
-                  <UserCircleIcon className="h-8 w-8" />
+                  <Avatar src={avatarUrl} name={userName} size="md" />
                 </button>
 
                 {/* Dropdown Menu */}
@@ -126,7 +159,7 @@ export default function TopNav() {
                       {/* User Info */}
                       <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
                         <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          My Account
+                          {userName || "My Account"}
                         </p>
                       </div>
 

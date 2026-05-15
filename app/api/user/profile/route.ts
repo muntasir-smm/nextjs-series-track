@@ -17,7 +17,7 @@ export async function GET() {
     }
 
     const users = await sql`
-      SELECT id, name, email, role, created_at
+      SELECT id, name, email, role, created_at, avatar_url
       FROM users
       WHERE email = ${session.user.email}
       LIMIT 1

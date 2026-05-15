@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import ProfileImageUpload from "@/app/ui/dashboard/profile-image-upload";
 import {
   UserIcon,
   EnvelopeIcon,
@@ -20,6 +21,7 @@ interface UserProfile {
   email: string;
   role: string;
   created_at: string;
+  avatar_url?: string;
 }
 
 export default function ProfilePage() {
@@ -35,6 +37,7 @@ export default function ProfilePage() {
     type: "success" | "error";
     text: string;
   } | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null); // Moved inside component
 
   // Load profile data
   useEffect(() => {
@@ -46,6 +49,7 @@ export default function ProfilePage() {
         if (response.ok) {
           setProfile(data);
           setFormData({ name: data.name });
+          setAvatarUrl(data.avatar_url);
         } else {
           console.error("Failed to load profile:", data.error);
           setMessage({
@@ -68,8 +72,6 @@ export default function ProfilePage() {
     setIsSaving(true);
     setMessage(null);
 
-    console.log("Updating profile with:", { name: formData.name });
-
     try {
       const response = await fetch("/api/user/profile", {
         method: "PUT",
@@ -78,7 +80,6 @@ export default function ProfilePage() {
       });
 
       const data = await response.json();
-      console.log("Update response:", data);
 
       if (response.ok) {
         setProfile(data.user);
@@ -87,7 +88,6 @@ export default function ProfilePage() {
           type: "success",
           text: data.message || "Profile updated successfully!",
         });
-        // Clear message after 3 seconds
         setTimeout(() => setMessage(null), 3000);
       } else {
         setMessage({
@@ -101,6 +101,13 @@ export default function ProfilePage() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Add avatar update handler
+  const handleAvatarUpdate = (newAvatarUrl: string) => {
+    setAvatarUrl(newAvatarUrl);
+    // Refresh profile to update navbar
+    window.dispatchEvent(new Event("avatar-updated"));
   };
 
   const formatDate = (dateString: string) => {
@@ -164,10 +171,13 @@ export default function ProfilePage() {
       <div className="rounded-lg bg-white shadow dark:bg-gray-800">
         <div className="border-b border-gray-200 p-6 dark:border-gray-700">
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-full bg-gradient-to-r from-blue-500 to-purple-600 p-3">
-                <UserIcon className="h-8 w-8 text-white" />
-              </div>
+            <div className="flex items-center gap-4">
+              {/* Avatar Upload Section */}
+              <ProfileImageUpload
+                currentAvatar={avatarUrl}
+                userName={profile.name}
+                onAvatarUpdate={handleAvatarUpdate}
+              />
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                   {profile.name}
