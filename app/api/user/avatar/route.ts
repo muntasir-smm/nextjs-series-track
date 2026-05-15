@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/app/lib/auth";
 import { sql } from "@/app/lib/db";
-import { put, del, head } from "@vercel/blob";
+import { put, del } from "@vercel/blob";
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,10 +45,15 @@ export async function POST(request: NextRequest) {
     const ext = file.type.split("/")[1];
     const fileName = `avatars/${session.user.id}-${Date.now()}.${ext}`;
 
+    console.log("Uploading to Vercel Blob...");
+
     // Upload to Vercel Blob
     const blob = await put(fileName, file, {
       access: "public",
+      addRandomSuffix: false,
     });
+
+    console.log("Uploaded to:", blob.url);
 
     // Update database with new avatar URL
     await sql`
@@ -61,11 +66,8 @@ export async function POST(request: NextRequest) {
     if (oldAvatarUrl && oldAvatarUrl !== blob.url) {
       try {
         // Extract the blob path from the URL
-        const urlParts = new URL(oldAvatarUrl);
-        const pathname = urlParts.pathname;
-        const blobPath = pathname.startsWith("/")
-          ? pathname.slice(1)
-          : pathname;
+        const urlParts = oldAvatarUrl.split("/");
+        const blobPath = urlParts.slice(-2).join("/");
 
         console.log("Deleting old avatar:", blobPath);
         await del(blobPath);
@@ -109,11 +111,8 @@ export async function DELETE(request: NextRequest) {
     // Delete avatar from blob storage
     if (avatarUrl) {
       try {
-        const urlParts = new URL(avatarUrl);
-        const pathname = urlParts.pathname;
-        const blobPath = pathname.startsWith("/")
-          ? pathname.slice(1)
-          : pathname;
+        const urlParts = avatarUrl.split("/");
+        const blobPath = urlParts.slice(-2).join("/");
 
         console.log("Deleting avatar:", blobPath);
         await del(blobPath);
