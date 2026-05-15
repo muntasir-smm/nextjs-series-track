@@ -3,23 +3,68 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import NavLinks from "@/app/ui/dashboard/nav-links";
-import { PowerIcon, Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
-import { useState } from "react";
+import {
+  PowerIcon,
+  Bars3Icon,
+  XMarkIcon,
+  UserCircleIcon,
+  UserIcon,
+  ShieldCheckIcon,
+} from "@heroicons/react/24/outline";
+import { useState, useEffect, useRef } from "react";
 import clsx from "clsx";
-import { signOutAction } from "@/app/lib/signout-action"; // Import from the new file
+import { signOutAction } from "@/app/lib/signout-action";
+import { usePathname } from "next/navigation";
 
 export default function TopNav() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [userRole, setUserRole] = useState<string>("user");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsProfileOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Close dropdown on route change
+  useEffect(() => {
+    setIsProfileOpen(false);
+  }, [pathname]);
+
+  // Load user role
+  useEffect(() => {
+    const loadUserRole = async () => {
+      try {
+        const response = await fetch("/api/auth/session");
+        const session = await response.json();
+        setUserRole(session?.user?.role || "user");
+      } catch (error) {
+        console.error("Error loading user role:", error);
+      }
+    };
+    loadUserRole();
+  }, []);
 
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
+  const toggleProfile = () => setIsProfileOpen(!isProfileOpen);
 
-  // Use the Server Action directly
   const handleSignOut = async () => {
     if (isSigningOut) return;
-
     setIsSigningOut(true);
     try {
       await signOutAction();
@@ -31,44 +76,98 @@ export default function TopNav() {
 
   return (
     <>
-      {/* Top Navigation Bar */}
-      <nav className="fixed top-0 z-50 w-full bg-white shadow-md dark:bg-gray-900">
+      <nav className="fixed top-0 z-50 w-full bg-white/95 backdrop-blur-sm shadow-md dark:bg-gray-900/95">
         <div className="mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
-            {/* Logo/Brand */}
+            {/* Logo/Brand - Optimized for all screen sizes */}
             <Link
               href="/dashboard"
-              className="flex items-center space-x-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 px-4 py-2 transition-all hover:shadow-lg"
+              className="group flex items-center gap-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 px-3 py-1.5 transition-all duration-300 hover:shadow-lg hover:scale-105 sm:px-4 sm:py-2"
               onClick={closeMobileMenu}
             >
-              <span className="text-lg font-bold text-white md:text-xl">
+              {/* Logo Image */}
+              <div className="relative h-6 w-6 sm:h-7 sm:w-7">
+                <Image
+                  src="/images/logo.png"
+                  alt="Series Tracker"
+                  fill
+                  className="object-contain brightness-0 invert"
+                  priority
+                />
+              </div>
+              {/* Brand Name - Hidden on very small screens */}
+              <span className="text-sm font-bold text-white sm:text-base md:text-lg lg:text-xl">
                 Series Tracker
               </span>
             </Link>
 
             {/* Desktop Navigation Links */}
             <div className="hidden md:block">
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-1">
                 <NavLinks />
               </div>
             </div>
 
-            {/* Desktop Sign Out Button */}
-            <div className="hidden md:block">
-              <form action={handleSignOut}>
+            {/* Desktop User Menu - Profile Dropdown */}
+            <div className="hidden md:block" ref={dropdownRef}>
+              <div className="relative">
                 <button
-                  disabled={isSigningOut}
-                  className={clsx(
-                    "flex items-center gap-2 rounded-md bg-gray-100 px-4 py-2 text-sm font-medium transition-all hover:bg-red-50 hover:text-red-600 dark:bg-gray-800 dark:hover:bg-red-900/20",
-                    {
-                      "cursor-not-allowed opacity-50": isSigningOut,
-                    },
-                  )}
+                  onClick={toggleProfile}
+                  className="flex items-center gap-2 rounded-full p-1 text-gray-600 transition-all hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                  aria-label="Profile menu"
                 >
-                  <PowerIcon className="h-5 w-5" />
-                  <span>{isSigningOut ? "Signing out..." : "Sign Out"}</span>
+                  <UserCircleIcon className="h-8 w-8" />
                 </button>
-              </form>
+
+                {/* Dropdown Menu */}
+                {isProfileOpen && (
+                  <div className="absolute right-0 mt-2 w-56 origin-top-right rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-gray-800">
+                    <div className="py-1">
+                      {/* User Info */}
+                      <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          My Account
+                        </p>
+                      </div>
+
+                      {/* Profile Link */}
+                      <Link
+                        href="/dashboard/profile"
+                        onClick={() => setIsProfileOpen(false)}
+                        className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                      >
+                        <UserIcon className="h-4 w-4" />
+                        Profile
+                      </Link>
+
+                      {/* Admin Panel Link - Only for admins */}
+                      {userRole === "admin" && (
+                        <Link
+                          href="/admin"
+                          onClick={() => setIsProfileOpen(false)}
+                          className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-purple-600 transition-colors hover:bg-gray-100 dark:text-purple-400 dark:hover:bg-gray-700"
+                        >
+                          <ShieldCheckIcon className="h-4 w-4" />
+                          Admin Panel
+                        </Link>
+                      )}
+
+                      {/* Divider */}
+                      <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
+                      {/* Sign Out */}
+                      <button
+                        onClick={handleSignOut}
+                        disabled={isSigningOut}
+                        className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-red-600 transition-colors hover:bg-gray-100 dark:text-red-400 dark:hover:bg-gray-700"
+                      >
+                        <PowerIcon className="h-4 w-4" />
+                        {isSigningOut ? "Signing out..." : "Sign Out"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Mobile menu button */}
@@ -94,28 +193,26 @@ export default function TopNav() {
           })}
         >
           <div className="space-y-1 px-2 pb-3 pt-2">
-            {/* Mobile Navigation Links */}
             <div onClick={closeMobileMenu}>
               <NavLinks isMobile={true} />
             </div>
 
             {/* Mobile Sign Out Button */}
             <div className="border-t border-gray-200 pt-4 dark:border-gray-700">
-              <form action={handleSignOut}>
-                <button
-                  disabled={isSigningOut}
-                  className="flex w-full items-center justify-center gap-2 rounded-md bg-gray-100 px-4 py-2 text-sm font-medium transition-all hover:bg-red-50 hover:text-red-600 dark:bg-gray-800 dark:hover:bg-red-900/20"
-                >
-                  <PowerIcon className="h-5 w-5" />
-                  <span>{isSigningOut ? "Signing out..." : "Sign Out"}</span>
-                </button>
-              </form>
+              <button
+                onClick={handleSignOut}
+                disabled={isSigningOut}
+                className="flex w-full items-center justify-center gap-2 rounded-md bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition-all hover:bg-red-500 hover:text-white dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-500"
+              >
+                <PowerIcon className="h-5 w-5" />
+                <span>{isSigningOut ? "Signing out..." : "Sign Out"}</span>
+              </button>
             </div>
           </div>
         </div>
       </nav>
 
-      {/* Spacer */}
+      {/* Spacer to prevent content from hiding under fixed navbar */}
       <div className="h-16"></div>
     </>
   );
