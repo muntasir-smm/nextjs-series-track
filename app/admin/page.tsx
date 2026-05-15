@@ -13,7 +13,6 @@ import {
   UsersIcon,
   TvIcon,
 } from "@heroicons/react/24/outline";
-import TopNav from "@/app/ui/dashboard/topnav";
 
 interface Series {
   id: string;
@@ -139,7 +138,6 @@ export default function AdminPanel() {
   if (isLoading) {
     return (
       <>
-        <TopNav />
         <div className="flex min-h-[400px] items-center justify-center">
           <div className="text-center">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
@@ -154,7 +152,6 @@ export default function AdminPanel() {
 
   return (
     <main>
-      <TopNav />
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
         <main className="py-6">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

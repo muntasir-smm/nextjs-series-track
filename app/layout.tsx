@@ -1,6 +1,6 @@
 // app/layout.tsx
 
-import "./ui/global.css"; // Fixed import path
+import "./ui/global.css";
 import { inter } from "@/app/ui/fonts";
 import { Metadata } from "next";
 
@@ -24,8 +24,21 @@ export const metadata: Metadata = {
     type: "website",
   },
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/images/favicon.ico", sizes: "any" },
+      { url: "/images/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/images/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: [
+      {
+        url: "/images/apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
+    shortcut: ["/favicon.ico"],
   },
+  manifest: "/site.webmanifest",
 };
 
 export default function RootLayout({
