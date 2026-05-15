@@ -12,7 +12,9 @@ export const metadata: Metadata = {
   description:
     "Track your favorite TV series, manage watchlists, and never miss an episode.",
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+    process.env.NEXTAUTH_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      "http://localhost:3000",
   ),
   keywords: ["TV series", "tracker", "watchlist", "entertainment", "TV shows"],
   authors: [{ name: "Series Tracker" }],

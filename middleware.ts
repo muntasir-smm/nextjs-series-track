@@ -5,6 +5,13 @@ import { auth } from "@/app/lib/auth";
 export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const pathname = req.nextUrl.pathname;
+  const userRole = req.auth?.user?.role;
+
+  // Admin route protection
+  if (pathname.startsWith("/admin") && userRole !== "admin") {
+    const newUrl = new URL("/dashboard", req.nextUrl.origin);
+    return Response.redirect(newUrl);
+  }
 
   // Define public routes that don't require authentication
   const isPublicRoute =

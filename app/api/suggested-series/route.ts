@@ -4,7 +4,8 @@ import { NextResponse } from "next/server";
 import { defaultSeries } from "@/app/lib/placeholder-data";
 
 export async function GET() {
-  // Return all default series as suggestions
+  // This returns the default series for public/discover pages
+  // In production, this could be read from a database or file
   const suggestedSeries = defaultSeries.map((series) => ({
     id: series.id,
     name: series.name,

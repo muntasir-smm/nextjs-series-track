@@ -6,6 +6,22 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { sql } from "./db";
 
+// Extend the session type
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      email: string;
+      name: string;
+      role: string;
+    };
+  }
+
+  interface User {
+    role?: string;
+  }
+}
+
 // Validation schema for login credentials
 const credentialsSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -35,9 +51,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const { email, password } = validated.data;
 
         try {
-          // Query user from Neon database
+          // Query user from Neon database including role
           const users = await sql`
-            SELECT id, email, name, password 
+            SELECT id, email, name, password, COALESCE(role, 'user') as role 
             FROM users 
             WHERE email = ${email}
             LIMIT 1
@@ -57,12 +73,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return null;
           }
 
-          console.log("User authenticated:", email);
+          console.log("User authenticated:", email, "Role:", user.role);
 
           return {
             id: user.id,
             email: user.email,
             name: user.name,
+            role: user.role || "user",
           };
         } catch (error) {
           console.error("Authorization error:", error);
@@ -77,7 +94,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   session: {
     strategy: "jwt",
-    maxAge: 1 * 24 * 60 * 60, // 1 days
+    maxAge: 1 * 24 * 60 * 60, // 1 day
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -85,6 +102,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
+        token.role = user.role;
       }
       return token;
     },
@@ -93,7 +111,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.id = token.id as string;
         session.user.email = token.email as string;
         session.user.name = token.name as string;
+        session.user.role = token.role as string;
       }
+      console.log("Session user role:", session.user?.role);
       return session;
     },
   },
@@ -108,7 +128,7 @@ export async function getCurrentUser() {
 
   try {
     const users = await sql`
-      SELECT id, email, name
+      SELECT id, email, name, role
       FROM users 
       WHERE email = ${session.user.email}
       LIMIT 1
@@ -123,4 +143,9 @@ export async function getCurrentUser() {
 export async function isAuthenticated() {
   const session = await auth();
   return !!session;
+}
+
+export async function isAdmin() {
+  const session = await auth();
+  return session?.user?.role === "admin";
 }
