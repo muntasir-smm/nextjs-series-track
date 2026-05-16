@@ -2,8 +2,19 @@
 
 "use client";
 
-import React, { useState } from "react";
-import TMDBSeach from "./tmdb-search";
+import React, { useState, useEffect } from "react";
+import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
+
+interface TMDBResult {
+  id: string;
+  name: string;
+  totalSeasons: number;
+  overview: string;
+  posterPath: string | null;
+  backdropPath: string | null;
+  firstAirDate: string;
+  voteAverage: number;
+}
 
 interface AddSeriesFormProps {
   addSeries: (
@@ -24,21 +35,85 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
   const [name, setName] = useState("");
   const [totalSeasons, setTotalSeasons] = useState<number | null>(null);
   const [hasUpcoming, setHasUpcoming] = useState<boolean | null>(null);
-  const [showTMDB, setShowTMDB] = useState(false);
 
-  const [tmdbData, setTmdbData] = useState<{
-    name: string;
-    totalSeasons: number;
-    posterPath: string | null;
-    backdropPath: string | null;
-    overview: string;
-  } | null>(null);
+  // TMDB Search states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<TMDBResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [selectedFromTMDB, setSelectedFromTMDB] = useState<TMDBResult | null>(
+    null,
+  );
 
   const [errors, setErrors] = useState<{
     name?: string;
     totalSeasons?: string;
     hasUpcoming?: string;
   }>({});
+
+  // Debounced search
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      if (searchQuery.length >= 2) {
+        searchTMDB();
+      } else {
+        setSearchResults([]);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounce);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
+
+  const searchTMDB = async () => {
+    if (!searchQuery.trim()) return;
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(
+        `/api/tmdb/search?query=${encodeURIComponent(searchQuery)}`,
+      );
+      const data = await response.json();
+      setSearchResults(data.series || []);
+      setShowResults(true);
+    } catch (error) {
+      console.error("Search failed:", error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const fetchSeriesDetails = async (showId: string) => {
+    try {
+      const response = await fetch(`/api/tmdb/tv/${showId}`);
+      const details = await response.json();
+      return details;
+    } catch (err) {
+      console.error("Failed to fetch details:", err);
+      return null;
+    }
+  };
+
+  const selectFromTMDB = async (show: TMDBResult) => {
+    // Fetch full details to get accurate season count
+    const details = await fetchSeriesDetails(show.id);
+
+    setName(show.name);
+    setTotalSeasons(details?.totalSeasons || show.totalSeasons || 0);
+    setSelectedFromTMDB({
+      ...show,
+      totalSeasons: details?.totalSeasons || show.totalSeasons || 0,
+      overview: details?.overview || show.overview,
+    });
+    setShowResults(false);
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
+  const getPosterUrl = (posterPath: string | null, size: string = "w92") => {
+    if (!posterPath) return null;
+    return `https://image.tmdb.org/t/p/${size}${posterPath}`;
+  };
 
   const validateForm = (): boolean => {
     const newErrors: {
@@ -78,21 +153,21 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
       upcomingSeasons = [`Season ${nextSeasonNumber}`];
     }
 
-    // Pass all 6 parameters to match the interface
     addSeries(
       name,
       totalSeasons as number,
       upcomingSeasons,
-      tmdbData?.posterPath,
-      tmdbData?.backdropPath,
-      tmdbData?.overview,
+      selectedFromTMDB?.posterPath,
+      selectedFromTMDB?.backdropPath,
+      selectedFromTMDB?.overview,
     );
 
     // Reset form
     setName("");
     setTotalSeasons(null);
     setHasUpcoming(null);
-    setTmdbData(null);
+    setSelectedFromTMDB(null);
+    setSearchQuery("");
     setErrors({});
   };
 
@@ -106,63 +181,95 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
     }
   };
 
-  const handleSelectFromTMDB = (data: {
-    name: string;
-    totalSeasons: number;
-    upcomingSeasons: string[];
-    posterPath: string | null;
-    backdropPath: string | null;
-    overview: string;
-  }) => {
-    console.log("Selected from TMDB:", data);
-    setName(data.name);
-    setTotalSeasons(data.totalSeasons > 0 ? data.totalSeasons : null);
-    setTmdbData({
-      name: data.name,
-      totalSeasons: data.totalSeasons,
-      posterPath: data.posterPath,
-      backdropPath: data.backdropPath,
-      overview: data.overview,
-    });
-    setShowTMDB(false);
-  };
-
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* TMDB Search Toggle */}
-      <div>
-        <button
-          type="button"
-          onClick={() => setShowTMDB(!showTMDB)}
-          className="text-sm text-blue-500 hover:text-blue-600"
-        >
-          {showTMDB ? "Hide TMDB Search" : "🔍 Search from TMDB"}
-        </button>
+      {/* TMDB Search Section */}
+      <div className="relative">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Search from TMDB
+        </label>
+        <div className="relative">
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search for a TV series (e.g., Breaking Bad)..."
+            className="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 pl-9 pr-8 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery("");
+                setSearchResults([]);
+                setShowResults(false);
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <XMarkIcon className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Search Results Dropdown */}
+        {showResults && searchResults.length > 0 && (
+          <div className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+            {searchResults.map((show) => (
+              <button
+                key={show.id}
+                type="button"
+                onClick={() => selectFromTMDB(show)}
+                className="flex w-full items-center gap-3 border-b border-gray-100 p-3 text-left transition-colors hover:bg-gray-50 last:border-0 dark:border-gray-700 dark:hover:bg-gray-700"
+              >
+                {getPosterUrl(show.posterPath) ? (
+                  <img
+                    src={getPosterUrl(show.posterPath)!}
+                    alt={show.name}
+                    className="h-12 w-8 rounded object-cover"
+                  />
+                ) : (
+                  <div className="h-12 w-8 rounded bg-gray-200 dark:bg-gray-700" />
+                )}
+                <div className="flex-1">
+                  <div className="font-medium text-gray-900 dark:text-white">
+                    {show.name}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {show.firstAirDate?.split("-")[0] || "Unknown"} •{" "}
+                    {show.totalSeasons || "?"} seasons
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {isSearching && (
+          <div className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white p-4 text-center shadow-lg dark:border-gray-700 dark:bg-gray-800">
+            <div className="flex items-center justify-center gap-2">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></div>
+              <span className="text-sm text-gray-500">Searching...</span>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* TMDB Search Component */}
-      {showTMDB && (
-        <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-          <TMDBSeach
-            onSelectSeries={handleSelectFromTMDB}
-            onCancel={() => setShowTMDB(false)}
-          />
-        </div>
-      )}
-
-      {/* TMDB Preview */}
-      {tmdbData && !showTMDB && (
+      {/* Selected TMDB Preview */}
+      {selectedFromTMDB && (
         <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
           <p className="text-sm text-blue-600 dark:text-blue-400">
-            ℹ️ Added from TMDB: {tmdbData.name}
-            {tmdbData.overview && (
+            ✓ Added from TMDB: {selectedFromTMDB.name}
+            {selectedFromTMDB.overview && (
               <span className="mt-1 block text-xs text-gray-600 dark:text-gray-400">
-                {tmdbData.overview.substring(0, 150)}...
+                {selectedFromTMDB.overview.substring(0, 100)}...
               </span>
             )}
           </p>
         </div>
       )}
+
+      <div className="h-px bg-gray-200 dark:bg-gray-700"></div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -255,13 +362,29 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
         )}
       </div>
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="w-full rounded-md bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {isSubmitting ? "Adding..." : "Add Series"}
-      </button>
+      <div className="flex gap-3 pt-2">
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="flex-1 rounded-md bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isSubmitting ? "Adding..." : "Add Series"}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setName("");
+            setTotalSeasons(null);
+            setHasUpcoming(null);
+            setSelectedFromTMDB(null);
+            setSearchQuery("");
+            setErrors({});
+          }}
+          className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+        >
+          Cancel
+        </button>
+      </div>
     </form>
   );
 };

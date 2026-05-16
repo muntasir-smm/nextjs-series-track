@@ -22,33 +22,43 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(
+    // First, search for shows
+    const searchResponse = await fetch(
       `${BASE_URL}/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=en-US`,
     );
+    const searchData = await searchResponse.json();
 
-    if (!response.ok) {
-      throw new Error(`TMDB API error: ${response.status}`);
+    if (!searchResponse.ok) {
+      throw new Error(`TMDB API error: ${searchResponse.status}`);
     }
 
-    const data = await response.json();
+    // Then fetch full details for each show to get number_of_seasons
+    const series = await Promise.all(
+      searchData.results.slice(0, 10).map(async (show: any) => {
+        // Fetch full details for this specific show
+        const detailsResponse = await fetch(
+          `${BASE_URL}/tv/${show.id}?api_key=${TMDB_API_KEY}&language=en-US`,
+        );
+        const details = await detailsResponse.json();
 
-    // Transform TMDB data to our format
-    const series = data.results.map((show: any) => ({
-      id: show.id.toString(),
-      name: show.name,
-      totalSeasons: show.number_of_seasons || 0,
-      overview: show.overview || "",
-      posterPath: show.poster_path,
-      backdropPath: show.backdrop_path,
-      firstAirDate: show.first_air_date,
-      voteAverage: show.vote_average,
-      originalLanguage: show.original_language,
-    }));
+        return {
+          id: show.id.toString(),
+          name: show.name,
+          totalSeasons: details.number_of_seasons || 0, // ✅ Now we get it!
+          overview: details.overview || "",
+          posterPath: show.poster_path,
+          backdropPath: details.backdrop_path,
+          firstAirDate: show.first_air_date,
+          voteAverage: show.vote_average,
+          status: details.status,
+        };
+      }),
+    );
 
     return NextResponse.json({
       series,
-      totalResults: data.total_results,
-      totalPages: data.total_pages,
+      totalResults: searchData.total_results,
+      totalPages: searchData.total_pages,
     });
   } catch (error) {
     console.error("TMDB search error:", error);

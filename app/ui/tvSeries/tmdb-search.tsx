@@ -66,7 +66,7 @@ export default function TMDBSeach({
     }
   };
 
-  const getImageUrl = (path: string | null, size: string = "w92") => {
+  const getImageUrl = (path: string | null, size: string = "w185") => {
     if (!path) return null;
     return `https://image.tmdb.org/t/p/${size}${path}`;
   };
@@ -95,7 +95,7 @@ export default function TMDBSeach({
             searchTMDB(e.target.value);
           }}
           placeholder="Search for a TV series (e.g., Breaking Bad)..."
-          className="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pl-11 pr-4 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          className="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pl-11 pr-4 text-sm outline-none focus:border-blue-500 focus:bg-white focus:text-black focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
         />
         {query && (
           <button
