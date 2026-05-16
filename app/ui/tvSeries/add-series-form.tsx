@@ -11,6 +11,7 @@ interface AddSeriesFormProps {
     totalSeasons: number,
     upcomingSeasons: string[],
     posterPath?: string | null,
+    backdropPath?: string | null,
     overview?: string | null,
   ) => void;
   isSubmitting?: boolean;
@@ -24,12 +25,15 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
   const [totalSeasons, setTotalSeasons] = useState<number | null>(null);
   const [hasUpcoming, setHasUpcoming] = useState<boolean | null>(null);
   const [showTMDB, setShowTMDB] = useState(false);
+
   const [tmdbData, setTmdbData] = useState<{
     name: string;
     totalSeasons: number;
     posterPath: string | null;
+    backdropPath: string | null;
     overview: string;
   } | null>(null);
+
   const [errors, setErrors] = useState<{
     name?: string;
     totalSeasons?: string;
@@ -74,12 +78,13 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
       upcomingSeasons = [`Season ${nextSeasonNumber}`];
     }
 
-    // Pass poster and overview data if from TMDB
+    // Pass all 6 parameters to match the interface
     addSeries(
       name,
       totalSeasons as number,
       upcomingSeasons,
       tmdbData?.posterPath,
+      tmdbData?.backdropPath,
       tmdbData?.overview,
     );
 
@@ -106,15 +111,17 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
     totalSeasons: number;
     upcomingSeasons: string[];
     posterPath: string | null;
+    backdropPath: string | null;
     overview: string;
   }) => {
-    console.log("Selected from TMDB:", data); // Debug log
+    console.log("Selected from TMDB:", data);
     setName(data.name);
     setTotalSeasons(data.totalSeasons > 0 ? data.totalSeasons : null);
     setTmdbData({
       name: data.name,
       totalSeasons: data.totalSeasons,
       posterPath: data.posterPath,
+      backdropPath: data.backdropPath,
       overview: data.overview,
     });
     setShowTMDB(false);

@@ -95,6 +95,7 @@ function SeriesContent() {
       totalSeasons: number,
       upcomingSeasons: string[],
       posterPath?: string | null,
+      backdropPath?: string | null,
       overview?: string | null,
     ) => {
       try {
@@ -103,6 +104,7 @@ function SeriesContent() {
           totalSeasons,
           upcomingSeasons,
           posterPath,
+          backdropPath,
           overview,
         );
         if (result.success) {

@@ -4,6 +4,7 @@
 
 import { useState } from "react";
 import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import Image from "next/image";
 
 interface TMDBShow {
   id: string;
@@ -11,6 +12,7 @@ interface TMDBShow {
   totalSeasons: number;
   overview: string;
   posterPath: string | null;
+  backdropPath: string | null;
   firstAirDate: string;
   voteAverage: number;
 }
@@ -21,6 +23,7 @@ interface TMDBSeachProps {
     totalSeasons: number;
     upcomingSeasons: string[];
     posterPath: string | null;
+    backdropPath: string | null;
     overview: string;
   }) => void;
   onCancel: () => void;
@@ -69,12 +72,12 @@ export default function TMDBSeach({
   };
 
   const handleSelect = (show: TMDBShow) => {
-    console.log("Selected series poster:", show.posterPath); // Debug
     onSelectSeries({
       name: show.name,
       totalSeasons: show.totalSeasons,
       upcomingSeasons: [],
       posterPath: show.posterPath,
+      backdropPath: show.backdropPath,
       overview: show.overview,
     });
   };
@@ -130,9 +133,11 @@ export default function TMDBSeach({
             >
               {/* Poster */}
               {getImageUrl(show.posterPath) ? (
-                <img
+                <Image
                   src={getImageUrl(show.posterPath)!}
                   alt={show.name}
+                  width={48}
+                  height={64}
                   className="h-16 w-12 rounded object-cover"
                 />
               ) : (

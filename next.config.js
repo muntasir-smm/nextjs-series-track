@@ -6,19 +6,17 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: "https",
+        hostname: "image.tmdb.org",
+        port: "",
+        pathname: "/t/p/**",
+      },
+      {
+        protocol: "https",
         hostname: "*.public.blob.vercel-storage.com",
         port: "",
         pathname: "/**",
       },
-      {
-        protocol: "https",
-        hostname: "*.vercel-storage.com",
-        port: "",
-        pathname: "/**",
-      },
     ],
-    // Allow external images during development
-    domains: ["public.blob.vercel-storage.com", "vercel-storage.com"],
   },
 };
 

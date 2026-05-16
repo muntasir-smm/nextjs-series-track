@@ -14,6 +14,7 @@ export interface Series {
   watchedSeasons: boolean[];
   watchProgress: number;
   posterPath?: string | null;
+  backdropPath?: string | null;
   overview?: string | null;
 }
 
@@ -34,6 +35,7 @@ export async function getUserSeries(): Promise<Series[]> {
         watched_seasons as "watchedSeasons",
         watch_progress as "watchProgress",
         poster_path as "posterPath",
+        backdrop_path as "backdropPath",
         overview
       FROM user_series
       WHERE user_id = ${session.user.id}::uuid
@@ -53,6 +55,7 @@ export async function addSeries(
   totalSeasons: number,
   upcomingSeasons: string[],
   posterPath?: string | null,
+  backdropPath?: string | null,
   overview?: string | null,
 ) {
   const session = await auth();
@@ -75,6 +78,7 @@ export async function addSeries(
         watched_seasons, 
         watch_progress,
         poster_path,
+        backdrop_path,
         overview
       ) VALUES (
         ${session.user.id}::uuid,
@@ -85,6 +89,7 @@ export async function addSeries(
         ${watchedSeasons},
         ${watchProgress},
         ${posterPath || null},
+        ${backdropPath || null},
         ${overview || null}
       )
     `;
@@ -116,6 +121,7 @@ export async function updateSeries(updatedSeries: Series) {
         watched_seasons = ${updatedSeries.watchedSeasons},
         watch_progress = ${roundedProgress},
         poster_path = ${updatedSeries.posterPath || null},
+        backdrop_path = ${updatedSeries.backdropPath || null},
         overview = ${updatedSeries.overview || null}
       WHERE user_id = ${session.user.id}::uuid
       AND series_id = ${updatedSeries.id}

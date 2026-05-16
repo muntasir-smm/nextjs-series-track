@@ -6,6 +6,7 @@ import ProgressBar from "./progress-bar";
 import { TrashIcon, PencilIcon, EyeIcon } from "@heroicons/react/24/outline";
 import { updateWatchProgress } from "@/app/lib/series";
 import Link from "next/link";
+import Image from "next/image";
 
 // Helper function to get poster URL
 const getPosterUrl = (
@@ -162,13 +163,12 @@ const SeriesList: React.FC<SeriesListProps> = ({
                   >
                     <td className="px-4 py-3">
                       {posterUrl ? (
-                        <img
+                        <Image
                           src={posterUrl}
                           alt={s.name}
+                          width={32}
+                          height={48}
                           className="h-12 w-8 rounded object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                          }}
                         />
                       ) : (
                         <div className="h-12 w-8 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
@@ -245,13 +245,12 @@ const SeriesList: React.FC<SeriesListProps> = ({
                   {/* Poster */}
                   <div className="flex-shrink-0">
                     {posterUrl ? (
-                      <img
+                      <Image
                         src={posterUrl}
                         alt={s.name}
+                        width={48}
+                        height={64}
                         className="h-16 w-12 rounded object-cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                        }}
                       />
                     ) : (
                       <div className="h-16 w-12 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
