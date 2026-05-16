@@ -116,6 +116,16 @@ export default function TopNav() {
     }
   };
 
+  // Listen for open-add-modal event
+  useEffect(() => {
+    const handleOpenModal = () => {
+      setIsAddSeriesModalOpen(true);
+    };
+
+    window.addEventListener("open-add-modal", handleOpenModal);
+    return () => window.removeEventListener("open-add-modal", handleOpenModal);
+  }, []);
+
   return (
     <>
       {/* Add Series Modal */}
