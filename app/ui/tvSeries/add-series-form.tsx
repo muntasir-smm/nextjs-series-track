@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useState } from "react";
+import TMDBSeach from "./tmdb-search";
 
 interface AddSeriesFormProps {
   addSeries: (
@@ -10,16 +11,23 @@ interface AddSeriesFormProps {
     totalSeasons: number,
     upcomingSeasons: string[],
   ) => void;
-  isSubmitting?: boolean; // Add this prop
+  isSubmitting?: boolean;
 }
 
 const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
   addSeries,
-  isSubmitting = false, // Default to false
+  isSubmitting = false,
 }) => {
   const [name, setName] = useState("");
   const [totalSeasons, setTotalSeasons] = useState<number | null>(null);
   const [hasUpcoming, setHasUpcoming] = useState<boolean | null>(null);
+  const [showTMDB, setShowTMDB] = useState(false);
+  const [tmdbData, setTmdbData] = useState<{
+    name: string;
+    totalSeasons: number;
+    posterPath: string | null;
+    overview: string;
+  } | null>(null);
   const [errors, setErrors] = useState<{
     name?: string;
     totalSeasons?: string;
@@ -70,6 +78,7 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
     setName("");
     setTotalSeasons(null);
     setHasUpcoming(null);
+    setTmdbData(null);
     setErrors({});
   };
 
@@ -83,8 +92,61 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
     }
   };
 
+  const handleSelectFromTMDB = (data: {
+    name: string;
+    totalSeasons: number;
+    upcomingSeasons: string[];
+    posterPath: string | null;
+    overview: string;
+  }) => {
+    setName(data.name);
+    setTotalSeasons(data.totalSeasons > 0 ? data.totalSeasons : null);
+    setTmdbData({
+      name: data.name,
+      totalSeasons: data.totalSeasons,
+      posterPath: data.posterPath,
+      overview: data.overview,
+    });
+    setShowTMDB(false);
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* TMDB Search Toggle */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowTMDB(!showTMDB)}
+          className="text-sm text-blue-500 hover:text-blue-600"
+        >
+          {showTMDB ? "Hide TMDB Search" : "🔍 Search from TMDB"}
+        </button>
+      </div>
+
+      {/* TMDB Search Component */}
+      {showTMDB && (
+        <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+          <TMDBSeach
+            onSelectSeries={handleSelectFromTMDB}
+            onCancel={() => setShowTMDB(false)}
+          />
+        </div>
+      )}
+
+      {/* TMDB Preview */}
+      {tmdbData && !showTMDB && (
+        <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
+          <p className="text-sm text-blue-600 dark:text-blue-400">
+            ℹ️ Added from TMDB: {tmdbData.name}
+            {tmdbData.overview && (
+              <span className="mt-1 block text-xs text-gray-600 dark:text-gray-400">
+                {tmdbData.overview.substring(0, 150)}...
+              </span>
+            )}
+          </p>
+        </div>
+      )}
+
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
           Series Name <span className="text-red-500">*</span>
