@@ -87,14 +87,23 @@ function SeriesContent() {
     handleSearch("");
   };
 
+  // In app/dashboard/tvSeries/page.tsx
+
   const addSeries = useCallback(
-    async (name: string, totalSeasons: number, upcomingSeasons: string[]) => {
-      setIsAdding(true);
+    async (
+      name: string,
+      totalSeasons: number,
+      upcomingSeasons: string[],
+      posterPath?: string | null,
+      overview?: string | null,
+    ) => {
       try {
         const result = await addSeriesAction(
           name,
           totalSeasons,
           upcomingSeasons,
+          posterPath,
+          overview,
         );
         if (result.success) {
           const updatedSeries = await getUserSeries();
@@ -106,8 +115,6 @@ function SeriesContent() {
       } catch (err) {
         console.error("Error adding series:", err);
         setError("Failed to add series. Please try again.");
-      } finally {
-        setIsAdding(false);
       }
     },
     [],

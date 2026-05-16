@@ -69,10 +69,11 @@ export default function TMDBSeach({
   };
 
   const handleSelect = (show: TMDBShow) => {
+    console.log("Selected series poster:", show.posterPath); // Debug
     onSelectSeries({
       name: show.name,
       totalSeasons: show.totalSeasons,
-      upcomingSeasons: [], // User will set this manually
+      upcomingSeasons: [],
       posterPath: show.posterPath,
       overview: show.overview,
     });

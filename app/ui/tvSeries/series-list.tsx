@@ -7,6 +7,16 @@ import { TrashIcon, PencilIcon, EyeIcon } from "@heroicons/react/24/outline";
 import { updateWatchProgress } from "@/app/lib/series";
 import Link from "next/link";
 
+// Helper function to get poster URL
+const getPosterUrl = (
+  posterPath: string | null | undefined,
+  size: string = "w185",
+) => {
+  if (!posterPath) return null;
+  if (posterPath.startsWith("http")) return posterPath;
+  return `https://image.tmdb.org/t/p/${size}${posterPath}`;
+};
+
 interface Series {
   id: string;
   name: string;
@@ -14,6 +24,8 @@ interface Series {
   upcomingSeasons: string[];
   watchedSeasons: boolean[];
   watchProgress: number;
+  posterPath?: string | null;
+  overview?: string | null;
 }
 
 interface SeriesListProps {
@@ -77,7 +89,7 @@ const SeriesList: React.FC<SeriesListProps> = ({
           onChange={() => toggleWatched(seriesIndex, seasonIndex)}
           className="rounded border-gray-300 text-blue-500 focus:ring-blue-500 cursor-pointer"
         />
-        S{seasonIndex + 1}
+        <span>S{seasonIndex + 1}</span>
       </label>
     ));
   };
@@ -108,116 +120,210 @@ const SeriesList: React.FC<SeriesListProps> = ({
     return firstUpcoming.replace("Season", "S");
   };
 
-  return (
-    <div className="w-full overflow-auto">
-      <table className="w-full border-collapse rounded-lg overflow-hidden shadow-sm">
-        <thead className="bg-gradient-to-r from-blue-500 to-blue-600">
-          <tr>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-white">
-              Name
-            </th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-white">
-              Total Seasons
-            </th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-white">
-              Upcoming Seasons
-            </th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-white">
-              Watched Seasons
-            </th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-white">
-              Progress
-            </th>
-            <th className="px-4 py-3 text-center text-sm font-semibold text-white">
-              Actions
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {localSeries && localSeries.length > 0 ? (
-            localSeries.map((s, seriesIndex) => (
-              <tr
-                key={s.id}
-                className="border-b border-gray-200 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/50 group"
-              >
-                <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
-                  {s.name}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                  <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                    {s.totalSeasons}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                  {s.upcomingSeasons.length > 0 ? (
-                    <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300">
+  // For mobile view, use cards instead of table
+  if (localSeries && localSeries.length > 0) {
+    return (
+      <div className="space-y-4">
+        {/* Desktop Table - Hidden on mobile */}
+        <div className="hidden md:block w-full overflow-auto">
+          <table className="w-full border-collapse rounded-lg overflow-hidden shadow-sm">
+            <thead className="bg-gradient-to-r from-blue-500 to-blue-600">
+              <tr>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-white">
+                  Poster
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-white">
+                  Name
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-white">
+                  Total Seasons
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-white">
+                  Upcoming
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-white">
+                  Watched
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-white">
+                  Progress
+                </th>
+                <th className="px-4 py-3 text-center text-sm font-semibold text-white">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {localSeries.map((s, seriesIndex) => {
+                const posterUrl = getPosterUrl(s.posterPath);
+                return (
+                  <tr
+                    key={s.id}
+                    className="border-b border-gray-200 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/50"
+                  >
+                    <td className="px-4 py-3">
+                      {posterUrl ? (
+                        <img
+                          src={posterUrl}
+                          alt={s.name}
+                          className="h-12 w-8 rounded object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <div className="h-12 w-8 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                          <span className="text-xs text-gray-400">No img</span>
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                      {s.name}
+                      {s.overview && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-1">
+                          {s.overview.substring(0, 80)}...
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                      {s.totalSeasons}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                       {renderUpcomingSeasons(s.upcomingSeasons, s.totalSeasons)}
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-400">
-                      Series Ended
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-2">
-                    {renderWatchedSeasons(s.watchedSeasons, seriesIndex)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {renderWatchedSeasons(s.watchedSeasons, seriesIndex)}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 min-w-[100px]">
+                      <ProgressBar width={`${s.watchProgress}%`}>
+                        {formatProgress(s.watchProgress)}%
+                      </ProgressBar>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <Link
+                          href={`/dashboard/tvSeries/${s.id}`}
+                          className="rounded-lg p-2 text-gray-500 transition-all hover:bg-gray-100 hover:text-blue-600"
+                          title="View Details"
+                        >
+                          <EyeIcon className="h-4 w-4" />
+                        </Link>
+                        <button
+                          onClick={() => onEditSeries?.(s)}
+                          className="rounded-lg p-2 text-gray-500 transition-all hover:bg-gray-100 hover:text-amber-600"
+                          title="Edit Series"
+                        >
+                          <PencilIcon className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => deleteSeries(s.id)}
+                          className="rounded-lg p-2 text-gray-500 transition-all hover:bg-gray-100 hover:text-red-600"
+                          title="Delete Series"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Cards - Visible only on mobile */}
+        <div className="md:hidden space-y-3">
+          {localSeries.map((s, seriesIndex) => {
+            const posterUrl = getPosterUrl(s.posterPath);
+            return (
+              <div
+                key={s.id}
+                className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+              >
+                <div className="flex gap-3">
+                  {/* Poster */}
+                  <div className="flex-shrink-0">
+                    {posterUrl ? (
+                      <img
+                        src={posterUrl}
+                        alt={s.name}
+                        className="h-16 w-12 rounded object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <div className="h-16 w-12 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                        <span className="text-xs text-gray-400">No img</span>
+                      </div>
+                    )}
                   </div>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="min-w-[120px]">
-                    <ProgressBar width={`${s.watchProgress}%`}>
-                      {formatProgress(s.watchProgress)}%
-                    </ProgressBar>
+
+                  {/* Details */}
+                  <div className="flex-1">
+                    <h3 className="font-medium text-gray-900 dark:text-white">
+                      {s.name}
+                    </h3>
+                    <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      {s.totalSeasons} seasons •{" "}
+                      {renderUpcomingSeasons(s.upcomingSeasons, s.totalSeasons)}
+                    </div>
+                    <div className="mt-2">
+                      <div className="flex flex-wrap gap-1">
+                        {renderWatchedSeasons(s.watchedSeasons, seriesIndex)}
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <ProgressBar width={`${s.watchProgress}%`}>
+                        {formatProgress(s.watchProgress)}%
+                      </ProgressBar>
+                    </div>
                   </div>
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <div className="flex items-center justify-center gap-1.5">
-                    {/* View Details Button */}
+
+                  {/* Actions */}
+                  <div className="flex flex-col gap-1">
                     <Link
                       href={`/dashboard/tvSeries/${s.id}`}
-                      className="group/btn inline-flex items-center justify-center rounded-lg p-2 text-gray-500 transition-all hover:bg-gray-100 hover:text-blue-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-blue-400"
-                      aria-label="View details"
+                      className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-blue-600"
                       title="View Details"
                     >
                       <EyeIcon className="h-4 w-4" />
                     </Link>
-
-                    {/* Edit Button */}
                     <button
                       onClick={() => onEditSeries?.(s)}
-                      className="group/btn inline-flex items-center justify-center rounded-lg p-2 text-gray-500 transition-all hover:bg-gray-100 hover:text-amber-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-amber-400"
-                      aria-label="Edit series"
+                      className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-amber-600"
                       title="Edit Series"
                     >
                       <PencilIcon className="h-4 w-4" />
                     </button>
-
-                    {/* Delete Button */}
                     <button
                       onClick={() => deleteSeries(s.id)}
-                      className="group/btn inline-flex items-center justify-center rounded-lg p-2 text-gray-500 transition-all hover:bg-gray-100 hover:text-red-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-red-400"
-                      aria-label="Delete series"
+                      className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-red-600"
                       title="Delete Series"
                     >
                       <TrashIcon className="h-4 w-4" />
                     </button>
                   </div>
-                </td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td
-                colSpan={6}
-                className="px-4 py-8 text-center text-gray-500 dark:text-gray-400"
-              >
-                No series available. Add your first series above!
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+                </div>
+                {s.overview && (
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+                    {s.overview}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-center py-8">
+      <p className="text-gray-600 dark:text-gray-400">
+        No series available. Add your first series above!
+      </p>
     </div>
   );
 };

@@ -10,6 +10,8 @@ interface AddSeriesFormProps {
     name: string,
     totalSeasons: number,
     upcomingSeasons: string[],
+    posterPath?: string | null,
+    overview?: string | null,
   ) => void;
   isSubmitting?: boolean;
 }
@@ -72,7 +74,14 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
       upcomingSeasons = [`Season ${nextSeasonNumber}`];
     }
 
-    addSeries(name, totalSeasons as number, upcomingSeasons);
+    // Pass poster and overview data if from TMDB
+    addSeries(
+      name,
+      totalSeasons as number,
+      upcomingSeasons,
+      tmdbData?.posterPath,
+      tmdbData?.overview,
+    );
 
     // Reset form
     setName("");
@@ -99,6 +108,7 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
     posterPath: string | null;
     overview: string;
   }) => {
+    console.log("Selected from TMDB:", data); // Debug log
     setName(data.name);
     setTotalSeasons(data.totalSeasons > 0 ? data.totalSeasons : null);
     setTmdbData({
