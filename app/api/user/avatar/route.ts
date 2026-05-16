@@ -7,8 +7,6 @@ import { put, del } from "@vercel/blob";
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("1. Starting avatar upload...");
-
     // Check for Blob token first
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
       console.error("BLOB_READ_WRITE_TOKEN is missing");
@@ -19,10 +17,8 @@ export async function POST(request: NextRequest) {
         { status: 500 },
       );
     }
-    console.log("2. Token exists");
 
     const session = await auth();
-    console.log("3. Session:", session?.user?.email);
 
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -30,11 +26,6 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const file = formData.get("avatar") as File;
-    console.log("4. File received:", {
-      name: file?.name,
-      type: file?.type,
-      size: file?.size,
-    });
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -49,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > 3 * 1024 * 1024) {
       return NextResponse.json(
         { error: "File must be less than 5MB" },
         { status: 400 },
@@ -66,14 +57,11 @@ export async function POST(request: NextRequest) {
     // Get file extension
     const ext = file.type.split("/")[1];
     const fileName = `avatars/${session.user.id}-${Date.now()}.${ext}`;
-    console.log("6. File name:", fileName);
 
-    console.log("7. Uploading to Vercel Blob...");
     const blob = await put(fileName, file, {
       access: "public",
       addRandomSuffix: false,
     });
-    console.log("8. Uploaded to:", blob.url);
 
     // Update database with new avatar URL
     await sql`
@@ -81,7 +69,6 @@ export async function POST(request: NextRequest) {
       SET avatar_url = ${blob.url}
       WHERE email = ${session.user.email}
     `;
-    console.log("9. Database updated");
 
     // Delete old avatar in background
     if (oldAvatarUrl && oldAvatarUrl !== blob.url) {
@@ -90,14 +77,12 @@ export async function POST(request: NextRequest) {
           const urlParts = oldAvatarUrl.split("/");
           const blobPath = urlParts.slice(-2).join("/");
           await del(blobPath);
-          console.log("10. Old avatar deleted:", blobPath);
         } catch (e) {
           console.error("Failed to delete old avatar:", e);
         }
       });
     }
 
-    console.log("11. Success!");
     return NextResponse.json({ avatarUrl: blob.url });
   } catch (error) {
     console.error("Avatar upload error:", error);
@@ -134,9 +119,7 @@ export async function DELETE(request: NextRequest) {
         const urlParts = avatarUrl.split("/");
         const blobPath = urlParts.slice(-2).join("/");
 
-        console.log("Deleting avatar:", blobPath);
         await del(blobPath);
-        console.log("Avatar deleted successfully");
       } catch (e) {
         console.error("Failed to delete avatar:", e);
         // Don't fail the request if deletion fails
