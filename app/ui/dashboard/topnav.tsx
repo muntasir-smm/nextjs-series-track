@@ -11,12 +11,14 @@ import {
   XMarkIcon,
   UserIcon,
   ShieldCheckIcon,
+  PlusIcon,
 } from "@heroicons/react/24/outline";
 import { useState, useEffect, useRef } from "react";
 import clsx from "clsx";
 import { signOutAction } from "@/app/lib/signout-action";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Avatar from "./avatar";
+import AddSeriesModal from "./add-series-modal";
 
 export default function TopNav() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -25,8 +27,10 @@ export default function TopNav() {
   const [userRole, setUserRole] = useState<string>("user");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>("");
+  const [isAddSeriesModalOpen, setIsAddSeriesModalOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  const router = useRouter();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -61,7 +65,6 @@ export default function TopNav() {
     loadUserData();
   }, []);
 
-  // Load user profile for avatar
   useEffect(() => {
     const loadProfile = async () => {
       try {
@@ -78,7 +81,6 @@ export default function TopNav() {
     loadProfile();
   }, []);
 
-  // Listen for avatar updates
   useEffect(() => {
     const handleAvatarUpdate = () => {
       fetch("/api/user/profile")
@@ -93,6 +95,11 @@ export default function TopNav() {
     return () =>
       window.removeEventListener("avatar-updated", handleAvatarUpdate);
   }, []);
+
+  const handleSeriesAdded = () => {
+    // Refresh the page or update the series list
+    router.refresh();
+  };
 
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
@@ -111,6 +118,31 @@ export default function TopNav() {
 
   return (
     <>
+      {/* Add Series Modal */}
+      <AddSeriesModal
+        isOpen={isAddSeriesModalOpen}
+        onClose={() => setIsAddSeriesModalOpen(false)}
+        onSeriesAdded={handleSeriesAdded}
+      />
+
+      {/* Floating Action Button - Desktop */}
+      <button
+        onClick={() => setIsAddSeriesModalOpen(true)}
+        className="fixed bottom-6 right-6 z-40 hidden rounded-full bg-gradient-to-r from-blue-500 to-blue-600 p-4 text-white shadow-lg transition-all hover:scale-110 hover:shadow-xl md:block"
+        aria-label="Add Series"
+      >
+        <PlusIcon className="h-6 w-6" />
+      </button>
+
+      {/* Floating Action Button - Mobile */}
+      <button
+        onClick={() => setIsAddSeriesModalOpen(true)}
+        className="fixed bottom-4 right-4 z-40 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 p-3 text-white shadow-lg transition-all hover:scale-110 hover:shadow-xl md:hidden"
+        aria-label="Add Series"
+      >
+        <PlusIcon className="h-5 w-5" />
+      </button>
+
       <nav className="fixed top-0 z-50 w-full bg-white/95 backdrop-blur-sm shadow-md dark:bg-gray-900/95">
         <div className="mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
@@ -127,7 +159,6 @@ export default function TopNav() {
                   fill
                   className="object-contain brightness-0 invert"
                   priority
-                  sizes=""
                 />
               </div>
               <span className="text-sm font-bold text-white sm:text-base md:text-lg lg:text-xl">
@@ -246,7 +277,7 @@ export default function TopNav() {
         </div>
       </nav>
 
-      {/* Spacer to prevent content from hiding under fixed navbar */}
+      {/* Spacer */}
       <div className="h-16"></div>
     </>
   );

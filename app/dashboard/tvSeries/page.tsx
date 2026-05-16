@@ -4,17 +4,11 @@
 
 import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import AddSeriesForm from "../../ui/tvSeries/add-series-form";
 import EditSeriesForm from "../../ui/tvSeries/edit-series-form";
 import SeriesList from "../../ui/tvSeries/series-list";
-import {
-  PlusIcon,
-  MagnifyingGlassIcon,
-  XMarkIcon,
-} from "@heroicons/react/24/outline";
+import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import {
   getUserSeries,
-  addSeries as addSeriesAction,
   updateSeries as updateSeriesAction,
   deleteSeries as deleteSeriesAction,
   type Series,
@@ -31,12 +25,10 @@ function SeriesContent() {
   const [searchInputValue, setSearchInputValue] = useState(searchQuery);
 
   // Modal states
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingSeries, setEditingSeries] = useState<Series | null>(null);
 
   // Submission states
-  const [isAdding, setIsAdding] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
   // Load series from database
@@ -56,6 +48,17 @@ function SeriesContent() {
     };
 
     loadSeries();
+  }, []);
+
+  // Listen for series added event from floating button
+  useEffect(() => {
+    const handleSeriesAdded = async () => {
+      const updatedSeries = await getUserSeries();
+      setSeries(updatedSeries);
+    };
+
+    window.addEventListener("series-added", handleSeriesAdded);
+    return () => window.removeEventListener("series-added", handleSeriesAdded);
   }, []);
 
   // Update search input when URL query changes
@@ -86,41 +89,6 @@ function SeriesContent() {
     setSearchInputValue("");
     handleSearch("");
   };
-
-  // In app/dashboard/tvSeries/page.tsx
-
-  const addSeries = useCallback(
-    async (
-      name: string,
-      totalSeasons: number,
-      upcomingSeasons: string[],
-      posterPath?: string | null,
-      backdropPath?: string | null,
-      overview?: string | null,
-    ) => {
-      try {
-        const result = await addSeriesAction(
-          name,
-          totalSeasons,
-          upcomingSeasons,
-          posterPath,
-          backdropPath,
-          overview,
-        );
-        if (result.success) {
-          const updatedSeries = await getUserSeries();
-          setSeries(updatedSeries);
-          setIsAddModalOpen(false);
-        } else {
-          setError(result.error || "Failed to add series");
-        }
-      } catch (err) {
-        console.error("Error adding series:", err);
-        setError("Failed to add series. Please try again.");
-      }
-    },
-    [],
-  );
 
   const updateSeries = useCallback(async (updatedSeries: Series[]) => {
     setSeries(updatedSeries);
@@ -212,27 +180,6 @@ function SeriesContent() {
 
   return (
     <div className="space-y-6">
-      {/* Add Series Modal */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl dark:bg-gray-800">
-            <button
-              onClick={() => setIsAddModalOpen(false)}
-              className="absolute right-4 top-4 rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
-              disabled={isAdding}
-            >
-              <XMarkIcon className="h-5 w-5" />
-            </button>
-            <div className="p-6">
-              <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">
-                Add New Series
-              </h2>
-              <AddSeriesForm addSeries={addSeries} isSubmitting={isAdding} />
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Edit Series Modal */}
       {isEditModalOpen && editingSeries && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
@@ -282,16 +229,8 @@ function SeriesContent() {
         </p>
       </div>
 
-      {/* Actions Bar */}
+      {/* Search Bar Only - Add button removed (now using floating FAB) */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:from-blue-600 hover:to-blue-700 hover:shadow-md sm:w-auto"
-        >
-          <PlusIcon className="h-4 w-4" />
-          Add New Series
-        </button>
-
         <div className="flex-1 relative">
           <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
@@ -328,7 +267,7 @@ function SeriesContent() {
               <p className="text-gray-600 dark:text-gray-400">
                 {searchQuery
                   ? `No series found matching "${searchQuery}"`
-                  : "No series added yet. Click 'Add New Series' to get started!"}
+                  : "No series added yet. Click the + button to get started!"}
               </p>
             </div>
           ) : (
