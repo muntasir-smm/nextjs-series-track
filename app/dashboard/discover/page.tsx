@@ -2,20 +2,18 @@
 
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
-  PlusIcon,
   SparklesIcon,
   ArrowPathIcon,
   MagnifyingGlassIcon,
   XMarkIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  StarIcon,
+  ArrowUpIcon,
 } from "@heroicons/react/24/outline";
 import { addSeries as addSeriesAction, getUserSeries } from "@/app/lib/series";
 import Link from "next/link";
 import { useDebouncedCallback } from "use-debounce";
+import SeriesCard from "@/app/ui/series-card";
 
 interface Series {
   id: string;
@@ -25,54 +23,107 @@ interface Series {
   posterPath?: string | null;
   backdropPath?: string | null;
   voteAverage?: number;
-  firstAirDate?: string;
-  overview?: string;
+  firstAirDate?: string | null;
+  overview?: string | null;
+  genres?: string[];
 }
 
 export default function DiscoverPage() {
-  const [series, setSeries] = useState<Series[]>([]);
+  const [allSeries, setAllSeries] = useState<Series[]>([]);
   const [userSeriesIds, setUserSeriesIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [addingSeriesId, setAddingSeriesId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to top function
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Show/hide scroll to top button based on scroll position
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 500);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // Search function that uses TMDB API directly
-  const searchTMDB = useCallback(async (query: string, page: number = 1) => {
-    if (!query.trim()) {
-      // Load popular series if no search query
-      const res = await fetch(`/api/tmdb/popular?page=${page}&limit=20`);
-      const data = await res.json();
-      setSeries(data.series || []);
-      setTotalPages(data.totalPages || 1);
-      setTotalResults(data.totalResults || 0);
-      return;
-    }
+  const searchTMDB = useCallback(
+    async (query: string, page: number = 1, append: boolean = false) => {
+      if (!query.trim()) {
+        // Load popular series if no search query
+        const res = await fetch(`/api/tmdb/popular?page=${page}`);
+        const data = await res.json();
 
-    setIsSearching(true);
-    try {
+        if (append) {
+          setAllSeries((prev) => [...prev, ...(data.series || [])]);
+        } else {
+          setAllSeries(data.series || []);
+        }
+        setTotalPages(data.totalPages || 1);
+        setTotalResults(data.totalResults || 0);
+        setHasMore(page < data.totalPages);
+        return data;
+      }
+
       const res = await fetch(
         `/api/tmdb/search?query=${encodeURIComponent(query)}&page=${page}`,
       );
       const data = await res.json();
-      setSeries(data.series || []);
+
+      if (append) {
+        setAllSeries((prev) => [...prev, ...(data.series || [])]);
+      } else {
+        setAllSeries(data.series || []);
+      }
       setTotalPages(data.totalPages || 1);
       setTotalResults(data.totalResults || 0);
-    } catch (error) {
-      console.error("Search error:", error);
-    } finally {
-      setIsSearching(false);
-    }
-  }, []);
+      setHasMore(page < data.totalPages);
+      return data;
+    },
+    [],
+  );
 
   // Debounced search
-  const debouncedSearch = useDebouncedCallback((query: string) => {
+  const debouncedSearch = useDebouncedCallback(async (query: string) => {
+    setIsSearching(true);
     setCurrentPage(1);
-    searchTMDB(query, 1);
+    await searchTMDB(query, 1, false);
+    setIsSearching(false);
   }, 500);
+
+  // Load more series
+  const loadMore = async () => {
+    if (isLoadingMore || !hasMore) return;
+
+    setIsLoadingMore(true);
+    const nextPage = currentPage + 1;
+    await searchTMDB(searchQuery, nextPage, true);
+    setCurrentPage(nextPage);
+    setIsLoadingMore(false);
+  };
+
+  // Load initial popular series
+  useEffect(() => {
+    const loadInitial = async () => {
+      setIsLoading(true);
+      await searchTMDB("", 1, false);
+      setIsLoading(false);
+    };
+    loadInitial();
+  }, [searchTMDB]);
 
   // Load user's series
   useEffect(() => {
@@ -87,22 +138,28 @@ export default function DiscoverPage() {
     loadUserSeries();
   }, []);
 
-  // Load initial popular series
+  // Intersection Observer for infinite scroll
   useEffect(() => {
-    const loadInitial = async () => {
-      setIsLoading(true);
-      await searchTMDB("", 1);
-      setIsLoading(false);
-    };
-    loadInitial();
-  }, [searchTMDB]);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries[0].isIntersecting &&
+          hasMore &&
+          !isLoadingMore &&
+          !isSearching
+        ) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 },
+    );
 
-  // Handle page change
-  useEffect(() => {
-    if (!isLoading) {
-      searchTMDB(searchQuery, currentPage);
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
     }
-  }, [currentPage, searchTMDB, searchQuery, isLoading]);
+
+    return () => observer.disconnect();
+  }, [hasMore, isLoadingMore, isSearching, loadMore]);
 
   const handleAddSeries = async (seriesItem: Series) => {
     setAddingSeriesId(seriesItem.id);
@@ -125,19 +182,6 @@ export default function DiscoverPage() {
     }
   };
 
-  const getPosterUrl = (
-    posterPath: string | null | undefined,
-    size: string = "w342",
-  ) => {
-    if (!posterPath) return null;
-    return `https://image.tmdb.org/t/p/${size}${posterPath}`;
-  };
-
-  const formatYear = (dateString: string) => {
-    if (!dateString) return "TBA";
-    return new Date(dateString).getFullYear();
-  };
-
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchQuery(value);
@@ -147,16 +191,11 @@ export default function DiscoverPage() {
   const clearSearch = () => {
     setSearchQuery("");
     setCurrentPage(1);
-    searchTMDB("", 1);
-  };
-
-  const goToPage = (page: number) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    searchTMDB("", 1, false);
   };
 
   // Filter out series already in user's collection
-  const availableSeries = series.filter((s) => !userSeriesIds.has(s.id));
+  const availableSeries = allSeries.filter((s) => !userSeriesIds.has(s.id));
 
   if (isLoading) {
     return (
@@ -173,6 +212,17 @@ export default function DiscoverPage() {
 
   return (
     <div className="space-y-6">
+      {/* Go to Top Button */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-6 z-50 rounded-full bg-blue-500 p-3 text-white shadow-lg transition-all hover:bg-blue-600 hover:scale-110"
+          aria-label="Go to top"
+        >
+          <ArrowUpIcon className="h-6 w-6" />
+        </button>
+      )}
+
       {/* Header */}
       <div className="border-b border-gray-200 pb-4 dark:border-gray-700">
         <div className="flex items-center gap-2">
@@ -218,115 +268,79 @@ export default function DiscoverPage() {
 
       {/* Results Info */}
       {!isSearching && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            {searchQuery ? (
-              <>
-                Found{" "}
-                <span className="font-semibold text-gray-900 dark:text-white">
-                  {availableSeries.length}
-                </span>{" "}
-                results for &ldquo;
-                <span className="font-medium">{searchQuery}</span>&rdquo;
-              </>
-            ) : (
-              <>
-                Showing{" "}
-                <span className="font-semibold text-gray-900 dark:text-white">
-                  {availableSeries.length}
-                </span>{" "}
-                popular series
-              </>
-            )}
-          </div>
-          {totalPages > 1 && (
-            <div className="text-sm text-gray-400">
-              Page {currentPage} of {totalPages}
-            </div>
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          {searchQuery ? (
+            <>
+              Found{" "}
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {totalResults.toLocaleString()}
+              </span>{" "}
+              results for &ldquo;
+              <span className="font-medium">{searchQuery}</span>&rdquo;
+            </>
+          ) : (
+            <>
+              Showing{" "}
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {availableSeries.length}
+              </span>{" "}
+              of {totalResults.toLocaleString()} popular series
+            </>
           )}
         </div>
       )}
 
       {/* Series Grid */}
       {availableSeries.length > 0 ? (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {availableSeries.map((seriesItem) => {
-            const posterUrl = getPosterUrl(seriesItem.posterPath);
-            const isAdding = addingSeriesId === seriesItem.id;
+        <>
+          <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
+            {availableSeries.map((seriesItem) => {
+              const isAdding = addingSeriesId === seriesItem.id;
 
-            return (
-              <div
-                key={seriesItem.id}
-                className="group flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-300 hover:shadow-xl dark:border-gray-700 dark:bg-gray-800"
-              >
-                {/* Poster Container */}
-                <div className="relative aspect-[2/3] overflow-hidden bg-gray-100 dark:bg-gray-700">
-                  {posterUrl ? (
-                    <img
-                      src={posterUrl}
-                      alt={seriesItem.name}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600">
-                      <span className="text-4xl font-bold text-white">
-                        {seriesItem.name.charAt(0)}
-                      </span>
-                    </div>
-                  )}
+              return (
+                <SeriesCard
+                  key={seriesItem.id}
+                  id={seriesItem.id}
+                  name={seriesItem.name}
+                  totalSeasons={seriesItem.totalSeasons}
+                  posterPath={seriesItem.posterPath}
+                  voteAverage={seriesItem.voteAverage}
+                  firstAirDate={seriesItem.firstAirDate}
+                  overview={seriesItem.overview}
+                  genres={seriesItem.genres}
+                  isAdding={isAdding}
+                  onAdd={() => handleAddSeries(seriesItem)}
+                />
+              );
+            })}
+          </div>
 
-                  {/* Rating Badge */}
-                  {seriesItem.voteAverage && seriesItem.voteAverage > 0 && (
-                    <div className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-black/70 px-2 py-1 text-xs font-semibold text-yellow-400 backdrop-blur-sm">
-                      <StarIcon className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                      {seriesItem.voteAverage.toFixed(1)}
-                    </div>
-                  )}
-                </div>
-
-                {/* Content - Flex column to push button to bottom */}
-                <div className="flex flex-1 flex-col p-4">
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1">
-                      {seriesItem.name}
-                    </h3>
-
-                    <div className="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                      <span>{seriesItem.totalSeasons || "?"} seasons</span>
-                      <span>•</span>
-                      <span>{formatYear(seriesItem.firstAirDate || "")}</span>
-                    </div>
-
-                    {seriesItem.overview && (
-                      <p className="mt-2 text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
-                        {seriesItem.overview}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Button at bottom */}
-                  <button
-                    onClick={() => handleAddSeries(seriesItem)}
-                    disabled={isAdding}
-                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:from-blue-600 hover:to-blue-700 hover:shadow-md disabled:opacity-50"
-                  >
-                    {isAdding ? (
-                      <>
-                        <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                        Adding...
-                      </>
-                    ) : (
-                      <>
-                        <PlusIcon className="h-4 w-4" />
-                        Add to My Series
-                      </>
-                    )}
-                  </button>
-                </div>
+          {/* Load More Trigger */}
+          <div ref={loadMoreRef} className="py-8 text-center">
+            {isLoadingMore && (
+              <div className="flex items-center justify-center gap-2">
+                <ArrowPathIcon className="h-5 w-5 animate-spin text-blue-500" />
+                <span className="text-sm text-gray-500">
+                  Loading more series...
+                </span>
               </div>
-            );
-          })}
-        </div>
+            )}
+            {!hasMore && !isSearching && (
+              <p className="text-sm text-gray-400">
+                🎉 You&apos;ve explored all {totalResults.toLocaleString()}{" "}
+                series!
+              </p>
+            )}
+            {hasMore && !isLoadingMore && !isSearching && (
+              <button
+                onClick={loadMore}
+                className="rounded-lg bg-blue-500 px-6 py-2 text-sm font-medium text-white transition-all hover:bg-blue-600"
+              >
+                Load More
+              </button>
+            )}
+          </div>
+        </>
       ) : (
         // Empty State
         <div className="rounded-xl bg-white p-12 text-center shadow-sm dark:bg-gray-800">
@@ -334,12 +348,12 @@ export default function DiscoverPage() {
             <SparklesIcon className="h-10 w-10 text-gray-400" />
           </div>
           <h3 className="mt-4 text-xl font-semibold text-gray-900 dark:text-white">
-            {searchQuery ? "No series found" : "No more series to discover"}
+            {searchQuery ? "No series found" : "No series to discover"}
           </h3>
           <p className="mt-2 text-gray-500 dark:text-gray-400">
             {searchQuery
               ? `No TV series match "${searchQuery}". Try a different search term.`
-              : "You've added all available series to your collection! Check back later for more."}
+              : "Check back later for new series!"}
           </p>
           {searchQuery && (
             <button
@@ -349,113 +363,6 @@ export default function DiscoverPage() {
               Clear Search
             </button>
           )}
-          {!searchQuery && (
-            <Link
-              href="/dashboard/tvSeries"
-              className="mt-4 inline-block text-blue-500 hover:text-blue-600"
-            >
-              View your collection →
-            </Link>
-          )}
-        </div>
-      )}
-
-      {/* Pagination - Modern Design */}
-      {totalPages > 1 && !isSearching && availableSeries.length > 0 && (
-        <div className="flex items-center justify-center gap-2 pt-4">
-          <button
-            onClick={() => goToPage(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 text-gray-700 transition-all hover:bg-gray-100 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-          >
-            <ChevronLeftIcon className="h-4 w-4" />
-          </button>
-
-          <div className="flex gap-1">
-            {(() => {
-              const pages = [];
-              const maxVisible = 5;
-              let startPage = Math.max(
-                1,
-                currentPage - Math.floor(maxVisible / 2),
-              );
-              let endPage = Math.min(totalPages, startPage + maxVisible - 1);
-
-              if (endPage - startPage + 1 < maxVisible) {
-                startPage = Math.max(1, endPage - maxVisible + 1);
-              }
-
-              if (startPage > 1) {
-                pages.push(
-                  <button
-                    key={1}
-                    onClick={() => goToPage(1)}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium text-gray-700 transition-all hover:bg-gray-100 hover:text-blue-600 dark:text-gray-300 dark:hover:bg-gray-700"
-                  >
-                    1
-                  </button>,
-                );
-                if (startPage > 2) {
-                  pages.push(
-                    <span
-                      key="start-dots"
-                      className="flex h-9 w-9 items-center justify-center text-gray-500"
-                    >
-                      ...
-                    </span>,
-                  );
-                }
-              }
-
-              for (let i = startPage; i <= endPage; i++) {
-                pages.push(
-                  <button
-                    key={i}
-                    onClick={() => goToPage(i)}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition-all ${
-                      currentPage === i
-                        ? "bg-blue-500 text-white shadow-sm"
-                        : "text-gray-700 hover:bg-gray-100 hover:text-blue-600 dark:text-gray-300 dark:hover:bg-gray-700"
-                    }`}
-                  >
-                    {i}
-                  </button>,
-                );
-              }
-
-              if (endPage < totalPages) {
-                if (endPage < totalPages - 1) {
-                  pages.push(
-                    <span
-                      key="end-dots"
-                      className="flex h-9 w-9 items-center justify-center text-gray-500"
-                    >
-                      ...
-                    </span>,
-                  );
-                }
-                pages.push(
-                  <button
-                    key={totalPages}
-                    onClick={() => goToPage(totalPages)}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium text-gray-700 transition-all hover:bg-gray-100 hover:text-blue-600 dark:text-gray-300 dark:hover:bg-gray-700"
-                  >
-                    {totalPages}
-                  </button>,
-                );
-              }
-
-              return pages;
-            })()}
-          </div>
-
-          <button
-            onClick={() => goToPage(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-300 text-gray-700 transition-all hover:bg-gray-100 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-          >
-            <ChevronRightIcon className="h-4 w-4" />
-          </button>
         </div>
       )}
     </div>

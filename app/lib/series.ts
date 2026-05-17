@@ -16,6 +16,9 @@ export interface Series {
   posterPath?: string | null;
   backdropPath?: string | null;
   overview?: string | null;
+  voteAverage?: number;
+  firstAirDate?: string | null;
+  genres?: string[];
 }
 
 // Get all series for the current user

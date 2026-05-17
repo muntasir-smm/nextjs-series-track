@@ -32,6 +32,9 @@ export default function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
 
+  // Hide FAB on Discover page
+  const hideFAB = pathname === "/dashboard/discover";
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -135,23 +138,28 @@ export default function TopNav() {
         onSeriesAdded={handleSeriesAdded}
       />
 
-      {/* Floating Action Button - Desktop */}
-      <button
-        onClick={() => setIsAddSeriesModalOpen(true)}
-        className="fixed bottom-6 right-6 z-40 hidden rounded-full bg-gradient-to-r from-blue-500 to-blue-600 p-4 text-white shadow-lg transition-all hover:scale-110 hover:shadow-xl md:block"
-        aria-label="Add Series"
-      >
-        <PlusIcon className="h-6 w-6" />
-      </button>
+      {/* Floating Action Button - Hidden on Discover page */}
+      {!hideFAB && (
+        <>
+          {/* Desktop */}
+          <button
+            onClick={() => setIsAddSeriesModalOpen(true)}
+            className="fixed bottom-6 right-6 z-40 hidden rounded-full bg-gradient-to-r from-blue-500 to-blue-600 p-4 text-white shadow-lg transition-all hover:scale-110 hover:shadow-xl md:block"
+            aria-label="Add Series"
+          >
+            <PlusIcon className="h-6 w-6" />
+          </button>
 
-      {/* Floating Action Button - Mobile */}
-      <button
-        onClick={() => setIsAddSeriesModalOpen(true)}
-        className="fixed bottom-4 right-4 z-40 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 p-3 text-white shadow-lg transition-all hover:scale-110 hover:shadow-xl md:hidden"
-        aria-label="Add Series"
-      >
-        <PlusIcon className="h-5 w-5" />
-      </button>
+          {/* Mobile */}
+          <button
+            onClick={() => setIsAddSeriesModalOpen(true)}
+            className="fixed bottom-4 right-4 z-40 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 p-3 text-white shadow-lg transition-all hover:scale-110 hover:shadow-xl md:hidden"
+            aria-label="Add Series"
+          >
+            <PlusIcon className="h-5 w-5" />
+          </button>
+        </>
+      )}
 
       <nav className="fixed top-0 z-50 w-full bg-white/95 backdrop-blur-sm shadow-md dark:bg-gray-900/95">
         <div className="mx-auto px-4 sm:px-6 lg:px-8">
@@ -167,7 +175,7 @@ export default function TopNav() {
                   src="/images/logo.png"
                   alt="Series Tracker"
                   fill
-                  className="object-contain "
+                  className="object-contain"
                   priority
                 />
               </div>

@@ -6,6 +6,7 @@ import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import EditSeriesForm from "../../ui/tvSeries/edit-series-form";
 import SeriesList from "../../ui/tvSeries/series-list";
+import Pagination from "@/app/ui/pagination";
 import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import {
   getUserSeries,
@@ -23,6 +24,10 @@ function SeriesContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchInputValue, setSearchInputValue] = useState(searchQuery);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -55,11 +60,17 @@ function SeriesContent() {
     const handleSeriesAdded = async () => {
       const updatedSeries = await getUserSeries();
       setSeries(updatedSeries);
+      setCurrentPage(1); // Reset to first page when new series added
     };
 
     window.addEventListener("series-added", handleSeriesAdded);
     return () => window.removeEventListener("series-added", handleSeriesAdded);
   }, []);
+
+  // Reset to page 1 when search query changes or items per page changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, itemsPerPage]);
 
   // Update search input when URL query changes
   useEffect(() => {
@@ -73,6 +84,15 @@ function SeriesContent() {
       s.name.toLowerCase().includes(searchQuery.toLowerCase()),
     );
   }, [series, searchQuery]);
+
+  // Paginate filtered series
+  const paginatedSeries = React.useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    return filteredSeries.slice(start, end);
+  }, [filteredSeries, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredSeries.length / itemsPerPage);
 
   const handleSearch = (term: string) => {
     const url = new URL(window.location.href);
@@ -165,6 +185,10 @@ function SeriesContent() {
     }
   }, []);
 
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
@@ -229,7 +253,7 @@ function SeriesContent() {
         </p>
       </div>
 
-      {/* Search Bar Only - Add button removed (now using floating FAB) */}
+      {/* Search Bar */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="flex-1 relative">
           <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -257,9 +281,24 @@ function SeriesContent() {
       {/* Series List */}
       <div className="rounded-lg bg-white shadow dark:bg-gray-800">
         <div className="border-b border-gray-200 p-4 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Your Series ({filteredSeries.length})
-          </h2>
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Your Series ({filteredSeries.length})
+            </h2>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            >
+              <option value={5}>5 per page</option>
+              <option value={10}>10 per page</option>
+              <option value={20}>20 per page</option>
+              <option value={50}>50 per page</option>
+            </select>
+          </div>
         </div>
         <div className="p-4">
           {filteredSeries.length === 0 ? (
@@ -271,12 +310,24 @@ function SeriesContent() {
               </p>
             </div>
           ) : (
-            <SeriesList
-              series={filteredSeries}
-              updateSeries={updateSeries}
-              deleteSeries={deleteSeries}
-              onEditSeries={openEditModal}
-            />
+            <>
+              <SeriesList
+                series={paginatedSeries}
+                updateSeries={updateSeries}
+                deleteSeries={deleteSeries}
+                onEditSeries={openEditModal}
+              />
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                  className="mt-6"
+                />
+              )}
+            </>
           )}
         </div>
       </div>

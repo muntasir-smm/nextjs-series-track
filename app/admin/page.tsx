@@ -19,8 +19,12 @@ interface Series {
   name: string;
   totalSeasons: number;
   upcomingSeasons: string[];
-  watchedSeasons: boolean[];
-  watchProgress: number;
+  posterPath?: string | null;
+  backdropPath?: string | null;
+  voteAverage?: number;
+  firstAirDate?: string;
+  overview?: string;
+  genres?: string[];
 }
 
 export default function AdminPanel() {

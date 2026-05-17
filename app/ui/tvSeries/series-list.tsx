@@ -25,8 +25,12 @@ interface Series {
   upcomingSeasons: string[];
   watchedSeasons: boolean[];
   watchProgress: number;
+  voteAverage?: number;
   posterPath?: string | null;
+  backdropPath?: string | null;
   overview?: string | null;
+  firstAirDate?: string | null;
+  genres?: string[];
 }
 
 interface SeriesListProps {

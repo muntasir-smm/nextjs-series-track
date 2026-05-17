@@ -10,7 +10,7 @@ export const revalidate = 3600;
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get("page") || "1");
-  const limit = parseInt(searchParams.get("limit") || "20"); // Allow up to 20 per page
+  const limit = parseInt(searchParams.get("limit") || "24"); // Allow up to 24 per page
 
   if (!TMDB_API_KEY) {
     return NextResponse.json({ error: "API not configured" }, { status: 500 });
@@ -37,6 +37,16 @@ export async function GET(request: Request) {
         );
         const details = await detailsResponse.json();
 
+        // ::::::::::::::::::::::::::::::::
+        const genresResponse = await fetch(
+          `${BASE_URL}/genre/tv/list?api_key=${TMDB_API_KEY}&language=en-US`,
+        );
+        const genresData = await genresResponse.json();
+        const genreMap = new Map(
+          genresData.genres.map((g: any) => [g.id, g.name]),
+        );
+        // ::::::::::::::::::::::::::::::::
+
         return {
           id: show.id.toString(),
           name: show.name,
@@ -51,6 +61,7 @@ export async function GET(request: Request) {
           firstAirDate: show.first_air_date,
           overview: details.overview || show.overview || "",
           status: details.status,
+          genres: (details.genres || []).map((g: any) => g.name).slice(0, 2),
         };
       }),
     );
