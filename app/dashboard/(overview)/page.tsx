@@ -15,7 +15,8 @@ import {
   TvIcon,
   CalendarIcon,
   CheckCircleIcon,
-  ArrowTrendingUpIcon,
+  StarIcon,
+  FireIcon,
 } from "@heroicons/react/24/outline";
 import { addSeries as addSeriesAction } from "@/app/lib/series";
 
@@ -26,6 +27,9 @@ interface SuggestedSeries {
   upcomingSeasons: string[];
   watchProgress: number;
   posterPath?: string | null;
+  backdropPath?: string | null;
+  overview?: string | null;
+  voteAverage?: number;
 }
 
 export default function Page() {
@@ -51,28 +55,13 @@ export default function Page() {
         const data = await response.json();
         if (response.ok) {
           setUserName(data.name || "User");
+          setAvatarUrl(data.avatar_url);
         }
       } catch (error) {
         console.error("Error loading user:", error);
       }
     };
     loadUser();
-  }, []);
-
-  // Add this useEffect to load avatar
-  useEffect(() => {
-    const loadAvatar = async () => {
-      try {
-        const response = await fetch("/api/user/profile");
-        const data = await response.json();
-        if (response.ok) {
-          setAvatarUrl(data.avatar_url);
-        }
-      } catch (error) {
-        console.error("Error loading avatar:", error);
-      }
-    };
-    loadAvatar();
   }, []);
 
   const loadSeries = useCallback(async () => {
@@ -89,15 +78,24 @@ export default function Page() {
 
   useEffect(() => {
     loadSeries();
-    fetch("/api/suggested-series")
-      .then((res) => res.json())
-      .then(setSuggestedSeries)
-      .catch(console.error);
+    const loadPopularSeries = async () => {
+      try {
+        const response = await fetch("/api/tmdb/popular?page=1&limit=9");
+        const data = await response.json();
+        setSuggestedSeries(data.series || []);
+      } catch (error) {
+        console.error("Error loading popular series:", error);
+      }
+    };
+    loadPopularSeries();
   }, [loadSeries]);
 
   useEffect(() => {
     const handleSeriesAdded = async () => {
       await loadSeries();
+      const response = await fetch("/api/tmdb/popular?page=1&limit=9");
+      const data = await response.json();
+      setSuggestedSeries(data.series || []);
     };
     window.addEventListener("series-added", handleSeriesAdded);
     return () => window.removeEventListener("series-added", handleSeriesAdded);
@@ -110,10 +108,16 @@ export default function Page() {
         const result = await addSeriesAction(
           series.name,
           series.totalSeasons,
-          series.upcomingSeasons,
+          [],
+          series.posterPath,
+          series.backdropPath,
+          series.overview,
         );
         if (result.success) {
           await loadSeries();
+          const response = await fetch("/api/tmdb/popular?page=1&limit=9");
+          const data = await response.json();
+          setSuggestedSeries(data.series || []);
         }
       } catch (error) {
         console.error("Error adding series:", error);
@@ -189,9 +193,12 @@ export default function Page() {
     [],
   );
 
-  const getPosterUrl = (posterPath: string | null | undefined) => {
+  const getPosterUrl = (
+    posterPath: string | null | undefined,
+    size: string = "w92",
+  ) => {
     if (!posterPath) return null;
-    return `https://image.tmdb.org/t/p/w92${posterPath}`;
+    return `https://image.tmdb.org/t/p/${size}${posterPath}`;
   };
 
   if (isLoading) {
@@ -211,28 +218,21 @@ export default function Page() {
 
   return (
     <main className="space-y-8">
-      {/* Welcome Section */}
-
-      {/* ::::::::::::::::::::::::::::::::::::::: */}
-
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white shadow-xl">
-        {/* Background decoration */}
-        <div className="absolute inset-0 bg-[url('/images/pattern.png')] opacity-5 bg-repeat"></div>
+      {/* Hero Section */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-purple-600 p-6 text-white shadow-xl">
+        <div className="absolute inset-0 bg-black/10"></div>
 
         <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          {/* User Profile Section - Extra Large Square */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-5">
             <div className="relative">
-              <div className="rounded-2xl bg-gradient-to-br from-blue-400 to-purple-500 p-2">
-                <div className="rounded-xl overflow-hidden bg-white">
-                  <Avatar
-                    src={avatarUrl}
-                    name={userName || "User"}
-                    size="xl"
-                    shape="rounded"
-                    className="h-24 w-24 md:h-32 md:w-32"
-                  />
-                </div>
+              <div className="rounded-2xl bg-gradient-to-br from-white/20 to-white/10 p-1.5 backdrop-blur-sm">
+                <Avatar
+                  src={avatarUrl}
+                  name={userName || "User"}
+                  size="xl"
+                  shape="rounded"
+                  className="h-20 w-20 md:h-24 md:w-24"
+                />
               </div>
               <div className="absolute -bottom-1 -right-1 rounded-full bg-green-500 p-1.5 ring-2 ring-white">
                 <CheckCircleIcon className="h-3.5 w-3.5 text-white" />
@@ -240,66 +240,40 @@ export default function Page() {
             </div>
             <div>
               <p className="text-sm font-medium text-blue-100">{greeting}</p>
-              <h1 className="text-3xl font-bold mt-0.5 md:text-4xl">
-                {userName || "User"}!
+              <h1 className="text-2xl font-bold mt-0.5 md:text-3xl">
+                {userName || "User"}! 👋
               </h1>
-              {/* <div className="mt-1 flex items-center gap-2">
-                <span className="inline-block h-2 w-2 rounded-full bg-green-400"></span>
-                <p className="text-blue-100 text-sm">Active member</p>
-              </div> */}
+              <p className="text-blue-100 text-sm mt-1">
+                {stats.totalSeries}{" "}
+                {stats.totalSeries === 1 ? "series" : "series"} •{" "}
+                {stats.overallProgress}% complete
+              </p>
             </div>
           </div>
 
           {/* Achievement Badge */}
           {stats.completedSeries >= 5 && (
-            <div className="flex items-center gap-3 rounded-xl bg-yellow-500/20 backdrop-blur-sm px-4 py-2 border border-yellow-400/30">
-              <div className="text-2xl">🏆</div>
-              <div>
-                <p className="text-xs font-medium">Achievement Unlocked</p>
-                <p className="text-sm font-bold">Series Master</p>
-              </div>
+            <div className="flex items-center gap-2 rounded-full bg-yellow-500/30 backdrop-blur-sm px-3 py-1.5 text-sm">
+              <span className="text-lg">🏆</span>
+              <span>Series Master</span>
             </div>
           )}
-
           {stats.completedSeries >= 1 && stats.completedSeries < 5 && (
-            <div className="flex items-center gap-3 rounded-xl bg-blue-500/20 backdrop-blur-sm px-4 py-2 border border-blue-400/30">
-              <div className="text-2xl">⭐</div>
-              <div>
-                <p className="text-xs font-medium">Next Milestone</p>
-                <p className="text-sm font-bold">
-                  {5 - stats.completedSeries} more to Series Master
-                </p>
-              </div>
+            <div className="flex items-center gap-2 rounded-full bg-blue-500/30 backdrop-blur-sm px-3 py-1.5 text-sm">
+              <span className="text-lg">⭐</span>
+              <span>{5 - stats.completedSeries} to Master</span>
             </div>
           )}
-
           {stats.completedSeries === 0 && (
-            <div className="flex items-center gap-3 rounded-xl bg-white/10 backdrop-blur-sm px-4 py-2">
-              <div className="text-2xl">🎯</div>
-              <div>
-                <p className="text-xs font-medium">First Goal</p>
-                <p className="text-sm font-bold">Complete your first series</p>
-              </div>
+            <div className="flex items-center gap-2 rounded-full bg-white/20 backdrop-blur-sm px-3 py-1.5 text-sm">
+              <span className="text-lg">🎯</span>
+              <span>Complete first series</span>
             </div>
           )}
-        </div>
-
-        {/* Motivational Message */}
-        <div className="relative mt-4 text-center">
-          <p className="text-xs text-blue-100 italic">
-            {stats.totalWatchedSeasons === 0 &&
-              "✨ Start your journey by adding your first series ✨"}
-            {stats.totalWatchedSeasons > 0 &&
-              stats.totalWatchedSeasons < stats.totalSeasons &&
-              `📺 You're ${stats.overallProgress}% through your watchlist. Keep going! 📺`}
-            {stats.totalWatchedSeasons === stats.totalSeasons &&
-              stats.totalSeasons > 0 &&
-              "🎉 Congratulations! You've completed your watchlist! 🎉"}
-          </p>
         </div>
       </div>
 
-      {/* Stats Grid - 6 cards on desktop, 2 on mobile */}
+      {/* 6 Stats Cards */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         {/* Total Series */}
         <div className="group rounded-xl bg-white p-4 shadow-sm transition-all hover:shadow-md dark:bg-gray-800">
@@ -359,7 +333,7 @@ export default function Page() {
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 Watched
               </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+              <p className="text-2xl font-bold text-teal-600 dark:text-teal-400 mt-1">
                 {stats.totalWatchedSeasons}
               </p>
             </div>
@@ -426,7 +400,6 @@ export default function Page() {
           </div>
         </div>
       </div>
-      {/* ::::::::::::::::::::::::::::::::::::::: */}
 
       {/* Your Series Section */}
       {hasSeries && (
@@ -443,10 +416,9 @@ export default function Page() {
               </div>
               <Link
                 href="/dashboard/tvSeries"
-                className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium text-blue-600 transition-all hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium text-blue-600 transition-all hover:bg-blue-50"
               >
-                View All
-                <PlusIcon className="h-4 w-4" />
+                View All <PlusIcon className="h-4 w-4" />
               </Link>
             </div>
           </div>
@@ -496,7 +468,7 @@ export default function Page() {
                   </div>
                   <Link
                     href={`/dashboard/tvSeries/${series.id}`}
-                    className="rounded-lg p-2 text-gray-400 transition-all hover:bg-gray-100 hover:text-blue-600 dark:hover:bg-gray-700"
+                    className="rounded-lg p-2 text-gray-400 transition-all hover:bg-gray-100 hover:text-blue-600"
                   >
                     <EyeIcon className="h-5 w-5" />
                   </Link>
@@ -506,24 +478,25 @@ export default function Page() {
           </div>
         </div>
       )}
-      {/* Discover Section */}
+
+      {/* Trending Now Section */}
       {undiscoveredSeries.length > 0 && (
         <div className="rounded-xl bg-gradient-to-r from-purple-50 to-blue-50 p-6 dark:from-purple-900/20 dark:to-blue-900/20">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <SparklesIcon className="h-6 w-6 text-purple-500" />
+              <FireIcon className="h-6 w-6 text-orange-500" />
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  Discover More
+                  Trending Now
                 </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Popular series you might enjoy
+                  What people are watching
                 </p>
               </div>
             </div>
             <Link
               href="/dashboard/discover"
-              className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
+              className="text-sm font-medium text-blue-600 hover:text-blue-700"
             >
               View All →
             </Link>
@@ -534,13 +507,28 @@ export default function Page() {
                 key={series.id}
                 className="flex items-center justify-between rounded-lg bg-white p-3 shadow-sm transition-all hover:shadow-md dark:bg-gray-800"
               >
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-gray-900 dark:text-white truncate">
-                    {series.name}
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {series.totalSeasons} seasons
-                  </p>
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  {getPosterUrl(series.posterPath, "w92") && (
+                    <img
+                      src={getPosterUrl(series.posterPath, "w92")!}
+                      alt={series.name}
+                      className="h-12 w-8 rounded object-cover"
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-gray-900 dark:text-white truncate">
+                      {series.name}
+                    </h3>
+                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                      <span>{series.totalSeasons || "?"} seasons</span>
+                      {series.voteAverage && series.voteAverage > 0 && (
+                        <span className="flex items-center gap-0.5">
+                          <StarIcon className="h-3 w-3 text-yellow-500" />
+                          {series.voteAverage.toFixed(1)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <button
                   onClick={() => handleAddSuggestedSeries(series)}
@@ -557,27 +545,18 @@ export default function Page() {
               </div>
             ))}
           </div>
-          {undiscoveredSeries.length > 6 && (
-            <div className="mt-4 text-center">
-              <Link
-                href="/dashboard/discover"
-                className="text-sm text-blue-500 hover:text-blue-600"
-              >
-                + {undiscoveredSeries.length - 6} more series available
-              </Link>
-            </div>
-          )}
         </div>
       )}
+
       {/* Empty State */}
-      {!hasSeries && undiscoveredSeries.length === 0 && (
-        <div className="rounded-xl bg-white p-12 text-center shadow-sm dark:bg-gray-800">
+      {!hasSeries && (
+        <div className="rounded-xl bg-gradient-to-r from-purple-50 to-blue-50 p-12 text-center dark:from-purple-900/20 dark:to-blue-900/20">
           <TvIcon className="mx-auto h-16 w-16 text-gray-400" />
           <h3 className="mt-4 text-xl font-semibold text-gray-900 dark:text-white">
-            No series yet
+            Your watchlist is empty
           </h3>
           <p className="mt-2 text-gray-500 dark:text-gray-400">
-            Get started by adding your first TV series
+            Start tracking your favorite TV series today!
           </p>
           <button
             onClick={() =>

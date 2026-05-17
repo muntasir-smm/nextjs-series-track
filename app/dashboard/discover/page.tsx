@@ -23,6 +23,7 @@ interface Series {
   totalSeasons: number;
   upcomingSeasons: string[];
   posterPath?: string | null;
+  backdropPath?: string | null;
   voteAverage?: number;
   firstAirDate?: string;
   overview?: string;
@@ -111,7 +112,7 @@ export default function DiscoverPage() {
         seriesItem.totalSeasons,
         [],
         seriesItem.posterPath,
-        null,
+        seriesItem.backdropPath,
         seriesItem.overview,
       );
       if (result.success) {

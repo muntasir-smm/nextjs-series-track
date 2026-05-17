@@ -62,7 +62,6 @@ export default function Avatar({
           console.error("Image failed to load:", imageSrc);
           setImgError(true);
         }}
-        onLoad={() => console.log("Image loaded:", imageSrc)}
       />
     );
   }
