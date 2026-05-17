@@ -62,36 +62,43 @@ export default function DiscoverPage() {
   // Search function that uses TMDB API directly
   const searchTMDB = useCallback(
     async (query: string, page: number = 1, append: boolean = false) => {
-      if (!query.trim()) {
-        // Load popular series if no search query
-        const res = await fetch(`/api/tmdb/popular?page=${page}`);
+      try {
+        if (!query.trim()) {
+          // Load popular series if no search query
+          const res = await fetch(`/api/tmdb/popular?page=${page}`);
+          const data = await res.json();
+          const newSeries = Array.isArray(data.series) ? data.series : [];
+
+          if (append) {
+            setAllSeries((prev) => [...prev, ...newSeries]);
+          } else {
+            setAllSeries(newSeries);
+          }
+          setTotalPages(data.totalPages || 1);
+          setTotalResults(data.totalResults || 0);
+          setHasMore(page < (data.totalPages || 1));
+          return data;
+        }
+
+        const res = await fetch(
+          `/api/tmdb/search?query=${encodeURIComponent(query)}&page=${page}`,
+        );
         const data = await res.json();
+        const newSeries = Array.isArray(data.series) ? data.series : [];
 
         if (append) {
-          setAllSeries((prev) => [...prev, ...(data.series || [])]);
+          setAllSeries((prev) => [...prev, ...newSeries]);
         } else {
-          setAllSeries(data.series || []);
+          setAllSeries(newSeries);
         }
         setTotalPages(data.totalPages || 1);
         setTotalResults(data.totalResults || 0);
-        setHasMore(page < data.totalPages);
+        setHasMore(page < (data.totalPages || 1));
         return data;
+      } catch (error) {
+        console.error("Search error:", error);
+        return { series: [] };
       }
-
-      const res = await fetch(
-        `/api/tmdb/search?query=${encodeURIComponent(query)}&page=${page}`,
-      );
-      const data = await res.json();
-
-      if (append) {
-        setAllSeries((prev) => [...prev, ...(data.series || [])]);
-      } else {
-        setAllSeries(data.series || []);
-      }
-      setTotalPages(data.totalPages || 1);
-      setTotalResults(data.totalResults || 0);
-      setHasMore(page < data.totalPages);
-      return data;
     },
     [],
   );
@@ -130,7 +137,9 @@ export default function DiscoverPage() {
     const loadUserSeries = async () => {
       try {
         const userSeries = await getUserSeries();
-        setUserSeriesIds(new Set(userSeries.map((s) => s.id)));
+        setUserSeriesIds(
+          new Set(Array.isArray(userSeries) ? userSeries.map((s) => s.id) : []),
+        );
       } catch (error) {
         console.error("Error loading user series:", error);
       }
@@ -194,8 +203,10 @@ export default function DiscoverPage() {
     searchTMDB("", 1, false);
   };
 
-  // Filter out series already in user's collection
-  const availableSeries = allSeries.filter((s) => !userSeriesIds.has(s.id));
+  // Filter out series already in user's collection - ensure allSeries is always an array
+  const availableSeries = Array.isArray(allSeries)
+    ? allSeries.filter((s) => !userSeriesIds.has(s.id))
+    : [];
 
   if (isLoading) {
     return (
@@ -325,10 +336,9 @@ export default function DiscoverPage() {
                 </span>
               </div>
             )}
-            {!hasMore && !isSearching && (
+            {!hasMore && !isSearching && availableSeries.length > 0 && (
               <p className="text-sm text-gray-400">
-                🎉 You&apos;ve explored all {totalResults.toLocaleString()}{" "}
-                series!
+                🎉 You have explored all {totalResults.toLocaleString()} series!
               </p>
             )}
             {hasMore && !isLoadingMore && !isSearching && (
