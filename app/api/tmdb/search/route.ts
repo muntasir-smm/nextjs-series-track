@@ -1,4 +1,4 @@
-// app/api/tmdb/search/route.ts
+// app/api/tmdb/search/route.ts - Add pagination
 
 import { NextRequest, NextResponse } from "next/server";
 
@@ -8,6 +8,7 @@ const BASE_URL = "https://api.themoviedb.org/3";
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const query = searchParams.get("query");
+  const page = parseInt(searchParams.get("page") || "1");
 
   if (!query) {
     return NextResponse.json(
@@ -17,25 +18,22 @@ export async function GET(request: NextRequest) {
   }
 
   if (!TMDB_API_KEY) {
-    console.error("TMDB_API_KEY is missing");
     return NextResponse.json({ error: "API not configured" }, { status: 500 });
   }
 
   try {
-    // First, search for shows
-    const searchResponse = await fetch(
-      `${BASE_URL}/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=en-US`,
+    const response = await fetch(
+      `${BASE_URL}/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=en-US&page=${page}`,
     );
-    const searchData = await searchResponse.json();
 
-    if (!searchResponse.ok) {
-      throw new Error(`TMDB API error: ${searchResponse.status}`);
+    if (!response.ok) {
+      throw new Error(`TMDB API error: ${response.status}`);
     }
 
-    // Then fetch full details for each show to get number_of_seasons
+    const data = await response.json();
+
     const series = await Promise.all(
-      searchData.results.slice(0, 10).map(async (show: any) => {
-        // Fetch full details for this specific show
+      data.results.slice(0, 20).map(async (show: any) => {
         const detailsResponse = await fetch(
           `${BASE_URL}/tv/${show.id}?api_key=${TMDB_API_KEY}&language=en-US`,
         );
@@ -44,21 +42,22 @@ export async function GET(request: NextRequest) {
         return {
           id: show.id.toString(),
           name: show.name,
-          totalSeasons: details.number_of_seasons || 0, // ✅ Now we get it!
-          overview: details.overview || "",
+          totalSeasons: details.number_of_seasons || 0,
+          upcomingSeasons: [],
           posterPath: show.poster_path,
           backdropPath: details.backdrop_path,
-          firstAirDate: show.first_air_date,
           voteAverage: show.vote_average,
-          status: details.status,
+          firstAirDate: show.first_air_date,
+          overview: details.overview || show.overview || "",
         };
       }),
     );
 
     return NextResponse.json({
       series,
-      totalResults: searchData.total_results,
-      totalPages: searchData.total_pages,
+      totalResults: data.total_results,
+      totalPages: data.total_pages,
+      currentPage: page,
     });
   } catch (error) {
     console.error("TMDB search error:", error);

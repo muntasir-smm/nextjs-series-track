@@ -1,27 +1,34 @@
 // app/api/tmdb/popular/route.ts
+
 import { NextResponse } from "next/server";
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const BASE_URL = "https://api.themoviedb.org/3";
 
-export const revalidate = 3600; // Cache for 1 hour
+export const revalidate = 3600;
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const page = parseInt(searchParams.get("page") || "1");
+  const limit = parseInt(searchParams.get("limit") || "20"); // Allow up to 20 per page
+
   if (!TMDB_API_KEY) {
     return NextResponse.json({ error: "API not configured" }, { status: 500 });
   }
 
   try {
+    // Fetch popular shows
     const popularResponse = await fetch(
-      `${BASE_URL}/tv/popular?api_key=${TMDB_API_KEY}&language=en-US&page=1`,
+      `${BASE_URL}/tv/popular?api_key=${TMDB_API_KEY}&language=en-US&page=${page}`,
       {
         next: { revalidate: 3600 },
       },
     );
     const popularData = await popularResponse.json();
 
+    // Fetch details for each show (limit to 20 for performance)
     const results = await Promise.allSettled(
-      popularData.results.slice(0, 8).map(async (show: any) => {
+      popularData.results.slice(0, limit).map(async (show: any) => {
         const detailsResponse = await fetch(
           `${BASE_URL}/tv/${show.id}?api_key=${TMDB_API_KEY}&language=en-US`,
           {
@@ -34,13 +41,15 @@ export async function GET() {
           id: show.id.toString(),
           name: show.name,
           totalSeasons: details.number_of_seasons || 0,
-          upcomingSeasons: [],
-          watchProgress:
-            details.number_of_seasons > 0 ? Math.floor(Math.random() * 100) : 0,
+          upcomingSeasons: details.next_episode_to_air
+            ? [`Season ${details.next_episode_to_air.season_number || "?"}`]
+            : [],
+          watchProgress: 0,
           posterPath: show.poster_path,
           backdropPath: details.backdrop_path,
           voteAverage: show.vote_average,
           firstAirDate: show.first_air_date,
+          overview: details.overview || show.overview || "",
           status: details.status,
         };
       }),
@@ -53,10 +62,13 @@ export async function GET() {
       )
       .map((result) => result.value);
 
-    // Create response with cache headers
-    const response = NextResponse.json(popularSeries);
+    const response = NextResponse.json({
+      series: popularSeries,
+      totalResults: popularData.total_results,
+      totalPages: popularData.total_pages,
+      currentPage: page,
+    });
 
-    // Add cache headers for CDN/Vercel Edge Cache
     response.headers.set(
       "Cache-Control",
       "public, max-age=3600, stale-while-revalidate=86400",

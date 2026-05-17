@@ -241,7 +241,7 @@ export default function Page() {
             <div>
               <p className="text-sm font-medium text-blue-100">{greeting}</p>
               <h1 className="text-3xl font-bold mt-0.5 md:text-4xl">
-                {userName || "User"}! 👋
+                {userName || "User"}!
               </h1>
               {/* <div className="mt-1 flex items-center gap-2">
                 <span className="inline-block h-2 w-2 rounded-full bg-green-400"></span>

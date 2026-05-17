@@ -167,7 +167,7 @@ export default function TopNav() {
                   src="/images/logo.png"
                   alt="Series Tracker"
                   fill
-                  className="object-contain brightness-0 invert"
+                  className="object-contain "
                   priority
                 />
               </div>
