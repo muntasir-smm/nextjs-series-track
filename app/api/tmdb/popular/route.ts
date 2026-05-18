@@ -5,28 +5,34 @@ import { NextResponse } from "next/server";
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const BASE_URL = "https://api.themoviedb.org/3";
 
-export const revalidate = 24 * 60 * 60; // 24 hour
+export const revalidate = 3600;
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get("page") || "1");
-  const limit = parseInt(searchParams.get("limit") || "24"); // Allow up to 24 per page
+  const limit = parseInt(searchParams.get("limit") || "24");
 
   if (!TMDB_API_KEY) {
     return NextResponse.json({ error: "API not configured" }, { status: 500 });
   }
 
   try {
-    // Fetch popular shows
     const popularResponse = await fetch(
       `${BASE_URL}/tv/popular?api_key=${TMDB_API_KEY}&language=en-US&page=${page}`,
       {
         next: { revalidate: 3600 },
       },
     );
+
+    // Get rate limit headers
+    const rateLimitRemaining = popularResponse.headers.get(
+      "x-ratelimit-remaining",
+    );
+    const rateLimitLimit = popularResponse.headers.get("x-ratelimit-limit");
+    const rateLimitReset = popularResponse.headers.get("x-ratelimit-reset");
+
     const popularData = await popularResponse.json();
 
-    // Fetch details for each show
     const results = await Promise.allSettled(
       popularData.results.slice(0, limit).map(async (show: any) => {
         const detailsResponse = await fetch(
@@ -59,7 +65,7 @@ export async function GET(request: Request) {
           firstAirDate: show.first_air_date,
           overview: details.overview || show.overview || "",
           status: details.status,
-          genres: (details.genres || []).map((g: any) => g.name),
+          genres: (details.genres || []).map((g: any) => g.name).slice(0, 2),
         };
       }),
     );
@@ -76,6 +82,11 @@ export async function GET(request: Request) {
       totalResults: popularData.total_results,
       totalPages: popularData.total_pages,
       currentPage: page,
+      rateLimit: {
+        remaining: rateLimitRemaining ? parseInt(rateLimitRemaining) : null,
+        limit: rateLimitLimit ? parseInt(rateLimitLimit) : null,
+        reset: rateLimitReset ? parseInt(rateLimitReset) : null,
+      },
     });
 
     response.headers.set(
