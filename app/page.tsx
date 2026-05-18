@@ -12,6 +12,7 @@ import {
   ChartBarIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
+import Image from "next/image";
 
 interface PopularSeries {
   id: string;
@@ -217,11 +218,15 @@ export default function LandingPage() {
                       {/* Poster Image */}
                       <div className="relative overflow-hidden rounded-t-lg">
                         {posterUrl ? (
-                          <img
-                            src={posterUrl}
-                            alt={series.name}
-                            className="h-64 w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          />
+                          <div className="relative h-64 w-full">
+                            <Image
+                              src={posterUrl}
+                              alt={series.name}
+                              fill
+                              className="object-cover transition-transform duration-300 group-hover:scale-105"
+                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            />
+                          </div>
                         ) : (
                           <div className="flex h-64 w-full items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600">
                             <span className="text-lg font-bold text-white">
@@ -236,7 +241,6 @@ export default function LandingPage() {
                           </div>
                         )}
                       </div>
-
                       <div className="p-4">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white line-clamp-1">
                           {series.name}

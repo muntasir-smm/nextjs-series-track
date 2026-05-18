@@ -3,6 +3,7 @@
 "use client";
 
 import { UserCircleIcon } from "@heroicons/react/24/outline";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 
 interface AvatarProps {
@@ -54,9 +55,11 @@ export default function Avatar({
   // If image exists and no error, show image
   if (imageSrc && !imgError) {
     return (
-      <img
+      <Image
         src={imageSrc}
         alt={name || "Avatar"}
+        width={parseInt(sizes[size].split(" ")[0].replace("h-", "")) * 4}
+        height={parseInt(sizes[size].split(" ")[0].replace("h-", "")) * 4}
         className={`${shapes[shape]} object-cover ${sizes[size]} ${className}`}
         onError={() => {
           console.error("Image failed to load:", imageSrc);

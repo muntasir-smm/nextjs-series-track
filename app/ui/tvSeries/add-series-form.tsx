@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect } from "react";
 import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import Image from "next/image";
 
 interface TMDBResult {
   id: string;
@@ -223,14 +224,19 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
                 className="flex w-full items-center gap-3 border-b border-gray-100 p-3 text-left transition-colors hover:bg-gray-50 last:border-0 dark:border-gray-700 dark:hover:bg-gray-700"
               >
                 {getPosterUrl(show.posterPath) ? (
-                  <img
-                    src={getPosterUrl(show.posterPath)!}
-                    alt={show.name}
-                    className="h-12 w-8 rounded object-cover"
-                  />
+                  <div className="relative h-12 w-8">
+                    <Image
+                      src={getPosterUrl(show.posterPath)!}
+                      alt={show.name}
+                      fill
+                      className="rounded object-cover"
+                      sizes="32px"
+                    />
+                  </div>
                 ) : (
                   <div className="h-12 w-8 rounded bg-gray-200 dark:bg-gray-700" />
                 )}
+
                 <div className="flex-1">
                   <div className="font-medium text-gray-900 dark:text-white">
                     {show.name}

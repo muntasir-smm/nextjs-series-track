@@ -1,4 +1,4 @@
-// app/api/tmdb/search/route.ts - Add pagination
+// app/api/tmdb/search/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
 
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     const data = await response.json();
 
     const series = await Promise.all(
-      data.results.slice(0, 20).map(async (show: any) => {
+      data.results.slice(0, 24).map(async (show: any) => {
         const detailsResponse = await fetch(
           `${BASE_URL}/tv/${show.id}?api_key=${TMDB_API_KEY}&language=en-US`,
         );

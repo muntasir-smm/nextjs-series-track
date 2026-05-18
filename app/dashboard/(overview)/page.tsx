@@ -19,6 +19,7 @@ import {
   FireIcon,
 } from "@heroicons/react/24/outline";
 import { addSeries as addSeriesAction } from "@/app/lib/series";
+import Image from "next/image";
 
 interface SuggestedSeries {
   id: string;
@@ -435,9 +436,11 @@ export default function Page() {
                   className="flex items-center gap-4 p-4 transition-all hover:bg-gray-50 dark:hover:bg-gray-700/50"
                 >
                   {posterUrl && (
-                    <img
+                    <Image
                       src={posterUrl}
                       alt={series.name}
+                      width={32}
+                      height={48}
                       className="h-12 w-8 rounded object-cover"
                     />
                   )}
@@ -509,9 +512,11 @@ export default function Page() {
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   {getPosterUrl(series.posterPath, "w92") && (
-                    <img
+                    <Image
                       src={getPosterUrl(series.posterPath, "w92")!}
                       alt={series.name}
+                      width={32}
+                      height={48}
                       className="h-12 w-8 rounded object-cover"
                     />
                   )}

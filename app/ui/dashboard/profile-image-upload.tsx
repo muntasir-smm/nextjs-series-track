@@ -29,7 +29,7 @@ export default function ProfileImageUpload({
 
   const compressImage = async (file: File): Promise<File> => {
     const options = {
-      maxSizeMB: 0.2, // Compress to max 200KB
+      maxSizeMB: 0.5, // Compress to max 500KB
       maxWidthOrHeight: 512, // Max 512px width or height
       useWebWorker: true,
       fileType: "image/jpeg", // Convert to JPEG for better compression
@@ -184,8 +184,7 @@ export default function ProfileImageUpload({
       />
 
       <p className="text-xs text-gray-400">
-        Click avatar to change • Images will be compressed automatically • Max
-        3MB
+        Click avatar to change • Images will be compressed automatically
       </p>
     </div>
   );

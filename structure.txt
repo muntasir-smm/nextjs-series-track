@@ -1,20 +1,60 @@
 .
 ├── app
+│   ├── admin
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   │
 │   ├── api
+│   │   ├── admin
+│   │   │   └── series
+│   │   │       └── route.ts
+│   │   │
 │   │   ├── auth
+│   │   │   ├── session
+│   │   │   │   └── route.ts
 │   │   │   └── signup
 │   │   │       └── route.ts
-│   │   └── public-series
-│   │       └── route.ts
+│   │   │
+│   │   ├── tmdb
+│   │   │   ├── popular
+│   │   │   │   └── route.ts
+│   │   │   ├── search
+│   │   │   │   └── route.ts
+│   │   │   └── tv
+│   │   │       └── [id]
+│   │   │
+│   │   └── user
+│   │       ├── avatar
+│   │       │   └── route.ts
+│   │       └── profile
+│   │           └── route.ts
 │   │
 │   ├── dashboard
 │   │   ├── (overview)
 │   │   │   ├── error.tsx
 │   │   │   ├── loading.tsx
 │   │   │   └── page.tsx
-│   │   ├── tvSeries
+│   │   │
+│   │   ├── discover
 │   │   │   └── page.tsx
+│   │   │
+│   │   ├── profile
+│   │   │   └── page.tsx
+│   │   │
+│   │   ├── tvSeries
+│   │   │   ├── [id]
+│   │   │   └── page.tsx
+│   │   │
 │   │   └── layout.tsx
+│   │
+│   ├── lib
+│   │   ├── actions.ts
+│   │   ├── auth.ts
+│   │   ├── db.ts
+│   │   ├── definitions.ts
+│   │   ├── placeholder-data.js
+│   │   ├── series.ts
+│   │   └── signout-action.ts
 │   │
 │   ├── login
 │   │   └── page.tsx
@@ -22,61 +62,67 @@
 │   ├── signup
 │   │   └── page.tsx
 │   │
+│   ├── ui
+│   │   ├── dashboard
+│   │   │   ├── add-series-modal.tsx
+│   │   │   ├── avatar.tsx
+│   │   │   ├── nav-links.tsx
+│   │   │   ├── profile-image-upload.tsx
+│   │   │   └── topnav.tsx
+│   │   │
+│   │   ├── tvSeries
+│   │   │   ├── add-series-form.tsx
+│   │   │   ├── edit-series-form.tsx
+│   │   │   ├── progress-bar.tsx
+│   │   │   └── series-list.tsx
+│   │   │
+│   │   ├── button.tsx
+│   │   ├── fonts.ts
+│   │   ├── global.css
+│   │   ├── login-form.tsx
+│   │   ├── pagination.tsx
+│   │   ├── search.tsx
+│   │   ├── series-card.tsx
+│   │   ├── signup-form.tsx
+│   │   └── skeletons.tsx
+│   │
 │   ├── layout.tsx
 │   ├── not-found.tsx
 │   └── page.tsx
 │
-├── lib
-│   ├── actions.ts
-│   ├── auth.ts
-│   ├── db.ts
-│   ├── definitions.ts
-│   ├── placeholder-data.js
-│   ├── series.ts
-│   └── signout-action.ts
-│
-├── ui
-│   ├── dashboard
-│   │   ├── nav-links.tsx
-│   │   └── topnav.tsx
-│   │
-│   ├── tvSeries
-│   │   ├── add-series-form.tsx
-│   │   ├── progress-bar.tsx
-│   │   └── series-list.tsx
-│   │
-│   ├── button.tsx
-│   ├── fonts.ts
-│   ├── global.css
-│   ├── login-form.tsx
-│   ├── signup-form.tsx
-│   ├── search.tsx
-│   └── skeletons.tsx
-│
 ├── public
-│   └── images
-│       ├── facebook.png
-│       ├── favicon.ico
-│       ├── google.png
-│       ├── logo.png
-│       └── logoName.png
+│   ├── images
+│   │   ├── android-chrome-192x192.png
+│   │   ├── android-chrome-512x512.png
+│   │   ├── apple-touch-icon.png
+│   │   ├── facebook.png
+│   │   ├── favicon-16x16.png
+│   │   ├── favicon-32x32.png
+│   │   ├── favicon.ico
+│   │   ├── google.png
+│   │   ├── logo.png
+│   │   └── logoName.png
+│   │
+│   └── site.webmanifest
 │
 ├── scripts
+│   ├── cleanup-avatars.js
 │   └── seed.js
 │
 ├── .env
 ├── .eslintrc.json
 ├── .gitignore
 ├── .nvmrc
+├── auth.config.ts
 ├── middleware.ts
 ├── next-env.d.ts
 ├── next.config.js
-├── next.config.mjs
-├── package.json
 ├── package-lock.json
+├── package.json
 ├── pnpm-lock.yaml
 ├── postcss.config.js
 ├── postcss.config.mjs
+├── README.md
+├── structure.txt
 ├── tailwind.config.ts
-├── tsconfig.json
-└── README.md
+└── tsconfig.json

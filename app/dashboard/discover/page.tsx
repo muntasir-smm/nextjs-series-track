@@ -112,7 +112,7 @@ export default function DiscoverPage() {
   }, 500);
 
   // Load more series
-  const loadMore = async () => {
+  const loadMore = useCallback(async () => {
     if (isLoadingMore || !hasMore) return;
 
     setIsLoadingMore(true);
@@ -120,7 +120,7 @@ export default function DiscoverPage() {
     await searchTMDB(searchQuery, nextPage, true);
     setCurrentPage(nextPage);
     setIsLoadingMore(false);
-  };
+  }, [isLoadingMore, hasMore, currentPage, searchQuery, searchTMDB]);
 
   // Load initial popular series
   useEffect(() => {

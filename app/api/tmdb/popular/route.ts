@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const BASE_URL = "https://api.themoviedb.org/3";
 
-export const revalidate = 3600;
+export const revalidate = 24 * 60 * 60; // 24 hour
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
     );
     const popularData = await popularResponse.json();
 
-    // Fetch details for each show (limit to 20 for performance)
+    // Fetch details for each show
     const results = await Promise.allSettled(
       popularData.results.slice(0, limit).map(async (show: any) => {
         const detailsResponse = await fetch(
@@ -37,7 +37,6 @@ export async function GET(request: Request) {
         );
         const details = await detailsResponse.json();
 
-        // ::::::::::::::::::::::::::::::::
         const genresResponse = await fetch(
           `${BASE_URL}/genre/tv/list?api_key=${TMDB_API_KEY}&language=en-US`,
         );
@@ -45,7 +44,6 @@ export async function GET(request: Request) {
         const genreMap = new Map(
           genresData.genres.map((g: any) => [g.id, g.name]),
         );
-        // ::::::::::::::::::::::::::::::::
 
         return {
           id: show.id.toString(),
@@ -61,7 +59,7 @@ export async function GET(request: Request) {
           firstAirDate: show.first_air_date,
           overview: details.overview || show.overview || "",
           status: details.status,
-          genres: (details.genres || []).map((g: any) => g.name).slice(0, 2),
+          genres: (details.genres || []).map((g: any) => g.name),
         };
       }),
     );
