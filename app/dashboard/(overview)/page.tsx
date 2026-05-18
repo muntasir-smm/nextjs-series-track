@@ -501,8 +501,8 @@ export default function Page() {
               View All →
             </Link>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {undiscoveredSeries.slice(0, 6).map((series) => (
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {undiscoveredSeries.slice(0, 12).map((series) => (
               <div
                 key={series.id}
                 className="flex items-center justify-between rounded-lg bg-white p-3 shadow-sm transition-all hover:shadow-md dark:bg-gray-800"

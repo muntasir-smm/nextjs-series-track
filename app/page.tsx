@@ -32,11 +32,14 @@ export default function LandingPage() {
     fetch("/api/tmdb/popular")
       .then((res) => res.json())
       .then((data) => {
-        setPopularSeries(data);
+        // Ensure data is an array
+        const seriesArray = data?.series || (Array.isArray(data) ? data : []);
+        setPopularSeries(seriesArray);
         setIsLoading(false);
       })
       .catch((error) => {
         console.error("Error fetching popular series:", error);
+        setPopularSeries([]); // Set empty array on error
         setIsLoading(false);
       });
   }, []);
@@ -201,10 +204,10 @@ export default function LandingPage() {
             <div className="mt-10 flex justify-center">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
             </div>
-          ) : (
+          ) : popularSeries.length > 0 ? (
             <>
-              <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {popularSeries.map((series) => {
+              <div className="mt-10 grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
+                {popularSeries.slice(0, 18).map((series) => {
                   const posterUrl = getPosterUrl(series.posterPath);
                   return (
                     <div
@@ -280,6 +283,13 @@ export default function LandingPage() {
                 </Link>
               </div>
             </>
+          ) : (
+            <div className="mt-10 text-center">
+              <p className="text-gray-500 dark:text-gray-400">
+                Unable to load popular series at the moment. Please try again
+                later.
+              </p>
+            </div>
           )}
 
           <div className="mt-10 text-center">
