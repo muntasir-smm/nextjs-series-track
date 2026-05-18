@@ -7,36 +7,31 @@ export default auth((req) => {
   const pathname = req.nextUrl.pathname;
   const userRole = req.auth?.user?.role;
 
+  // Define public routes
+  const isPublicRoute =
+    pathname === "/" || pathname === "/login" || pathname === "/signup";
+
   // Admin route protection
   if (pathname.startsWith("/admin") && userRole !== "admin") {
-    const newUrl = new URL("/dashboard", req.nextUrl.origin);
-    return Response.redirect(newUrl);
+    return Response.redirect(new URL("/dashboard", req.nextUrl.origin));
   }
 
-  // Define public routes that don't require authentication
-  const isPublicRoute =
-    pathname === "/" ||
-    pathname === "/login" ||
-    pathname === "/signup" ||
-    pathname.startsWith("/api/public");
+  // Redirect logged-in users away from public routes to dashboard
+  if (isLoggedIn && isPublicRoute) {
+    return Response.redirect(new URL("/dashboard", req.nextUrl.origin));
+  }
 
-  // Allow access to public routes without login
+  // Allow public routes for non-logged-in users
   if (isPublicRoute) {
-    // If user is logged in and tries to access login/signup, redirect to dashboard
-    if (isLoggedIn && (pathname === "/login" || pathname === "/signup")) {
-      const newUrl = new URL("/dashboard", req.nextUrl.origin);
-      return Response.redirect(newUrl);
-    }
-    return; // Allow access to public routes
+    return;
   }
 
-  // Require login for all other routes (dashboard, tv-series, etc.)
+  // Protect all other routes
   if (!isLoggedIn) {
-    const newUrl = new URL("/login", req.nextUrl.origin);
-    return Response.redirect(newUrl);
+    return Response.redirect(new URL("/login", req.nextUrl.origin));
   }
 
-  // User is logged in and accessing protected routes, allow access
+  // Allow access to authenticated users
   return;
 });
 
