@@ -6,15 +6,23 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const pathname = req.nextUrl.pathname;
   const userRole = req.auth?.user?.role;
+  const isBanned = req.auth?.user?.is_banned === true;
+
+  // Block banned users from accessing any route
+  if (isLoggedIn && isBanned) {
+    const newUrl = new URL("/login?error=banned", req.nextUrl.origin);
+    return Response.redirect(newUrl);
+  }
+
+  // Admin route protection
+  if (pathname.startsWith("/admin") && userRole !== "admin") {
+    const newUrl = new URL("/dashboard", req.nextUrl.origin);
+    return Response.redirect(newUrl);
+  }
 
   // Define public routes
   const isPublicRoute =
     pathname === "/" || pathname === "/login" || pathname === "/signup";
-
-  // Admin route protection
-  if (pathname.startsWith("/admin") && userRole !== "admin") {
-    return Response.redirect(new URL("/dashboard", req.nextUrl.origin));
-  }
 
   // Redirect logged-in users away from public routes to dashboard
   if (isLoggedIn && isPublicRoute) {

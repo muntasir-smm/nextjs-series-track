@@ -9,14 +9,14 @@ import {
   ChartBarIcon,
   MegaphoneIcon,
   ShieldCheckIcon,
-  ArrowPathIcon,
   UserGroupIcon,
-  CloudIcon,
-  EyeIcon,
-  TrashIcon,
   StarIcon,
   ArrowDownTrayIcon,
   HeartIcon,
+  HomeIcon,
+  UserPlusIcon,
+  CalendarIcon,
+  ArrowTrendingUpIcon,
 } from "@heroicons/react/24/outline";
 import StatCard from "./components/StatCard";
 import UserTable from "./components/UserTable";
@@ -53,12 +53,8 @@ export default function AdminPanel() {
 
   const loadUsers = useCallback(async () => {
     try {
-      console.log("Loading users...");
       const response = await fetch("/api/admin/users");
       const data = await response.json();
-      console.log("Users response:", data);
-
-      // Handle both response formats
       const usersList = data.users || (Array.isArray(data) ? data : []);
       setUsers(usersList);
     } catch (error) {
@@ -73,24 +69,51 @@ export default function AdminPanel() {
     );
   }, [loadAnalytics, loadUsers]);
 
-  const handleUpdateUser = async (
-    userId: string,
-    action: string,
-    data?: any,
-  ) => {
-    try {
-      const response = await fetch("/api/admin/users", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, action, data }),
-      });
-      if (response.ok) {
-        await loadUsers();
+  const handleUpdateUser = useCallback(
+    async (
+      userId: string,
+      action: string,
+      data?: any,
+    ): Promise<{ success: boolean; message?: string }> => {
+      try {
+        const response = await fetch("/api/admin/users", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, action, data }),
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          await loadUsers();
+          return { success: true, message: result.message };
+        } else {
+          return {
+            success: false,
+            message: result.error || "Operation failed",
+          };
+        }
+      } catch (error) {
+        console.error("Error updating user:", error);
+        return { success: false, message: "Network error. Please try again." };
       }
-    } catch (error) {
-      console.error("Error updating user:", error);
-    }
-  };
+    },
+    [loadUsers],
+  );
+
+  const tabs = [
+    { id: "overview", label: "Overview", icon: HomeIcon, color: "blue" },
+    { id: "users", label: "Users", icon: UsersIcon, color: "green" },
+    { id: "featured", label: "Featured", icon: StarIcon, color: "yellow" },
+    {
+      id: "announcements",
+      label: "Announcements",
+      icon: MegaphoneIcon,
+      color: "purple",
+    },
+    { id: "health", label: "Health", icon: HeartIcon, color: "red" },
+    { id: "backup", label: "Backup", icon: ArrowDownTrayIcon, color: "gray" },
+  ];
 
   if (isLoading) {
     return (
@@ -107,181 +130,232 @@ export default function AdminPanel() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="border-b border-gray-200 pb-4 dark:border-gray-700">
-        <div className="flex items-center gap-2">
-          <ShieldCheckIcon className="h-7 w-7 text-purple-500" />
+      {/* Header with Gradient */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-purple-600 via-pink-500 to-red-500 p-6 text-white shadow-xl">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative flex items-center gap-3">
+          <div className="rounded-xl bg-white/20 p-3 backdrop-blur-sm">
+            <ShieldCheckIcon className="h-8 w-8" />
+          </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white md:text-3xl">
-              Admin Panel
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <h1 className="text-2xl font-bold md:text-3xl">Admin Panel</h1>
+            <p className="mt-1 text-sm text-white/80">
               Manage users, monitor system, and control content
             </p>
           </div>
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="flex gap-2 border-b border-gray-200 pb-2 dark:border-gray-700 flex-wrap">
-        {[
-          { id: "overview", label: "Overview", icon: ChartBarIcon },
-          { id: "users", label: "User Management", icon: UsersIcon },
-          { id: "featured", label: "Featured Series", icon: StarIcon },
-          { id: "announcements", label: "Announcements", icon: MegaphoneIcon },
-          { id: "health", label: "System Health", icon: HeartIcon },
-          { id: "backup", label: "Backup", icon: ArrowDownTrayIcon },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
-              activeTab === tab.id
-                ? "bg-blue-500 text-white"
-                : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-            }`}
-          >
-            <tab.icon className="h-4 w-4" />
-            {tab.label}
-          </button>
-        ))}
+      {/* Modern Tab Navigation */}
+      <div className="flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1 dark:bg-gray-800">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          const colorClasses = {
+            blue: isActive
+              ? "bg-blue-500 text-white"
+              : "hover:bg-blue-50 hover:text-blue-600",
+            green: isActive
+              ? "bg-green-500 text-white"
+              : "hover:bg-green-50 hover:text-green-600",
+            yellow: isActive
+              ? "bg-yellow-500 text-white"
+              : "hover:bg-yellow-50 hover:text-yellow-600",
+            purple: isActive
+              ? "bg-purple-500 text-white"
+              : "hover:bg-purple-50 hover:text-purple-600",
+            red: isActive
+              ? "bg-red-500 text-white"
+              : "hover:bg-red-50 hover:text-red-600",
+            gray: isActive
+              ? "bg-gray-500 text-white"
+              : "hover:bg-gray-100 hover:text-gray-600",
+          };
+
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+                isActive
+                  ? `${colorClasses[tab.color as keyof typeof colorClasses]} shadow-md`
+                  : `${colorClasses[tab.color as keyof typeof colorClasses]} text-gray-600 dark:text-gray-400`
+              }`}
+            >
+              <tab.icon className="h-4 w-4" />
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
-      {/* Overview Tab */}
-      {activeTab === "overview" && analytics && (
-        <div className="space-y-6">
-          {/* Stats Grid */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              title="Total Users"
-              value={analytics.totalUsers}
-              icon={<UsersIcon className="h-6 w-6" />}
-              color="blue"
-            />
-            <StatCard
-              title="Active Users (7d)"
-              value={analytics.activeUsers}
-              icon={<UserGroupIcon className="h-6 w-6" />}
-              color="green"
-            />
-            <StatCard
-              title="Total Series Tracked"
-              value={analytics.totalSeries}
-              icon={<TvIcon className="h-6 w-6" />}
-              color="purple"
-            />
-            <StatCard
-              title="Avg Watch Progress"
-              value={`${analytics.averageProgress}%`}
-              icon={<ChartBarIcon className="h-6 w-6" />}
-              color="orange"
-            />
-          </div>
 
-          {/* Most Tracked Series */}
-          <div className="rounded-lg bg-white shadow dark:bg-gray-800">
-            <div className="border-b border-gray-200 p-4 dark:border-gray-700">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Most Tracked Series
-              </h2>
+      {/* Content Area with Card Style */}
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        {/* Overview Tab */}
+        {activeTab === "overview" && analytics && (
+          <div className="p-6">
+            {/* Stats Grid */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                title="Total Users"
+                value={analytics.totalUsers}
+                icon={<UsersIcon className="h-6 w-6" />}
+                color="blue"
+              />
+              <StatCard
+                title="Active Users (7d)"
+                value={analytics.activeUsers}
+                icon={<UserGroupIcon className="h-6 w-6" />}
+                color="green"
+              />
+              <StatCard
+                title="Total Series Tracked"
+                value={analytics.totalSeries}
+                icon={<TvIcon className="h-6 w-6" />}
+                color="purple"
+              />
+              <StatCard
+                title="Avg Watch Progress"
+                value={`${analytics.averageProgress}%`}
+                icon={<ChartBarIcon className="h-6 w-6" />}
+                color="orange"
+              />
             </div>
-            <div className="divide-y divide-gray-100 dark:divide-gray-700">
-              {analytics.mostTrackedSeries.slice(0, 5).map((series, index) => (
-                <div
-                  key={series.name}
-                  className="flex items-center justify-between p-4"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl font-bold text-gray-400">
-                      #{index + 1}
-                    </span>
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {series.name}
-                    </span>
-                  </div>
-                  <span className="text-sm text-gray-500">
-                    {series.count} users
-                  </span>
+
+            {/* Charts Section */}
+            <div className="mt-6 grid gap-6 lg:grid-cols-2">
+              {/* Most Tracked Series */}
+              <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                <div className="flex items-center gap-2 mb-3">
+                  <ArrowTrendingUpIcon className="h-5 w-5 text-blue-500" />
+                  <h2 className="font-semibold text-gray-900 dark:text-white">
+                    Most Tracked Series
+                  </h2>
                 </div>
-              ))}
-            </div>
-          </div>
+                <div className="space-y-2">
+                  {analytics.mostTrackedSeries
+                    .slice(0, 5)
+                    .map((series, index) => (
+                      <div
+                        key={series.name}
+                        className="flex items-center justify-between rounded-md bg-white p-3 dark:bg-gray-900"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span
+                            className={`text-lg font-bold ${
+                              index === 0
+                                ? "text-yellow-500"
+                                : index === 1
+                                  ? "text-gray-400"
+                                  : index === 2
+                                    ? "text-orange-500"
+                                    : "text-gray-400"
+                            }`}
+                          >
+                            #{index + 1}
+                          </span>
+                          <span className="font-medium text-gray-900 dark:text-white">
+                            {series.name}
+                          </span>
+                        </div>
+                        <span className="text-sm text-gray-500">
+                          {series.count} users
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
 
-          {/* Popular Genres */}
-          <div className="rounded-lg bg-white shadow dark:bg-gray-800">
-            <div className="border-b border-gray-200 p-4 dark:border-gray-700">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Popular Genres
-              </h2>
+              {/* Popular Genres */}
+              <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                <div className="flex items-center gap-2 mb-3">
+                  <StarIcon className="h-5 w-5 text-purple-500" />
+                  <h2 className="font-semibold text-gray-900 dark:text-white">
+                    Popular Genres
+                  </h2>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {analytics.popularGenres.map((genre) => (
+                    <span
+                      key={genre.genre}
+                      className="rounded-full bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-1 text-sm font-medium text-white shadow-sm"
+                    >
+                      {genre.genre} ({genre.count})
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2 p-4">
-              {analytics.popularGenres.map((genre) => (
-                <span
-                  key={genre.genre}
-                  className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                >
-                  {genre.genre} ({genre.count})
-                </span>
-              ))}
+
+            {/* Quick Stats Row */}
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <div className="flex items-center gap-3 rounded-lg bg-gradient-to-r from-green-50 to-teal-50 p-4 dark:from-green-900/20 dark:to-teal-900/20">
+                <UserPlusIcon className="h-8 w-8 text-green-600" />
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    New This Month
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {analytics.newUsersThisMonth}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 p-4 dark:from-purple-900/20 dark:to-pink-900/20">
+                <CalendarIcon className="h-8 w-8 text-purple-600" />
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Active Rate
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {Math.round(
+                      (analytics.activeUsers / analytics.totalUsers) * 100,
+                    )}
+                    %
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-      {/* Users Tab */}
-      {activeTab === "users" && (
-        <div className="rounded-lg bg-white shadow dark:bg-gray-800">
-          <div className="border-b border-gray-200 p-4 dark:border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              User Management
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              View, manage, and moderate user accounts
-            </p>
+        )}
+
+        {/* Users Tab */}
+        {activeTab === "users" && (
+          <div className="p-6">
+            <UserTable
+              users={users}
+              onUpdateUser={handleUpdateUser}
+              onRefresh={loadUsers}
+            />
           </div>
-          <div className="p-4">
-            <UserTable users={users} onUpdateUser={handleUpdateUser} />
-          </div>
-        </div>
-      )}
-      {/* featured */}
-      {activeTab === "featured" && (
-        <div className="rounded-lg bg-white shadow dark:bg-gray-800">
-          <div className="p-4">
+        )}
+
+        {/* Featured Tab */}
+        {activeTab === "featured" && (
+          <div className="p-6">
             <FeaturedSeries />
           </div>
-        </div>
-      )}
-      {/* Announcements Tab */}
-      {activeTab === "announcements" && (
-        <div className="rounded-lg bg-white shadow dark:bg-gray-800">
-          <div className="p-4">
+        )}
+
+        {/* Announcements Tab */}
+        {activeTab === "announcements" && (
+          <div className="p-6">
             <Announcements />
           </div>
-        </div>
-      )}
-      {/* System Health Tab */}
-      {activeTab === "health" && (
-        <div className="rounded-lg bg-white shadow dark:bg-gray-800">
-          <div className="p-4">
+        )}
+
+        {/* System Health Tab */}
+        {activeTab === "health" && (
+          <div className="p-6">
             <SystemHealth />
           </div>
-        </div>
-      )}
-      {/* Backup Tab */}
-      {activeTab === "backup" && (
-        <div className="rounded-lg bg-white shadow dark:bg-gray-800">
-          <div className="border-b border-gray-200 p-4 dark:border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Backup & Restore
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Export or import your data
-            </p>
-          </div>
-          <div className="p-4">
+        )}
+
+        {/* Backup Tab */}
+        {activeTab === "backup" && (
+          <div className="p-6">
             <BackupRestore />
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

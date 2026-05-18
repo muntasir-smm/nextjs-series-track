@@ -17,12 +17,21 @@ export async function authenticate(
     });
   } catch (error) {
     if (error instanceof AuthError) {
-      switch (error.type) {
-        case "CredentialsSignin":
-          return "Invalid credentials.";
-        default:
-          return "Something went wrong.";
+      // Handle specific error types
+      if (error.type === "CredentialsSignin") {
+        return "Invalid email or password";
       }
+
+      // Check for custom error messages
+      if (error.cause?.err?.message === "banned") {
+        return "Your account has been banned. Please contact support.";
+      }
+
+      if (error.cause?.err?.message === "inactive") {
+        return "Your account is deactivated. Please contact support.";
+      }
+
+      return "Invalid email or/and password";
     }
     throw error;
   }
