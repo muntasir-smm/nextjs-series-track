@@ -25,27 +25,74 @@ interface PopularSeries {
   firstAirDate: string;
 }
 
+// Cache duration
+const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
+
 export default function LandingPage() {
   const [popularSeries, setPopularSeries] = useState<PopularSeries[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/tmdb/popular")
-      .then((res) => res.json())
-      .then((data) => {
-        // Ensure data is an array
+    // Check localStorage cache first
+    const cachedData = localStorage.getItem("popularSeries");
+    const cachedTime = localStorage.getItem("popularSeriesTime");
+
+    if (
+      cachedData &&
+      cachedTime &&
+      Date.now() - parseInt(cachedTime) < CACHE_DURATION
+    ) {
+      // Use cached data if not expired
+      setPopularSeries(JSON.parse(cachedData));
+      setIsLoading(false);
+      return;
+    }
+
+    // Fetch fresh data
+    const fetchData = async () => {
+      try {
+        // Add timeout to fetch
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+        const response = await fetch("/api/public/popular", {
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
         const seriesArray = data?.series || (Array.isArray(data) ? data : []);
+
+        // Cache the result
+        localStorage.setItem("popularSeries", JSON.stringify(seriesArray));
+        localStorage.setItem("popularSeriesTime", Date.now().toString());
+
         setPopularSeries(seriesArray);
+      } catch (err: any) {
+        console.error("Error fetching popular series:", err);
+
+        // Try to use expired cache as fallback
+        if (cachedData) {
+          setPopularSeries(JSON.parse(cachedData));
+          setError("Using cached data - results may be outdated");
+        } else {
+          setError("Unable to load popular series. Please try again later.");
+        }
+      } finally {
         setIsLoading(false);
-      })
-      .catch((error) => {
-        console.error("Error fetching popular series:", error);
-        setPopularSeries([]); // Set empty array on error
-        setIsLoading(false);
-      });
+      }
+    };
+
+    fetchData();
   }, []);
 
-  const getPosterUrl = (posterPath: string | null, size: string = "w342") => {
+  const getPosterUrl = (posterPath: string | null, size: string = "w185") => {
     if (!posterPath) return null;
     return `https://image.tmdb.org/t/p/${size}${posterPath}`;
   };
@@ -57,16 +104,14 @@ export default function LandingPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      {/* Hero Section */}
+      {/* Hero Section - Same as before */}
       <div className="relative overflow-hidden">
-        {/* Animated Background */}
         <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10"></div>
         <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-blue-400/20 blur-3xl"></div>
         <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-purple-400/20 blur-3xl"></div>
 
         <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
           <div className="text-center">
-            {/* Logo with Animation */}
             <div className="flex justify-center mb-6 animate-bounce">
               <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
                 <svg
@@ -96,7 +141,6 @@ export default function LandingPage() {
               your watchlist, and discover new series all in one place.
             </p>
 
-            {/* Stats Badge */}
             <div className="mt-6 flex justify-center">
               <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-sm text-gray-600 backdrop-blur-sm dark:bg-gray-800/80">
                 <SparklesIcon className="h-4 w-4 text-yellow-500" />
@@ -189,7 +233,7 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* Popular Series Section - Real TMDB Data */}
+      {/* Popular Series Section - Optimized */}
       <div className="bg-gray-50 dark:bg-gray-800 py-12 sm:py-16 lg:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center">
@@ -205,20 +249,29 @@ export default function LandingPage() {
             <div className="mt-10 flex justify-center">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
             </div>
+          ) : error ? (
+            <div className="mt-10 text-center">
+              <p className="text-red-500 dark:text-red-400">{error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-2 text-sm text-blue-500 hover:text-blue-600"
+              >
+                Try again
+              </button>
+            </div>
           ) : popularSeries.length > 0 ? (
             <>
               <div className="mt-10 grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
-                {popularSeries.slice(0, 18).map((series) => {
+                {popularSeries.slice(0, 16).map((series) => {
                   const posterUrl = getPosterUrl(series.posterPath);
                   return (
                     <div
                       key={series.id}
                       className="group rounded-lg bg-white shadow transition-all hover:shadow-xl dark:bg-gray-900"
                     >
-                      {/* Poster Image */}
                       <div className="relative overflow-hidden rounded-t-lg">
                         {posterUrl ? (
-                          <div className="relative h-64 w-full">
+                          <div className="relative h-56 w-full">
                             <Image
                               src={posterUrl}
                               alt={series.name}
@@ -228,30 +281,27 @@ export default function LandingPage() {
                             />
                           </div>
                         ) : (
-                          <div className="flex h-64 w-full items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600">
+                          <div className="flex h-56 w-full items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600">
                             <span className="text-lg font-bold text-white">
                               {series.name.charAt(0)}
                             </span>
                           </div>
                         )}
-                        {/* Vote Badge */}
                         {series.voteAverage > 0 && (
                           <div className="absolute top-2 right-2 rounded-full bg-black/70 px-2 py-1 text-xs font-semibold text-yellow-400">
                             ⭐ {series.voteAverage.toFixed(1)}
                           </div>
                         )}
                       </div>
-                      <div className="p-4">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white line-clamp-1">
+                      <div className="p-3">
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-1">
                           {series.name}
                         </h3>
-                        <div className="mt-1 flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                        <div className="mt-1 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                           <span>{series.totalSeasons || "?"} seasons</span>
                           <span>{formatDate(series.firstAirDate)}</span>
                         </div>
-
-                        {/* Popularity Bar */}
-                        <div className="mt-3">
+                        <div className="mt-2">
                           <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                             <span>Popularity</span>
                             <span>
@@ -260,7 +310,7 @@ export default function LandingPage() {
                                 : "Trending"}
                             </span>
                           </div>
-                          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                          <div className="mt-1 h-1 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                             <div
                               className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all"
                               style={{
@@ -290,8 +340,7 @@ export default function LandingPage() {
           ) : (
             <div className="mt-10 text-center">
               <p className="text-gray-500 dark:text-gray-400">
-                Unable to load popular series at the moment. Please try again
-                later.
+                No popular series available at the moment.
               </p>
             </div>
           )}
@@ -305,7 +354,7 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* Testimonials Section */}
+      {/* Testimonials Section - Same as before */}
       <div className="bg-white dark:bg-gray-900 py-12 sm:py-16 lg:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center">
@@ -348,7 +397,7 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* CTA Section */}
+      {/* CTA Section - Same as before */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
           <div className="text-center">
