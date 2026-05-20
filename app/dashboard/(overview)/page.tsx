@@ -17,6 +17,7 @@ import {
   CheckCircleIcon,
   StarIcon,
   FireIcon,
+  ChartBarIcon,
 } from "@heroicons/react/24/outline";
 import { addSeries as addSeriesAction } from "@/app/lib/series";
 import Image from "next/image";
@@ -368,35 +369,37 @@ export default function Page() {
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 Progress
               </p>
-              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
-                {stats.overallProgress}%
-              </p>
+              <div className="flex items-center gap-2 mt-1">
+                <div className="relative h-14 w-14">
+                  <svg className="h-14 w-14 -rotate-90 transform">
+                    <circle
+                      cx="28"
+                      cy="28"
+                      r="24"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="none"
+                      className="text-gray-200 dark:text-gray-700"
+                    />
+                    <circle
+                      cx="28"
+                      cy="28"
+                      r="24"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="none"
+                      strokeDasharray={`${stats.overallProgress * 1.508} 150.8`}
+                      className="text-teal-500 transition-all duration-500"
+                    />
+                  </svg>
+                  <span className="absolute inset-0 flex items-center justify-center text-base font-bold text-teal-600 dark:text-teal-400">
+                    {stats.overallProgress}%
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="relative h-10 w-10">
-              <svg className="h-10 w-10 -rotate-90 transform">
-                <circle
-                  cx="20"
-                  cy="20"
-                  r="16"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  fill="none"
-                  className="text-gray-200 dark:text-gray-700"
-                />
-                <circle
-                  cx="20"
-                  cy="20"
-                  r="16"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  fill="none"
-                  strokeDasharray={`${stats.overallProgress * 1.005} 100.5`}
-                  className="text-blue-600 transition-all duration-500"
-                />
-              </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold">
-                {stats.overallProgress}%
-              </span>
+            <div className="rounded-full bg-teal-100 p-2 dark:bg-teal-900/30">
+              <ChartBarIcon className="h-5 w-5 text-teal-600 dark:text-teal-400" />
             </div>
           </div>
         </div>
