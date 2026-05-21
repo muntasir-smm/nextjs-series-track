@@ -2,12 +2,27 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback, Suspense } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  Suspense,
+} from "react";
 import { useSearchParams } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+
 import EditSeriesForm from "../../ui/tvSeries/edit-series-form";
 import SeriesList from "../../ui/tvSeries/series-list";
 import Pagination from "@/app/ui/pagination";
-import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
+
+import {
+  MagnifyingGlassIcon,
+  XMarkIcon,
+  TvIcon,
+  FunnelIcon,
+} from "@heroicons/react/24/outline";
+
 import {
   getUserSeries,
   updateSeries as updateSeriesAction,
@@ -15,7 +30,27 @@ import {
   type Series,
 } from "@/app/lib/series";
 
-// Create a separate component that uses useSearchParams
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      {" "}
+      <div className="h-32 rounded-3xl bg-gray-200 dark:bg-gray-700" />{" "}
+      <div className="h-14 rounded-2xl bg-gray-200 dark:bg-gray-700" />{" "}
+      <div className="rounded-3xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+        {" "}
+        <div className="space-y-4">
+          {[...Array(5)].map((_, i) => (
+            <div
+              key={i}
+              className="h-24 rounded-2xl bg-gray-200 dark:bg-gray-700"
+            />
+          ))}{" "}
+        </div>{" "}
+      </div>{" "}
+    </div>
+  );
+}
+
 function SeriesContent() {
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get("query") || "";
@@ -25,18 +60,24 @@ function SeriesContent() {
   const [error, setError] = useState<string | null>(null);
   const [searchInputValue, setSearchInputValue] = useState(searchQuery);
 
-  // Pagination state
+  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Modal states
+  // Sorting & Filtering
+  const [sortBy, setSortBy] = useState("recent");
+  const [filterBy, setFilterBy] = useState("all");
+
+  // Modal
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingSeries, setEditingSeries] = useState<Series | null>(null);
 
-  // Submission states
+  // Submission
   const [isEditing, setIsEditing] = useState(false);
 
-  // Load series from database
+  // Debounce timer
+  const debounceTimer = useRef<NodeJS.Timeout>();
+
   useEffect(() => {
     const loadSeries = async () => {
       try {
@@ -55,37 +96,88 @@ function SeriesContent() {
     loadSeries();
   }, []);
 
-  // Listen for series added event from floating button
   useEffect(() => {
     const handleSeriesAdded = async () => {
       const updatedSeries = await getUserSeries();
       setSeries(updatedSeries);
-      setCurrentPage(1); // Reset to first page when new series added
+      setCurrentPage(1);
     };
 
     window.addEventListener("series-added", handleSeriesAdded);
-    return () => window.removeEventListener("series-added", handleSeriesAdded);
+
+    return () => {
+      window.removeEventListener("series-added", handleSeriesAdded);
+    };
   }, []);
 
-  // Reset to page 1 when search query changes or items per page changes
+  // Debounced search
+  useEffect(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+
+    debounceTimer.current = setTimeout(() => {
+      const url = new URL(window.location.href);
+
+      if (searchInputValue) {
+        url.searchParams.set("query", searchInputValue);
+      } else {
+        url.searchParams.delete("query");
+      }
+
+      window.history.pushState({}, "", url.toString());
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    }, 400);
+
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, [searchInputValue]);
+
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, itemsPerPage]);
+  }, [searchQuery, itemsPerPage, sortBy, filterBy]);
 
-  // Update search input when URL query changes
   useEffect(() => {
     setSearchInputValue(searchQuery);
   }, [searchQuery]);
 
-  // Filter series based on URL search query
+  // Filter + Search + Sort
   const filteredSeries = React.useMemo(() => {
-    if (!searchQuery) return series;
-    return series.filter((s) =>
-      s.name.toLowerCase().includes(searchQuery.toLowerCase()),
-    );
-  }, [series, searchQuery]);
+    let filtered = [...series];
 
-  // Paginate filtered series
+    if (searchQuery) {
+      filtered = filtered.filter((s) =>
+        s.name.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
+    }
+
+    if (filterBy === "upcoming") {
+      filtered = filtered.filter((s) => s.upcomingSeasons.length > 0);
+    }
+
+    if (filterBy === "completed") {
+      filtered = filtered.filter(
+        (s) => s.watchedSeasons.filter(Boolean).length === s.totalSeasons,
+      );
+    }
+
+    if (filterBy === "watching") {
+      filtered = filtered.filter((s) => s.watchedSeasons.some(Boolean));
+    }
+
+    switch (sortBy) {
+      case "az":
+        filtered.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case "seasons":
+        filtered.sort((a, b) => b.totalSeasons - a.totalSeasons);
+        break;
+      default:
+        break;
+    }
+
+    return filtered;
+  }, [series, searchQuery, sortBy, filterBy]);
+
   const paginatedSeries = React.useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     const end = start + itemsPerPage;
@@ -94,20 +186,12 @@ function SeriesContent() {
 
   const totalPages = Math.ceil(filteredSeries.length / itemsPerPage);
 
-  const handleSearch = (term: string) => {
-    const url = new URL(window.location.href);
-    if (term) {
-      url.searchParams.set("query", term);
-    } else {
-      url.searchParams.delete("query");
-    }
-    window.history.pushState({}, "", url.toString());
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  };
+  const clearSearch = () => setSearchInputValue("");
 
-  const clearSearch = () => {
+  const clearAllFilters = () => {
+    setFilterBy("all");
+    setSortBy("recent");
     setSearchInputValue("");
-    handleSearch("");
   };
 
   const updateSeries = useCallback(async (updatedSeries: Series[]) => {
@@ -130,6 +214,7 @@ function SeriesContent() {
       upcomingSeasons: string[],
     ) => {
       setIsEditing(true);
+
       const seriesToUpdate = series.find((s) => s.id === id);
       if (!seriesToUpdate) {
         setIsEditing(false);
@@ -171,6 +256,7 @@ function SeriesContent() {
   const deleteSeries = useCallback(async (id: string) => {
     if (confirm("Are you sure you want to delete this series?")) {
       setSeries((prev) => prev.filter((s) => s.id !== id));
+
       try {
         const result = await deleteSeriesAction(id);
         if (!result.success) {
@@ -185,170 +271,127 @@ function SeriesContent() {
     }
   }, []);
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Loading your series...
-          </p>
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return <LoadingSkeleton />;
 
   return (
     <div className="space-y-6">
-      {/* Edit Series Modal */}
-      {isEditModalOpen && editingSeries && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl dark:bg-gray-800">
-            <button
-              onClick={() => {
-                setIsEditModalOpen(false);
-                setEditingSeries(null);
-              }}
-              className="absolute right-4 top-4 rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
-              disabled={isEditing}
-            >
-              <XMarkIcon className="h-5 w-5" />
-            </button>
-            <div className="p-6">
-              <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">
-                Edit Series
-              </h2>
-              <EditSeriesForm
-                series={editingSeries}
-                onSave={handleEditSeries}
-                onCancel={() => {
-                  setIsEditModalOpen(false);
-                  setEditingSeries(null);
-                }}
-                isSubmitting={isEditing}
-              />
-            </div>
+      {/* Header */}{" "}
+      <div className="border-b border-gray-200 p-4 dark:border-gray-700">
+        {" "}
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          My Series Collection{" "}
+        </h2>{" "}
+        <p className="mt-1 text-sm text-gray-500">
+          Showing {paginatedSeries.length} of {filteredSeries.length} series{" "}
+        </p>{" "}
+      </div>
+      {/* Search + Filters */}
+      <div className="sticky top-0 z-20 rounded-2xl bg-gray-50/80 backdrop-blur dark:bg-gray-900/80">
+        <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white/80 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/80 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative w-full lg:max-w-md">
+            <MagnifyingGlassIcon className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <input
+              value={searchInputValue}
+              onChange={(e) => setSearchInputValue(e.target.value)}
+              placeholder="Search your series..."
+              className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-10 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+            />
+            {searchInputValue && (
+              <button
+                onClick={clearSearch}
+                className="absolute right-3 top-1/2 -translate-y-1/2"
+              >
+                <XMarkIcon className="h-5 w-5 text-gray-400" />
+              </button>
+            )}
           </div>
-        </div>
-      )}
 
-      {/* Error Message */}
-      {error && (
-        <div className="rounded-lg bg-red-50 p-4 dark:bg-red-900/20">
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="border-b border-gray-200 pb-4 dark:border-gray-700">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white md:text-3xl">
-          TV Series
-        </h1>
-        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-          Manage and track your favorite TV series
-        </p>
-      </div>
-
-      {/* Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex-1 relative">
-          <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={searchInputValue}
-            onChange={(e) => {
-              setSearchInputValue(e.target.value);
-              handleSearch(e.target.value);
-            }}
-            placeholder="Search series..."
-            className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm outline-none transition-all focus:border-blue-500 focus:bg-white focus:text-black focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-          />
-          {searchQuery && (
-            <button
-              onClick={clearSearch}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
+          <div className="flex gap-3 flex-wrap">
+            <select
+              value={filterBy}
+              onChange={(e) => setFilterBy(e.target.value)}
             >
-              <XMarkIcon className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-      </div>
+              <option value="all">All</option>
+              <option value="watching">Watching</option>
+              <option value="completed">Completed</option>
+              <option value="upcoming">Upcoming</option>
+            </select>
 
-      {/* Series List */}
-      <div className="rounded-lg bg-white shadow dark:bg-gray-800">
-        <div className="border-b border-gray-200 p-4 dark:border-gray-700">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Your Series ({filteredSeries.length})
-            </h2>
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+              <option value="recent">Recently Added</option>
+              <option value="az">A-Z</option>
+              <option value="seasons">Most Seasons</option>
+            </select>
+
             <select
               value={itemsPerPage}
               onChange={(e) => {
                 setItemsPerPage(Number(e.target.value));
                 setCurrentPage(1);
               }}
-              className="rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             >
-              <option value={5}>5 per page</option>
-              <option value={10}>10 per page</option>
-              <option value={20}>20 per page</option>
-              <option value={50}>50 per page</option>
+              <option value={10}>10/page</option>
+              <option value={20}>20/page</option>
+              <option value={50}>50/page</option>
             </select>
+
+            <button onClick={clearAllFilters} className="text-xs">
+              Clear
+            </button>
           </div>
         </div>
-        <div className="p-4">
-          {filteredSeries.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-600 dark:text-gray-400">
-                {searchQuery
-                  ? `No series found matching "${searchQuery}"`
-                  : "No series added yet. Click the + button to get started!"}
-              </p>
-            </div>
-          ) : (
-            <>
-              <SeriesList
-                series={paginatedSeries}
-                updateSeries={updateSeries}
-                deleteSeries={deleteSeries}
-                onEditSeries={openEditModal}
-              />
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={handlePageChange}
-                  className="mt-6"
-                />
-              )}
-            </>
-          )}
-        </div>
       </div>
+      {/* List */}
+      <div className="rounded-3xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+        {filteredSeries.length === 0 ? (
+          <div className="py-20 text-center">
+            <TvIcon className="mx-auto h-12 w-12 text-blue-500" />
+            <h3 className="mt-4 text-lg font-semibold">No Series Found</h3>
+            <p className="text-sm text-gray-500">
+              Start adding your favorite TV series
+            </p>
+          </div>
+        ) : (
+          <SeriesList
+            series={paginatedSeries}
+            updateSeries={updateSeries}
+            deleteSeries={deleteSeries}
+            onEditSeries={openEditModal}
+          />
+        )}
+      </div>
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
+      )}
+      {/* Modal */}
+      <AnimatePresence>
+        {isEditModalOpen && editingSeries && (
+          <motion.div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+            <div className="bg-white p-6 rounded-2xl w-full max-w-md">
+              <EditSeriesForm
+                series={editingSeries}
+                onSave={handleEditSeries}
+                onCancel={() => setIsEditModalOpen(false)}
+                isSubmitting={isEditing}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-// Main page component with Suspense boundary
 export default function SeriesPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex justify-center items-center min-h-[400px]">
-          <div className="text-center">
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">Loading...</p>
-          </div>
-        </div>
-      }
-    >
-      <SeriesContent />
+    <Suspense fallback={<LoadingSkeleton />}>
+      {" "}
+      <SeriesContent />{" "}
     </Suspense>
   );
 }

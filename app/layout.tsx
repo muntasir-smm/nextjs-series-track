@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXTAUTH_URL ||
       process.env.NEXT_PUBLIC_APP_URL ||
-      "http://localhost:3000",
+      "https://nextjs-series-track.vercel.app",
   ),
   keywords: ["TV series", "tracker", "watchlist", "entertainment", "TV shows"],
   authors: [{ name: "Series Tracker" }],
@@ -22,6 +22,7 @@ export const metadata: Metadata = {
     title: "Series Tracker",
     description: "Track your favorite TV series and never miss an episode",
     type: "website",
+    url: process.env.NEXTAUTH_URL || "https://nextjs-series-track.vercel.app",
   },
   icons: {
     icon: [
@@ -38,7 +39,6 @@ export const metadata: Metadata = {
     ],
     shortcut: ["/favicon.ico"],
   },
-  // manifest: "/site.webmanifest",
 };
 
 export default function RootLayout({

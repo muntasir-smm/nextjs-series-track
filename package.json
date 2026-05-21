@@ -21,6 +21,7 @@
     "bcryptjs": "^3.0.3",
     "browser-image-compression": "^2.0.2",
     "clsx": "^2.1.1",
+    "framer-motion": "^12.40.0",
     "next": "15.0.0-rc.0",
     "next-auth": "5.0.0-beta.19",
     "postcss": "8.4.31",

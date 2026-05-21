@@ -275,132 +275,170 @@ export default function Page() {
         </div>
       </div>
 
-      {/* 6 Stats Cards */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-        {/* Total Series */}
-        <div className="group rounded-xl bg-white p-4 shadow-sm transition-all hover:shadow-md dark:bg-gray-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Total Series
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                {stats.totalSeries}
-              </p>
-            </div>
-            <div className="rounded-full bg-blue-100 p-2 dark:bg-blue-900/30">
-              <TvIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-            </div>
+      {/* Stats Cards Section */}
+      <div className="space-y-4">
+        {/* Section Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Your Statistics
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Overview of your tracking progress
+            </p>
+          </div>
+          <div className="text-xs text-gray-400">
+            Updated at{" "}
+            {new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           </div>
         </div>
 
-        {/* Completed Series */}
-        <div className="group rounded-xl bg-white p-4 shadow-sm transition-all hover:shadow-md dark:bg-gray-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Completed
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                {stats.completedSeries}
-              </p>
-            </div>
-            <div className="rounded-full bg-green-100 p-2 dark:bg-green-900/30">
-              <CheckCircleIcon className="h-5 w-5 text-green-600 dark:text-green-400" />
-            </div>
-          </div>
-        </div>
-
-        {/* Total Seasons */}
-        <div className="group rounded-xl bg-white p-4 shadow-sm transition-all hover:shadow-md dark:bg-gray-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Total Seasons
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                {stats.totalSeasons}
-              </p>
-            </div>
-            <div className="rounded-full bg-purple-100 p-2 dark:bg-purple-900/30">
-              <CalendarIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-            </div>
-          </div>
-        </div>
-
-        {/* Watched Seasons */}
-        <div className="group rounded-xl bg-white p-4 shadow-sm transition-all hover:shadow-md dark:bg-gray-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Watched
-              </p>
-              <p className="text-2xl font-bold text-teal-600 dark:text-teal-400 mt-1">
-                {stats.totalWatchedSeasons}
-              </p>
-            </div>
-            <div className="rounded-full bg-teal-100 p-2 dark:bg-teal-900/30">
-              <CheckCircleIcon className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-            </div>
-          </div>
-        </div>
-
-        {/* Remaining Seasons */}
-        <div className="group rounded-xl bg-white p-4 shadow-sm transition-all hover:shadow-md dark:bg-gray-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Remaining
-              </p>
-              <p className="text-2xl font-bold text-orange-600 dark:text-orange-400 mt-1">
-                {stats.totalSeasons - stats.totalWatchedSeasons}
-              </p>
-            </div>
-            <div className="rounded-full bg-orange-100 p-2 dark:bg-orange-900/30">
-              <CalendarIcon className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-            </div>
-          </div>
-        </div>
-
-        {/* Progress */}
-        <div className="group rounded-xl bg-white p-4 shadow-sm transition-all hover:shadow-md dark:bg-gray-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Progress
-              </p>
-              <div className="flex items-center gap-2 mt-1">
-                <div className="relative h-14 w-14">
-                  <svg className="h-14 w-14 -rotate-90 transform">
-                    <circle
-                      cx="28"
-                      cy="28"
-                      r="24"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                      className="text-gray-200 dark:text-gray-700"
-                    />
-                    <circle
-                      cx="28"
-                      cy="28"
-                      r="24"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                      strokeDasharray={`${stats.overallProgress * 1.508} 150.8`}
-                      className="text-teal-500 transition-all duration-500"
-                    />
-                  </svg>
-                  <span className="absolute inset-0 flex items-center justify-center text-base font-bold text-teal-600 dark:text-teal-400">
-                    {stats.overallProgress}%
-                  </span>
+        {/* 6 Stats Cards */}
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+          {/* Total Series - Blue */}
+          <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 p-4 shadow-sm transition-all duration-300 hover:from-blue-100 hover:to-blue-200 hover:shadow-lg hover:-translate-y-0.5 dark:from-blue-950/50 dark:to-blue-900/30 dark:hover:from-blue-900/60 dark:hover:to-blue-800/40">
+            <div className="relative flex h-full flex-col justify-between">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                    Total Series
+                  </p>
+                  <p className="text-2xl font-bold text-blue-900 dark:text-white mt-1">
+                    {stats.totalSeries}
+                  </p>
+                </div>
+                <div className="rounded-full bg-white/50 p-2.5 backdrop-blur-sm transition-colors group-hover:bg-white/70 dark:bg-white/10 dark:group-hover:bg-white/20">
+                  <TvIcon className="h-5 w-5 text-blue-600 transition-colors group-hover:text-blue-700 dark:text-blue-400 dark:group-hover:text-blue-300" />
                 </div>
               </div>
             </div>
-            <div className="rounded-full bg-teal-100 p-2 dark:bg-teal-900/30">
-              <ChartBarIcon className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+            <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-blue-500 to-blue-600 opacity-0 transition-opacity group-hover:opacity-100" />
+          </div>
+
+          {/* Completed Series - Green */}
+          <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-green-50 to-green-100 p-4 shadow-sm transition-all duration-300 hover:from-green-100 hover:to-green-200 hover:shadow-lg hover:-translate-y-0.5 dark:from-green-950/50 dark:to-green-900/30 dark:hover:from-green-900/60 dark:hover:to-green-800/40">
+            <div className="relative flex h-full flex-col justify-between">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-medium text-green-700 dark:text-green-300">
+                    Completed
+                  </p>
+                  <p className="text-2xl font-bold text-green-900 dark:text-white mt-1">
+                    {stats.completedSeries}
+                  </p>
+                </div>
+                <div className="rounded-full bg-white/50 p-2.5 backdrop-blur-sm transition-colors group-hover:bg-white/70 dark:bg-white/10 dark:group-hover:bg-white/20">
+                  <CheckCircleIcon className="h-5 w-5 text-green-600 transition-colors group-hover:text-green-700 dark:text-green-400 dark:group-hover:text-green-300" />
+                </div>
+              </div>
             </div>
+            <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-green-500 to-green-600 opacity-0 transition-opacity group-hover:opacity-100" />
+          </div>
+
+          {/* Total Seasons - Purple */}
+          <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 p-4 shadow-sm transition-all duration-300 hover:from-purple-100 hover:to-purple-200 hover:shadow-lg hover:-translate-y-0.5 dark:from-purple-950/50 dark:to-purple-900/30 dark:hover:from-purple-900/60 dark:hover:to-purple-800/40">
+            <div className="relative flex h-full flex-col justify-between">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-medium text-purple-700 dark:text-purple-300">
+                    Total Seasons
+                  </p>
+                  <p className="text-2xl font-bold text-purple-900 dark:text-white mt-1">
+                    {stats.totalSeasons}
+                  </p>
+                </div>
+                <div className="rounded-full bg-white/50 p-2.5 backdrop-blur-sm transition-colors group-hover:bg-white/70 dark:bg-white/10 dark:group-hover:bg-white/20">
+                  <CalendarIcon className="h-5 w-5 text-purple-600 transition-colors group-hover:text-purple-700 dark:text-purple-400 dark:group-hover:text-purple-300" />
+                </div>
+              </div>
+            </div>
+            <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-purple-500 to-purple-600 opacity-0 transition-opacity group-hover:opacity-100" />
+          </div>
+
+          {/* Watched Seasons - Teal */}
+          <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-teal-50 to-teal-100 p-4 shadow-sm transition-all duration-300 hover:from-teal-100 hover:to-teal-200 hover:shadow-lg hover:-translate-y-0.5 dark:from-teal-950/50 dark:to-teal-900/30 dark:hover:from-teal-900/60 dark:hover:to-teal-800/40">
+            <div className="relative flex h-full flex-col justify-between">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-medium text-teal-700 dark:text-teal-300">
+                    Watched
+                  </p>
+                  <p className="text-2xl font-bold text-teal-900 dark:text-white mt-1">
+                    {stats.totalWatchedSeasons}
+                  </p>
+                </div>
+                <div className="rounded-full bg-white/50 p-2.5 backdrop-blur-sm transition-colors group-hover:bg-white/70 dark:bg-white/10 dark:group-hover:bg-white/20">
+                  <CheckCircleIcon className="h-5 w-5 text-teal-600 transition-colors group-hover:text-teal-700 dark:text-teal-400 dark:group-hover:text-teal-300" />
+                </div>
+              </div>
+            </div>
+            <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-teal-500 to-teal-600 opacity-0 transition-opacity group-hover:opacity-100" />
+          </div>
+
+          {/* Remaining Seasons - Orange */}
+          <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 p-4 shadow-sm transition-all duration-300 hover:from-orange-100 hover:to-orange-200 hover:shadow-lg hover:-translate-y-0.5 dark:from-orange-950/50 dark:to-orange-900/30 dark:hover:from-orange-900/60 dark:hover:to-orange-800/40">
+            <div className="relative flex h-full flex-col justify-between">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-medium text-orange-700 dark:text-orange-300">
+                    Remaining
+                  </p>
+                  <p className="text-2xl font-bold text-orange-900 dark:text-white mt-1">
+                    {stats.totalSeasons - stats.totalWatchedSeasons}
+                  </p>
+                </div>
+                <div className="rounded-full bg-white/50 p-2.5 backdrop-blur-sm transition-colors group-hover:bg-white/70 dark:bg-white/10 dark:group-hover:bg-white/20">
+                  <CalendarIcon className="h-5 w-5 text-orange-600 transition-colors group-hover:text-orange-700 dark:text-orange-400 dark:group-hover:text-orange-300" />
+                </div>
+              </div>
+            </div>
+            <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-orange-500 to-orange-600 opacity-0 transition-opacity group-hover:opacity-100" />
+          </div>
+
+          {/* Progress - Teal */}
+          <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-teal-50 to-teal-100 p-4 shadow-sm transition-all duration-300 hover:from-teal-100 hover:to-teal-200 hover:shadow-lg hover:-translate-y-0.5 dark:from-teal-950/50 dark:to-teal-900/30 dark:hover:from-teal-900/60 dark:hover:to-teal-800/40">
+            <div className="relative flex h-full flex-col justify-between">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-medium text-teal-700 dark:text-teal-300">
+                    Progress
+                  </p>
+                  <div className="relative h-14 w-14 mt-1">
+                    <svg className="h-14 w-14 -rotate-90 transform">
+                      <circle
+                        cx="28"
+                        cy="28"
+                        r="24"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        fill="none"
+                        className="text-teal-200 dark:text-teal-800"
+                      />
+                      <circle
+                        cx="28"
+                        cy="28"
+                        r="24"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        fill="none"
+                        strokeDasharray={`${stats.overallProgress * 1.508} 150.8`}
+                        className="text-teal-500 transition-all duration-500"
+                      />
+                    </svg>
+                    <span className="absolute inset-0 flex items-center justify-center text-base font-bold text-teal-700 dark:text-teal-300">
+                      {stats.overallProgress}%
+                    </span>
+                  </div>
+                </div>
+                <div className="rounded-full bg-white/50 p-2.5 backdrop-blur-sm transition-colors group-hover:bg-white/70 dark:bg-white/10 dark:group-hover:bg-white/20">
+                  <ChartBarIcon className="h-5 w-5 text-teal-600 transition-colors group-hover:text-teal-700 dark:text-teal-400 dark:group-hover:text-teal-300" />
+                </div>
+              </div>
+            </div>
+            <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-teal-500 to-teal-600 opacity-0 transition-opacity group-hover:opacity-100" />
           </div>
         </div>
       </div>
