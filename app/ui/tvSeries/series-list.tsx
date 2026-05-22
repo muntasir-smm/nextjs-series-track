@@ -1,7 +1,7 @@
 // app/ui/tvSeries/series-list.tsx
 
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import ProgressBar from "./progress-bar";
 import {
   TrashIcon,
@@ -9,6 +9,7 @@ import {
   EyeIcon,
   Squares2X2Icon,
   ListBulletIcon,
+  CheckCircleIcon,
 } from "@heroicons/react/24/outline";
 import { updateWatchProgress } from "@/app/lib/series";
 import Link from "next/link";
@@ -17,7 +18,7 @@ import Image from "next/image";
 // Helper function to get poster URL
 const getPosterUrl = (
   posterPath: string | null | undefined,
-  size: string = "w185",
+  size: string = "w342",
 ) => {
   if (!posterPath) return null;
   if (posterPath.startsWith("http")) return posterPath;
@@ -46,6 +47,108 @@ interface SeriesListProps {
   onEditSeries?: (series: Series) => void;
 }
 
+// Modern Status Badge
+const StatusBadge: React.FC<{ status: string; hasUpcoming: boolean }> = ({
+  status,
+  hasUpcoming,
+}) => (
+  <div
+    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+      hasUpcoming
+        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
+        : "bg-red-100 text-red-600 dark:bg-red-100 dark:text-red-400"
+    }`}
+  >
+    {hasUpcoming ? status : "Ended"}
+  </div>
+);
+
+// Season Checkbox Component
+const SeasonCheckbox: React.FC<{
+  seasonNumber: number;
+  watched: boolean;
+  onToggle: () => void;
+  isUpdating: boolean;
+}> = ({ seasonNumber, watched, onToggle, isUpdating }) => (
+  <button
+    onClick={onToggle}
+    disabled={isUpdating}
+    className={`relative group flex flex-col items-center gap-1 p-2 rounded-lg transition-all ${
+      watched
+        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
+        : "bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+    } ${isUpdating ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+  >
+    <span className="text-sm font-bold">S{seasonNumber}</span>
+    {watched && (
+      <CheckCircleIcon className="w-3 h-3 absolute -top-1 -right-1 text-emerald-500" />
+    )}
+  </button>
+);
+
+// Complete Progress Ring with better visibility
+const ProgressRing: React.FC<{ progress: number }> = ({ progress }) => {
+  const radius = 20;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference * (1 - progress / 100);
+
+  return (
+    <div className="relative inline-flex items-center justify-center">
+      {/* Dark background circle for contrast over images */}
+      <div className="absolute inset-0 rounded-full bg-black/50 backdrop-blur-[2px]" />
+
+      <svg className="w-12 h-12 transform -rotate-90 relative">
+        {/* Background track */}
+        <circle
+          cx="24"
+          cy="24"
+          r={radius}
+          stroke="currentColor"
+          strokeWidth="3"
+          fill="none"
+          className="text-white/30"
+        />
+        {/* Progress circle with gradient */}
+        <circle
+          cx="24"
+          cy="24"
+          r={radius}
+          stroke="currentColor"
+          strokeWidth="3"
+          fill="none"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          className="text-white transition-all duration-500"
+          style={{
+            stroke: `url(#progressGradient)`,
+            filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.3))",
+          }}
+        />
+
+        {/* Gradient definition */}
+        <defs>
+          <linearGradient
+            id="progressGradient"
+            x1="0%"
+            y1="0%"
+            x2="100%"
+            y2="100%"
+          >
+            <stop offset="0%" stopColor="#60a5fa" />
+            <stop offset="100%" stopColor="#a78bfa" />
+          </linearGradient>
+        </defs>
+      </svg>
+
+      {/* Percentage text with background pill */}
+      <span className="absolute text-[11px] font-bold text-white drop-shadow-md  px-1.5 py-0.5 rounded-full">
+        {Math.round(progress)}%
+      </span>
+    </div>
+  );
+};
+
 const SeriesList: React.FC<SeriesListProps> = ({
   series,
   updateSeries,
@@ -53,368 +156,456 @@ const SeriesList: React.FC<SeriesListProps> = ({
   onEditSeries,
 }) => {
   const [localSeries, setLocalSeries] = useState<Series[] | undefined>(series);
-  const [viewMode, setViewMode] = useState<"table" | "grid">("table");
+  const [viewMode, setViewMode] = useState<"modern" | "compact">("modern");
+  const [updatingSeasons, setUpdatingSeasons] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Load saved view preference
   useEffect(() => {
     const savedView = localStorage.getItem("seriesViewPreference");
-    if (savedView === "table" || savedView === "grid") {
+    if (savedView === "modern" || savedView === "compact") {
       setViewMode(savedView);
     }
   }, []);
 
-  // Save view preference
-  const handleViewChange = (mode: "table" | "grid") => {
+  const handleViewChange = useCallback((mode: "modern" | "compact") => {
     setViewMode(mode);
     localStorage.setItem("seriesViewPreference", mode);
-  };
+  }, []);
 
   useEffect(() => {
     setLocalSeries(series);
   }, [series]);
 
-  const formatProgress = (progress: number): string => {
+  const formatProgress = useCallback((progress: number): string => {
     return Math.round(progress).toString();
-  };
+  }, []);
 
-  const toggleWatched = (seriesIndex: number, seasonIndex: number) => {
-    if (!localSeries) return;
-
-    const updatedSeries = [...localSeries];
-    updatedSeries[seriesIndex].watchedSeasons[seasonIndex] =
-      !updatedSeries[seriesIndex].watchedSeasons[seasonIndex];
-    updatedSeries[seriesIndex].watchProgress = calculateProgress(
-      updatedSeries[seriesIndex].watchedSeasons,
-    );
-
-    setLocalSeries(updatedSeries);
-    updateSeries(updatedSeries);
-
-    const currentSeries = updatedSeries[seriesIndex];
-    updateWatchProgress(currentSeries.id, currentSeries.watchedSeasons).catch(
-      console.error,
-    );
-  };
-
-  const calculateProgress = (watchedSeasons: boolean[]): number => {
+  const calculateProgress = useCallback((watchedSeasons: boolean[]): number => {
+    if (!watchedSeasons?.length) return 0;
     const watchedCount = watchedSeasons.filter(Boolean).length;
     return Math.round((watchedCount / watchedSeasons.length) * 100);
-  };
+  }, []);
 
-  const renderWatchedSeasons = (
-    watchedSeasons: boolean[],
-    seriesIndex: number,
-  ) => {
-    return watchedSeasons.map((watched, seasonIndex) => (
-      <label
-        key={seasonIndex}
-        className="inline-flex items-center gap-1 text-xs cursor-pointer hover:text-blue-600 transition-colors"
-      >
-        <input
-          type="checkbox"
-          checked={watched}
-          onChange={() => toggleWatched(seriesIndex, seasonIndex)}
-          className="rounded border-gray-300 text-blue-500 focus:ring-blue-500 cursor-pointer"
-        />
-        <span>S{seasonIndex + 1}</span>
-      </label>
-    ));
-  };
+  const toggleWatched = useCallback(
+    async (seriesIndex: number, seasonIndex: number) => {
+      if (!localSeries) return;
 
-  const renderUpcomingSeasons = (
-    upcomingSeasons: string[],
-    totalSeasons: number,
-  ): { text: string; hasUpcoming: boolean } => {
-    if (!upcomingSeasons || upcomingSeasons.length === 0) {
-      return { text: "Series Ended", hasUpcoming: false };
-    }
+      const updateKey = `${seriesIndex}-${seasonIndex}`;
+      if (updatingSeasons.has(updateKey)) return;
 
-    const nextSeasonNumber = totalSeasons + 1;
-    const expectedNextSeason = `Season ${nextSeasonNumber}`;
+      setUpdatingSeasons((prev) => new Set(prev).add(updateKey));
 
-    if (upcomingSeasons.includes(expectedNextSeason)) {
-      const seasonNum = nextSeasonNumber.toString().padStart(2, "0");
-      return { text: `Upcoming S${seasonNum}`, hasUpcoming: true };
-    }
+      try {
+        const updatedSeries = [...localSeries];
+        updatedSeries[seriesIndex].watchedSeasons[seasonIndex] =
+          !updatedSeries[seriesIndex].watchedSeasons[seasonIndex];
+        updatedSeries[seriesIndex].watchProgress = calculateProgress(
+          updatedSeries[seriesIndex].watchedSeasons,
+        );
 
-    const firstUpcoming = upcomingSeasons[0];
-    const seasonNumber = firstUpcoming.match(/\d+/)?.[0];
-    if (seasonNumber) {
-      const paddedNum = seasonNumber.padStart(2, "0");
-      return { text: `Upcoming S${paddedNum}`, hasUpcoming: true };
-    }
+        setLocalSeries(updatedSeries);
+        updateSeries(updatedSeries);
 
-    return {
-      text: firstUpcoming.replace("Season", "Upcoming S"),
-      hasUpcoming: true,
-    };
-  };
+        const currentSeries = updatedSeries[seriesIndex];
+        await updateWatchProgress(
+          currentSeries.id,
+          currentSeries.watchedSeasons,
+        );
+      } catch (error) {
+        console.error("Failed to update watch progress:", error);
+        setLocalSeries(series);
+      } finally {
+        setUpdatingSeasons((prev) => {
+          const next = new Set(prev);
+          next.delete(updateKey);
+          return next;
+        });
+      }
+    },
+    [localSeries, calculateProgress, updateSeries, series, updatingSeasons],
+  );
 
-  if (localSeries && localSeries.length > 0) {
-    return (
-      <div className="space-y-4">
-        {/* View Toggle Buttons */}
-        <div className="flex items-center justify-end">
-          <div className="flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-700">
-            <button
-              onClick={() => handleViewChange("table")}
-              className={`rounded-md p-2 transition-all ${
-                viewMode === "table"
-                  ? "bg-white text-blue-600 shadow-sm dark:bg-gray-800 dark:text-blue-400"
-                  : "text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-600"
-              }`}
-              title="Table View"
-            >
-              <ListBulletIcon className="h-5 w-5" />
-            </button>
-            <button
-              onClick={() => handleViewChange("grid")}
-              className={`rounded-md p-2 transition-all ${
-                viewMode === "grid"
-                  ? "bg-white text-blue-600 shadow-sm dark:bg-gray-800 dark:text-blue-400"
-                  : "text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-600"
-              }`}
-              title="Grid View"
-            >
-              <Squares2X2Icon className="h-5 w-5" />
-            </button>
-          </div>
+  const renderWatchedSeasons = useCallback(
+    (watchedSeasons: boolean[], seriesIndex: number) => {
+      if (!watchedSeasons?.length) return null;
+
+      return (
+        <div className="flex flex-wrap gap-2">
+          {watchedSeasons.map((watched, seasonIndex) => {
+            const updateKey = `${seriesIndex}-${seasonIndex}`;
+            const isUpdating = updatingSeasons.has(updateKey);
+
+            return (
+              <SeasonCheckbox
+                key={seasonIndex}
+                seasonNumber={seasonIndex + 1}
+                watched={watched}
+                onToggle={() => toggleWatched(seriesIndex, seasonIndex)}
+                isUpdating={isUpdating}
+              />
+            );
+          })}
         </div>
+      );
+    },
+    [toggleWatched, updatingSeasons],
+  );
 
-        {/* TABLE VIEW (Desktop & Mobile responsive) */}
-        {viewMode === "table" && (
-          <div className="w-full overflow-x-auto">
-            <table className="w-full border-collapse rounded-lg overflow-hidden shadow-sm">
-              <thead className="bg-gradient-to-r from-blue-500 to-blue-600">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-white">
-                    Poster
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-white">
-                    Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-white">
-                    Total Seasons
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-white">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-white">
-                    Watched
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-white">
-                    Progress
-                  </th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-white">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {localSeries.map((s, seriesIndex) => {
-                  const posterUrl = getPosterUrl(s.posterPath);
-                  const { text: statusText, hasUpcoming } =
-                    renderUpcomingSeasons(s.upcomingSeasons, s.totalSeasons);
-                  return (
-                    <tr
-                      key={s.id}
-                      className="border-b border-gray-200 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/50"
-                    >
-                      <td className="px-4 py-3">
-                        {posterUrl ? (
-                          <Image
-                            src={posterUrl}
-                            alt={s.name}
-                            width={32}
-                            height={48}
-                            className="h-12 w-8 rounded object-cover"
-                          />
-                        ) : (
-                          <div className="h-12 w-8 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                            <span className="text-xs text-gray-400">
-                              No img
-                            </span>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
-                        {s.name}
-                        {s.overview && (
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-1">
-                            {s.overview.substring(0, 80)}...
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                        {s.totalSeasons}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            hasUpcoming
-                              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                              : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                          }`}
-                        >
-                          {statusText}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-1">
-                          {renderWatchedSeasons(s.watchedSeasons, seriesIndex)}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 min-w-[100px]">
-                        <ProgressBar width={`${s.watchProgress}%`}>
-                          {formatProgress(s.watchProgress)}%
-                        </ProgressBar>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <Link
-                            href={`/dashboard/tvSeries/${s.id}`}
-                            className="rounded-lg p-2 text-gray-500 transition-all hover:bg-gray-100 hover:text-blue-600"
-                            title="View Details"
-                          >
-                            <EyeIcon className="h-4 w-4" />
-                          </Link>
-                          <button
-                            onClick={() => onEditSeries?.(s)}
-                            className="rounded-lg p-2 text-gray-500 transition-all hover:bg-gray-100 hover:text-amber-600"
-                            title="Edit Series"
-                          >
-                            <PencilIcon className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => deleteSeries(s.id)}
-                            className="rounded-lg p-2 text-gray-500 transition-all hover:bg-gray-100 hover:text-red-600"
-                            title="Delete Series"
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+  const getUpcomingSeasonInfo = useCallback(
+    (
+      upcomingSeasons: string[],
+      totalSeasons: number,
+    ): { text: string; hasUpcoming: boolean } => {
+      if (!upcomingSeasons?.length) {
+        return { text: "Series Ended", hasUpcoming: false };
+      }
 
-        {/* GRID VIEW - Works on all devices */}
-        {viewMode === "grid" && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {localSeries.map((s) => {
-              const posterUrl = getPosterUrl(s.posterPath, "w342");
-              const { text: statusText, hasUpcoming } = renderUpcomingSeasons(
-                s.upcomingSeasons,
-                s.totalSeasons,
-              );
-              return (
-                <div
-                  key={s.id}
-                  className="group overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-300 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
-                >
-                  <div className="relative aspect-[2/3] bg-gray-100 dark:bg-gray-700">
-                    {posterUrl ? (
-                      <Image
-                        src={posterUrl}
-                        alt={s.name}
-                        fill
-                        className="object-cover transition-transform duration-300 group-hover:scale-105"
-                        sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-xs text-gray-400">
-                        No Image
-                      </div>
-                    )}
+      const nextSeasonNumber = totalSeasons + 1;
+      const expectedNextSeason = `Season ${nextSeasonNumber}`;
 
-                    <div className="absolute bottom-2 left-2 right-2">
-                      <ProgressBar width={`${s.watchProgress}%`}>
-                        {formatProgress(s.watchProgress)}%
-                      </ProgressBar>
-                    </div>
+      if (upcomingSeasons.includes(expectedNextSeason)) {
+        const seasonNum = nextSeasonNumber.toString().padStart(2, "0");
+        return { text: `S${seasonNum}`, hasUpcoming: true };
+      }
 
-                    {/* Status Badge */}
-                    <div className="absolute top-2 right-2">
-                      <span
-                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium shadow-sm ${
-                          hasUpcoming
-                            ? "bg-green-500 text-white"
-                            : "bg-red-500 text-white"
-                        }`}
-                      >
-                        {statusText === "Series Ended" ? "Ended" : statusText}
-                      </span>
-                    </div>
+      const firstUpcoming = upcomingSeasons[0];
+      const seasonNumber = firstUpcoming.match(/\d+/)?.[0];
+      if (seasonNumber) {
+        const paddedNum = seasonNumber.padStart(2, "0");
+        return {
+          text: `S${paddedNum}`,
+          hasUpcoming: true,
+        };
+      }
 
-                    <div className="absolute inset-0 flex items-center justify-center gap-4 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
-                      <Link
-                        href={`/dashboard/tvSeries/${s.id}`}
-                        className="rounded-full bg-white/20 p-2 text-white transition-all hover:bg-white/30"
-                        title="View Details"
-                      >
-                        <EyeIcon className="h-5 w-5" />
-                      </Link>
-                      <button
-                        onClick={() => onEditSeries?.(s)}
-                        className="rounded-full bg-white/20 p-2 text-white transition-all hover:bg-white/30"
-                        title="Edit Series"
-                      >
-                        <PencilIcon className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => deleteSeries(s.id)}
-                        className="rounded-full bg-white/20 p-2 text-red-300 transition-all hover:bg-white/30 hover:text-red-400"
-                        title="Delete Series"
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </div>
+      return {
+        text: firstUpcoming.replace("Season", ""),
+        hasUpcoming: true,
+      };
+    },
+    [],
+  );
 
-                  <div className="p-3">
-                    <h3 className="truncate text-sm font-medium text-gray-900 dark:text-white">
-                      {s.name}
-                    </h3>
+  const memoizedSeries = useMemo(() => localSeries, [localSeries]);
 
-                    {/* Overview in Grid */}
-                    {s.overview && (
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
-                        {s.overview}
-                      </p>
-                    )}
-
-                    <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                      <span>{s.totalSeasons} seasons</span>
-                      <span>•</span>
-                      <span
-                        className={
-                          hasUpcoming
-                            ? "text-green-600 dark:text-green-400 font-medium"
-                            : "text-red-600 dark:text-red-400 font-medium"
-                        }
-                      >
-                        {statusText === "Series Ended" ? "Ended" : statusText}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+  if (!memoizedSeries?.length) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 flex items-center justify-center mb-4">
+          <svg
+            className="w-10 h-10 text-blue-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+        </div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+          No series yet
+        </h3>
+        <p className="text-gray-500 dark:text-gray-400">
+          Add your first series to start tracking!
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="text-center py-8">
-      <p className="text-gray-600 dark:text-gray-400">
-        No series available. Add your first series above!
-      </p>
+    <div className="space-y-6">
+      {/* Modern View Toggle */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          {memoizedSeries.length}{" "}
+          {memoizedSeries.length === 1 ? "series" : "series"} tracked
+        </div>
+        <div className="flex gap-1 rounded-xl bg-gray-100 p-1 dark:bg-gray-800">
+          <button
+            onClick={() => handleViewChange("modern")}
+            className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
+              viewMode === "modern"
+                ? "bg-white text-blue-600 shadow-md dark:bg-gray-700 dark:text-blue-400"
+                : "text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700"
+            }`}
+          >
+            <Squares2X2Icon className="h-4 w-4" />
+            Modern
+          </button>
+          <button
+            onClick={() => handleViewChange("compact")}
+            className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
+              viewMode === "compact"
+                ? "bg-white text-blue-600 shadow-md dark:bg-gray-700 dark:text-blue-400"
+                : "text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700"
+            }`}
+          >
+            <ListBulletIcon className="h-4 w-4" />
+            Compact
+          </button>
+        </div>
+      </div>
+
+      {/* GRID VIEW */}
+      {viewMode === "modern" && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+          {memoizedSeries.map((s, seriesIndex) => {
+            const posterUrl = getPosterUrl(s.posterPath, "w342");
+            const backdropUrl = getPosterUrl(s.backdropPath, "w780");
+            const { text: statusText, hasUpcoming } = getUpcomingSeasonInfo(
+              s.upcomingSeasons,
+              s.totalSeasons,
+            );
+
+            return (
+              <div
+                key={s.id}
+                className="group relative overflow-hidden rounded-2xl bg-white dark:bg-gray-900 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+              >
+                {/* Backdrop Gradient Overlay */}
+                {backdropUrl && (
+                  <div className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none">
+                    <Image
+                      src={backdropUrl}
+                      alt=""
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                )}
+
+                {/* Poster Section */}
+                <div className="relative aspect-[2/3] overflow-hidden">
+                  {posterUrl ? (
+                    <Image
+                      src={posterUrl}
+                      alt={s.name}
+                      fill
+                      className="object-cover transition-transform duration-500 group-hover:scale-110"
+                      sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900">
+                      <svg
+                        className="w-12 h-12 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                    </div>
+                  )}
+
+                  {/* Overlay Gradient */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
+
+                  {/* Status Badge */}
+                  <div className="absolute top-3 right-3 z-10">
+                    <StatusBadge
+                      status={statusText}
+                      hasUpcoming={hasUpcoming}
+                    />
+                  </div>
+
+                  {/* Progress Ring */}
+                  <div className="absolute bottom-3 right-3 z-10">
+                    <ProgressRing progress={s.watchProgress} />
+                  </div>
+
+                  {/* Season Count */}
+                  <div className="absolute bottom-3 left-3 bg-black/50 backdrop-blur-sm rounded-lg px-2 py-1 z-10">
+                    <span className="text-xs font-medium text-white">
+                      {s.totalSeasons}{" "}
+                      {s.totalSeasons === 1 ? "Season" : "Seasons"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="p-3 space-y-2">
+                  <div>
+                    <h3 className="font-bold text-sm text-gray-900 dark:text-white line-clamp-1">
+                      {s.name}
+                    </h3>
+                    {s.overview && (
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+                        {s.overview}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center justify-end gap-1 pt-2 border-t border-gray-100 dark:border-gray-800">
+                    <Link
+                      href={`/dashboard/tvSeries/${s.id}`}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all z-10 relative"
+                      title="View Details"
+                    >
+                      <EyeIcon className="h-4 w-4" />
+                    </Link>
+                    <button
+                      onClick={() => onEditSeries?.(s)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all z-10 relative"
+                      title="Edit Series"
+                    >
+                      <PencilIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => deleteSeries(s.id)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all z-10 relative"
+                      title="Delete Series"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* LIST VIEW - Same status style as Grid, no repeated info */}
+      {viewMode === "compact" && (
+        <div className="space-y-3">
+          {memoizedSeries.map((s, seriesIndex) => {
+            const posterUrl = getPosterUrl(s.posterPath, "w185");
+            const { text: statusText, hasUpcoming } = getUpcomingSeasonInfo(
+              s.upcomingSeasons,
+              s.totalSeasons,
+            );
+
+            return (
+              <div
+                key={s.id}
+                className="group bg-white dark:bg-gray-900 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
+              >
+                <div className="flex flex-col sm:flex-row">
+                  {/* Poster */}
+                  <div className="relative sm:w-24 h-32 sm:h-auto flex-shrink-0">
+                    {posterUrl ? (
+                      <Image
+                        src={posterUrl}
+                        alt={s.name}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center">
+                        <svg
+                          className="w-6 h-6 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Content - No repeated season info, only essentials */}
+                  <div className="flex-1 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-semibold text-gray-900 dark:text-white">
+                            {s.name}
+                          </h3>
+                          {/* Status Badge - Same style as Grid */}
+                          <StatusBadge
+                            status={statusText}
+                            hasUpcoming={hasUpcoming}
+                          />
+                        </div>
+                        {s.overview && (
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
+                            {s.overview}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Season Checkboxes */}
+                    <div className="mt-3">
+                      <div className="flex flex-wrap gap-1.5">
+                        {renderWatchedSeasons(s.watchedSeasons, seriesIndex)}
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="mt-3 max-w-[200px]">
+                      <ProgressBar width={`${s.watchProgress}%`}>
+                        {formatProgress(s.watchProgress)}%
+                      </ProgressBar>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex sm:flex-col items-center justify-center gap-1 p-3 border-t sm:border-t-0 sm:border-l border-gray-100 dark:border-gray-800">
+                    <Link
+                      href={`/dashboard/tvSeries/${s.id}`}
+                      className="p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+                      title="View Details"
+                    >
+                      <EyeIcon className="h-4 w-4" />
+                    </Link>
+                    <button
+                      onClick={() => onEditSeries?.(s)}
+                      className="p-2 rounded-lg text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all"
+                      title="Edit Series"
+                    >
+                      <PencilIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => deleteSeries(s.id)}
+                      className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                      title="Delete Series"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
