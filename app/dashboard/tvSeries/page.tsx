@@ -15,13 +15,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import EditSeriesForm from "../../ui/tvSeries/edit-series-form";
 import SeriesList from "../../ui/tvSeries/series-list";
 import Pagination from "@/app/ui/pagination";
+import SeriesControls from "@/app/ui/tvSeries/series-controls";
+import type {
+  FilterOption,
+  SortOption,
+  PageSizeOption,
+} from "@/app/ui/tvSeries/series-controls";
 
-import {
-  MagnifyingGlassIcon,
-  XMarkIcon,
-  TvIcon,
-  FunnelIcon,
-} from "@heroicons/react/24/outline";
+import { TvIcon } from "@heroicons/react/24/outline";
 
 import {
   getUserSeries,
@@ -60,11 +61,11 @@ function SeriesContent() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState<PageSizeOption>(10);
 
   // Sorting & Filtering
-  const [sortBy, setSortBy] = useState("recent");
-  const [filterBy, setFilterBy] = useState("all");
+  const [sortBy, setSortBy] = useState<SortOption>("recent");
+  const [filterBy, setFilterBy] = useState<FilterOption>("all");
 
   // Modal
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -108,7 +109,7 @@ function SeriesContent() {
     };
   }, []);
 
-  // Debounced search
+  // Debounced search - update URL
   useEffect(() => {
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
 
@@ -130,10 +131,12 @@ function SeriesContent() {
     };
   }, [searchInputValue]);
 
+  // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, itemsPerPage, sortBy, filterBy]);
 
+  // Sync search input with URL param
   useEffect(() => {
     setSearchInputValue(searchQuery);
   }, [searchQuery]);
@@ -202,8 +205,6 @@ function SeriesContent() {
   }, [filteredSeries, currentPage, itemsPerPage]);
 
   const totalPages = Math.ceil(filteredSeries.length / itemsPerPage);
-
-  const clearSearch = () => setSearchInputValue("");
 
   const clearAllFilters = () => {
     setFilterBy("all");
@@ -350,96 +351,29 @@ function SeriesContent() {
         )}
       </AnimatePresence>
 
-      {/* Search + Filters */}
-      <div className="sticky top-0 z-20">
-        <div className="rounded-2xl border border-gray-200 bg-white/90 p-4 shadow-sm backdrop-blur dark:border-gray-700 dark:bg-gray-900/80">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            {/* Search */}
-            <div className="relative w-full lg:max-w-md">
-              <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-              <input
-                value={searchInputValue}
-                onChange={(e) => setSearchInputValue(e.target.value)}
-                placeholder="Search series..."
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-10 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-              />
-              {searchInputValue && (
-                <button
-                  onClick={clearSearch}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-                >
-                  <XMarkIcon className="h-4 w-4" />
-                </button>
-              )}
-            </div>
+      {/* Series Controls */}
+      <SeriesControls
+        searchQuery={searchInputValue}
+        onSearchChange={setSearchInputValue}
+        searchPlaceholder="Search your series..."
+        filterBy={filterBy}
+        onFilterChange={setFilterBy}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        itemsPerPage={itemsPerPage}
+        onItemsPerPageChange={(size) => {
+          setItemsPerPage(size);
+          setCurrentPage(1);
+        }}
+        totalItems={series.length}
+        filteredCount={filteredSeries.length}
+        onClearFilters={clearAllFilters}
+        hasActiveFilters={
+          filterBy !== "all" || sortBy !== "recent" || searchInputValue !== ""
+        }
+      />
 
-            {/* Controls */}
-            <div className="flex w-full flex-wrap items-center gap-3 lg:w-auto">
-              {/* Filter */}
-              <div className="relative w-full sm:w-auto">
-                <FunnelIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <select
-                  value={filterBy}
-                  onChange={(e) => setFilterBy(e.target.value)}
-                  className="w-full appearance-none rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-10 text-sm text-gray-700 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 dark:border-gray-700 dark:bg-gray-800 dark:text-white sm:w-auto"
-                >
-                  <option value="all">All Series</option>
-                  <option value="watching">Watching</option>
-                  <option value="completed">Completed</option>
-                  <option value="upcoming">Upcoming</option>
-                </select>
-              </div>
-
-              {/* Sort */}
-              <div className="relative w-full sm:w-auto">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 py-2.5 pr-10 text-sm text-gray-700 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 dark:border-gray-700 dark:bg-gray-800 dark:text-white sm:w-auto"
-                >
-                  <option value="recent">Recent</option>
-                  <option value="old">Oldest First</option>
-                  <option value="az">A-Z</option>
-                  <option value="za">Z-A</option>
-                  <option value="seasons">Most Seasons</option>
-                  <option value="LowSeasons">Lowest Seasons</option>
-                </select>
-              </div>
-
-              {/* Page Size */}
-              <div className="relative w-full sm:w-auto">
-                <select
-                  value={itemsPerPage}
-                  onChange={(e) => {
-                    setItemsPerPage(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 py-2.5 pr-10 text-sm text-gray-700 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 dark:border-gray-700 dark:bg-gray-800 dark:text-white sm:w-auto"
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-
-              {/* Clear Filters */}
-              {(filterBy !== "all" ||
-                sortBy !== "recent" ||
-                searchInputValue) && (
-                <button
-                  onClick={clearAllFilters}
-                  className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-medium text-red-600 transition-all hover:bg-red-100 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/40"
-                >
-                  Clear Filters
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* List */}
+      {/* Series List */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
