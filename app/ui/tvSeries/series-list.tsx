@@ -2,7 +2,7 @@
 
 "use client";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import ProgressBar from "./progress-bar";
+import { ProgressBar, ProgressRing } from "./progress-bar";
 import {
   TrashIcon,
   PencilIcon,
@@ -47,7 +47,7 @@ interface SeriesListProps {
   onEditSeries?: (series: Series) => void;
 }
 
-// Modern Status Badge
+// Grid Status Badge
 const StatusBadge: React.FC<{ status: string; hasUpcoming: boolean }> = ({
   status,
   hasUpcoming,
@@ -86,69 +86,6 @@ const SeasonCheckbox: React.FC<{
   </button>
 );
 
-// Complete Progress Ring with better visibility
-const ProgressRing: React.FC<{ progress: number }> = ({ progress }) => {
-  const radius = 20;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference * (1 - progress / 100);
-
-  return (
-    <div className="relative inline-flex items-center justify-center">
-      {/* Dark background circle for contrast over images */}
-      <div className="absolute inset-0 rounded-full bg-black/50 backdrop-blur-[2px]" />
-
-      <svg className="w-12 h-12 transform -rotate-90 relative">
-        {/* Background track */}
-        <circle
-          cx="24"
-          cy="24"
-          r={radius}
-          stroke="currentColor"
-          strokeWidth="3"
-          fill="none"
-          className="text-white/30"
-        />
-        {/* Progress circle with gradient */}
-        <circle
-          cx="24"
-          cy="24"
-          r={radius}
-          stroke="currentColor"
-          strokeWidth="3"
-          fill="none"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          className="text-white transition-all duration-500"
-          style={{
-            stroke: `url(#progressGradient)`,
-            filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.3))",
-          }}
-        />
-
-        {/* Gradient definition */}
-        <defs>
-          <linearGradient
-            id="progressGradient"
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="100%"
-          >
-            <stop offset="0%" stopColor="#60a5fa" />
-            <stop offset="100%" stopColor="#a78bfa" />
-          </linearGradient>
-        </defs>
-      </svg>
-
-      {/* Percentage text with background pill */}
-      <span className="absolute text-[11px] font-bold text-white drop-shadow-md  px-1.5 py-0.5 rounded-full">
-        {Math.round(progress)}%
-      </span>
-    </div>
-  );
-};
-
 const SeriesList: React.FC<SeriesListProps> = ({
   series,
   updateSeries,
@@ -156,7 +93,7 @@ const SeriesList: React.FC<SeriesListProps> = ({
   onEditSeries,
 }) => {
   const [localSeries, setLocalSeries] = useState<Series[] | undefined>(series);
-  const [viewMode, setViewMode] = useState<"modern" | "compact">("modern");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [updatingSeasons, setUpdatingSeasons] = useState<Set<string>>(
     new Set(),
   );
@@ -164,12 +101,12 @@ const SeriesList: React.FC<SeriesListProps> = ({
   // Load saved view preference
   useEffect(() => {
     const savedView = localStorage.getItem("seriesViewPreference");
-    if (savedView === "modern" || savedView === "compact") {
+    if (savedView === "grid" || savedView === "list") {
       setViewMode(savedView);
     }
   }, []);
 
-  const handleViewChange = useCallback((mode: "modern" | "compact") => {
+  const handleViewChange = useCallback((mode: "grid" | "list") => {
     setViewMode(mode);
     localStorage.setItem("seriesViewPreference", mode);
   }, []);
@@ -326,7 +263,7 @@ const SeriesList: React.FC<SeriesListProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Modern View Toggle */}
+      {/* View Toggle */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="text-sm text-gray-500 dark:text-gray-400">
           {memoizedSeries.length}{" "}
@@ -334,32 +271,30 @@ const SeriesList: React.FC<SeriesListProps> = ({
         </div>
         <div className="flex gap-1 rounded-xl bg-gray-100 p-1 dark:bg-gray-800">
           <button
-            onClick={() => handleViewChange("modern")}
+            onClick={() => handleViewChange("grid")}
             className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
-              viewMode === "modern"
+              viewMode === "grid"
                 ? "bg-white text-blue-600 shadow-md dark:bg-gray-700 dark:text-blue-400"
                 : "text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700"
             }`}
           >
             <Squares2X2Icon className="h-4 w-4" />
-            Modern
           </button>
           <button
-            onClick={() => handleViewChange("compact")}
+            onClick={() => handleViewChange("list")}
             className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
-              viewMode === "compact"
+              viewMode === "list"
                 ? "bg-white text-blue-600 shadow-md dark:bg-gray-700 dark:text-blue-400"
                 : "text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700"
             }`}
           >
             <ListBulletIcon className="h-4 w-4" />
-            Compact
           </button>
         </div>
       </div>
 
-      {/* GRID VIEW */}
-      {viewMode === "modern" && (
+      {/* GRID VIEW - Using ProgressRing */}
+      {viewMode === "grid" && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
           {memoizedSeries.map((s, seriesIndex) => {
             const posterUrl = getPosterUrl(s.posterPath, "w342");
@@ -431,9 +366,9 @@ const SeriesList: React.FC<SeriesListProps> = ({
                     />
                   </div>
 
-                  {/* Progress Ring */}
+                  {/* Progress Ring - Using imported component */}
                   <div className="absolute bottom-3 right-3 z-10">
-                    <ProgressRing progress={s.watchProgress} />
+                    <ProgressRing progress={s.watchProgress} size="md" />
                   </div>
 
                   {/* Season Count */}
@@ -489,8 +424,8 @@ const SeriesList: React.FC<SeriesListProps> = ({
         </div>
       )}
 
-      {/* LIST VIEW - Same status style as Grid, no repeated info */}
-      {viewMode === "compact" && (
+      {/* LIST VIEW - Using ProgressBar */}
+      {viewMode === "list" && (
         <div className="space-y-3">
           {memoizedSeries.map((s, seriesIndex) => {
             const posterUrl = getPosterUrl(s.posterPath, "w185");
@@ -539,7 +474,7 @@ const SeriesList: React.FC<SeriesListProps> = ({
                     )}
                   </div>
 
-                  {/* Content - No repeated season info, only essentials */}
+                  {/* Content */}
                   <div className="flex-1 p-4">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="flex-1">
@@ -547,7 +482,7 @@ const SeriesList: React.FC<SeriesListProps> = ({
                           <h3 className="font-semibold text-gray-900 dark:text-white">
                             {s.name}
                           </h3>
-                          {/* Status Badge - Same style as Grid */}
+                          {/* Status Badge */}
                           <StatusBadge
                             status={statusText}
                             hasUpcoming={hasUpcoming}
@@ -568,9 +503,13 @@ const SeriesList: React.FC<SeriesListProps> = ({
                       </div>
                     </div>
 
-                    {/* Progress Bar */}
+                    {/* Progress Bar - Using imported component */}
                     <div className="mt-3 max-w-[200px]">
-                      <ProgressBar width={`${s.watchProgress}%`}>
+                      <ProgressBar
+                        width={`${s.watchProgress}%`}
+                        size="md"
+                        showPercentage={true}
+                      >
                         {formatProgress(s.watchProgress)}%
                       </ProgressBar>
                     </div>
