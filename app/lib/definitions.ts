@@ -6,3 +6,15 @@ export type User = {
   email: string;
   password: string;
 };
+
+export type SuggestedSeries = {
+  id: string;
+  name: string;
+  totalSeasons: number;
+  upcomingSeasons: string[];
+  watchProgress: number;
+  posterPath?: string | null;
+  backdropPath?: string | null;
+  overview?: string | null;
+  voteAverage?: number;
+};

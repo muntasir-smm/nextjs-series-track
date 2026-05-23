@@ -2,46 +2,51 @@
 
 "use client";
 
-import { lusitana } from "@/app/ui/fonts";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import Avatar from "@/app/ui/dashboard/avatar";
-import { getUserSeries } from "@/app/lib/series";
-import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  PlusIcon,
-  EyeIcon,
-  SparklesIcon,
-  ArrowPathIcon,
-  TvIcon,
-  CalendarIcon,
-  CheckCircleIcon,
-  StarIcon,
-  FireIcon,
-  ChartBarIcon,
-} from "@heroicons/react/24/outline";
-import { addSeries as addSeriesAction } from "@/app/lib/series";
-import Image from "next/image";
-
-interface SuggestedSeries {
-  id: string;
-  name: string;
-  totalSeasons: number;
-  upcomingSeasons: string[];
-  watchProgress: number;
-  posterPath?: string | null;
-  backdropPath?: string | null;
-  overview?: string | null;
-  voteAverage?: number;
-}
+  getUserSeries,
+  addSeries as addSeriesAction,
+  updateWatchProgress,
+  deleteSeries as deleteSeriesAction,
+  updateSeries as updateSeriesAction,
+} from "@/app/lib/series";
+import EditSeriesForm from "@/app/ui/tvSeries/edit-series-form";
+import { ViewToggle } from "@/app/ui/tvSeries/series-controls";
+import type { ViewMode } from "@/app/ui/tvSeries/series-controls";
+import type { Series } from "@/app/lib/series";
+import { HeroSection } from "./components/hero-section";
+import { StatsSection } from "./components/stats-section";
+import { RecentlyAddedSection } from "./components/recently-added-section";
+import { TrendingSection } from "./components/trending-section";
+import { EmptyState } from "./components/empty-state";
+import type { SuggestedSeries } from "@/app/lib/definitions";
 
 export default function Page() {
-  const [seriesData, setSeriesData] = useState<any[]>([]);
+  const [seriesData, setSeriesData] = useState<Series[]>([]);
   const [suggestedSeries, setSuggestedSeries] = useState<SuggestedSeries[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [addingSeriesId, setAddingSeriesId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [greeting, setGreeting] = useState("");
   const [userName, setUserName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingSeries, setEditingSeries] = useState<Series | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem("dashboardViewMode", mode);
+  }, []);
+
+  useEffect(() => {
+    const savedViewMode = localStorage.getItem("dashboardViewMode") as ViewMode;
+    if (savedViewMode === "grid" || savedViewMode === "list") {
+      setViewMode(savedViewMode);
+    }
+  }, []);
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -71,37 +76,38 @@ export default function Page() {
       setIsLoading(true);
       const series = await getUserSeries();
       setSeriesData(series);
+      setError(null);
     } catch (error) {
       console.error("Error loading series:", error);
+      setError("Failed to load your series. Please refresh the page.");
     } finally {
       setIsLoading(false);
     }
   }, []);
 
+  const loadPopularSeries = useCallback(async () => {
+    try {
+      const response = await fetch("/api/tmdb/popular?page=1&limit=9");
+      const data = await response.json();
+      setSuggestedSeries(data.series || []);
+    } catch (error) {
+      console.error("Error loading popular series:", error);
+    }
+  }, []);
+
   useEffect(() => {
     loadSeries();
-    const loadPopularSeries = async () => {
-      try {
-        const response = await fetch("/api/tmdb/popular?page=1&limit=9");
-        const data = await response.json();
-        setSuggestedSeries(data.series || []);
-      } catch (error) {
-        console.error("Error loading popular series:", error);
-      }
-    };
     loadPopularSeries();
-  }, [loadSeries]);
+  }, [loadSeries, loadPopularSeries]);
 
   useEffect(() => {
     const handleSeriesAdded = async () => {
       await loadSeries();
-      const response = await fetch("/api/tmdb/popular?page=1&limit=9");
-      const data = await response.json();
-      setSuggestedSeries(data.series || []);
+      await loadPopularSeries();
     };
     window.addEventListener("series-added", handleSeriesAdded);
     return () => window.removeEventListener("series-added", handleSeriesAdded);
-  }, [loadSeries]);
+  }, [loadSeries, loadPopularSeries]);
 
   const handleAddSuggestedSeries = useCallback(
     async (series: SuggestedSeries) => {
@@ -117,9 +123,7 @@ export default function Page() {
         );
         if (result.success) {
           await loadSeries();
-          const response = await fetch("/api/tmdb/popular?page=1&limit=9");
-          const data = await response.json();
-          setSuggestedSeries(data.series || []);
+          await loadPopularSeries();
         }
       } catch (error) {
         console.error("Error adding series:", error);
@@ -127,12 +131,111 @@ export default function Page() {
         setAddingSeriesId(null);
       }
     },
-    [loadSeries],
+    [loadSeries, loadPopularSeries],
   );
 
-  const userSeriesIds = useMemo(() => {
-    return new Set(seriesData.map((s) => s.id));
-  }, [seriesData]);
+  const updateSeries = useCallback(
+    async (updatedSeries: Series[]) => {
+      const previousSeries = seriesData;
+      setSeriesData(updatedSeries);
+
+      try {
+        const changedSeries = updatedSeries.filter((series) => {
+          const original = previousSeries.find((s) => s.id === series.id);
+          return (
+            original &&
+            JSON.stringify(original.watchedSeasons) !==
+              JSON.stringify(series.watchedSeasons)
+          );
+        });
+
+        await Promise.all(
+          changedSeries.map((series) =>
+            updateWatchProgress(series.id, series.watchedSeasons),
+          ),
+        );
+      } catch (error) {
+        console.error("Failed to update progress:", error);
+        setSeriesData(previousSeries);
+        setError("Failed to update watch progress. Please try again.");
+      }
+    },
+    [seriesData],
+  );
+
+  const deleteSeries = useCallback(
+    async (id: string) => {
+      if (!confirm("Are you sure you want to delete this series?")) return;
+
+      const previousSeries = seriesData;
+      setSeriesData((prev) => prev.filter((s) => s.id !== id));
+
+      try {
+        const result = await deleteSeriesAction(id);
+        if (!result.success) {
+          setError(result.error || "Failed to delete series");
+          setSeriesData(previousSeries);
+        }
+      } catch (error) {
+        console.error("Error deleting series:", error);
+        setError("Failed to delete series. Please try again.");
+        setSeriesData(previousSeries);
+      }
+    },
+    [seriesData],
+  );
+
+  const openEditModal = useCallback((series: Series) => {
+    setEditingSeries(series);
+    setIsEditModalOpen(true);
+  }, []);
+
+  const handleEditSeries = useCallback(
+    async (
+      id: string,
+      name: string,
+      totalSeasons: number,
+      upcomingSeasons: string[],
+    ) => {
+      setIsEditing(true);
+
+      const seriesToUpdate = seriesData.find((s) => s.id === id);
+      if (!seriesToUpdate) {
+        setIsEditing(false);
+        return;
+      }
+
+      const updatedSeriesObj = {
+        ...seriesToUpdate,
+        name,
+        totalSeasons,
+        upcomingSeasons,
+      };
+
+      try {
+        const result = await updateSeriesAction(updatedSeriesObj);
+        if (result.success) {
+          await loadSeries();
+          setIsEditModalOpen(false);
+          setEditingSeries(null);
+          setError(null);
+        } else {
+          setError(result.error || "Failed to edit series");
+        }
+      } catch (err) {
+        console.error("Error editing series:", err);
+        setError("Failed to edit series. Please try again.");
+      } finally {
+        setIsEditing(false);
+      }
+    },
+    [seriesData, loadSeries],
+  );
+
+  const userSeriesIds = useMemo(
+    () => new Set(seriesData.map((s) => s.id)),
+    [seriesData],
+  );
 
   const undiscoveredSeries = useMemo(() => {
     return suggestedSeries.filter((s) => !userSeriesIds.has(s.id));
@@ -155,53 +258,21 @@ export default function Page() {
         : 0;
     const recentlyAdded = [...seriesData]
       .sort((a, b) => b.id.localeCompare(a.id))
-      .slice(0, 5);
+      .slice(0, 6);
     const completedSeries = seriesData.filter(
       (s) => s.watchProgress === 100,
     ).length;
-    const completedSeasons = seriesData.reduce(
-      (acc, series) =>
-        acc + (series.watchedSeasons?.filter(Boolean).length || 0),
-      0,
-    );
 
     return {
       totalSeries,
       totalSeasons,
       totalWatchedSeasons,
+      remainingSeasons: totalSeasons - totalWatchedSeasons,
       overallProgress,
       recentlyAdded,
       completedSeries,
-      completedSeasons,
     };
   }, [seriesData]);
-
-  const getUpcomingText = useCallback(
-    (upcomingSeasons: string[], totalSeasons: number) => {
-      if (!upcomingSeasons || upcomingSeasons.length === 0) {
-        return { show: true, text: "Series Ended", isUpcoming: false };
-      }
-      const upcomingSeason = upcomingSeasons[0];
-      const seasonNum = parseInt(upcomingSeason.match(/\d+/)?.[0] || "0");
-      if (seasonNum > totalSeasons) {
-        return {
-          show: true,
-          text: `${upcomingSeason.replace("Season", "S")} coming soon`,
-          isUpcoming: true,
-        };
-      }
-      return { show: true, text: "Series Ended", isUpcoming: false };
-    },
-    [],
-  );
-
-  const getPosterUrl = (
-    posterPath: string | null | undefined,
-    size: string = "w92",
-  ) => {
-    if (!posterPath) return null;
-    return `https://image.tmdb.org/t/p/${size}${posterPath}`;
-  };
 
   if (isLoading) {
     return (
@@ -220,401 +291,81 @@ export default function Page() {
 
   return (
     <main className="space-y-8">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-purple-600 p-6 text-white shadow-xl">
-        <div className="absolute inset-0 bg-black/10"></div>
-
-        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div className="flex items-center gap-5">
-            <div className="relative">
-              <div className="rounded-2xl bg-gradient-to-br from-white/20 to-white/10 p-1.5 backdrop-blur-sm">
-                <Avatar
-                  src={avatarUrl}
-                  name={userName || "User"}
-                  size="xl"
-                  shape="rounded"
-                  className="h-20 w-20 md:h-24 md:w-24"
-                />
-              </div>
-              <div className="absolute -bottom-1 -right-1 rounded-full bg-green-500 p-1.5 ring-2 ring-white">
-                <CheckCircleIcon className="h-3.5 w-3.5 text-white" />
-              </div>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-blue-100">{greeting}</p>
-              <h1 className="text-2xl font-bold mt-0.5 md:text-3xl">
-                {userName || "User"}! 👋
-              </h1>
-              <p className="text-blue-100 text-sm mt-1">
-                {stats.totalSeries}{" "}
-                {stats.totalSeries === 1 ? "series" : "series"} •{" "}
-                {stats.overallProgress}% complete
-              </p>
-            </div>
-          </div>
-
-          {/* Achievement Badge */}
-          {stats.completedSeries >= 5 && (
-            <div className="flex items-center gap-2 rounded-full bg-yellow-500/30 backdrop-blur-sm px-3 py-1.5 text-sm">
-              <span className="text-lg">🏆</span>
-              <span>Series Master</span>
-            </div>
-          )}
-          {stats.completedSeries >= 1 && stats.completedSeries < 5 && (
-            <div className="flex items-center gap-2 rounded-full bg-blue-500/30 backdrop-blur-sm px-3 py-1.5 text-sm">
-              <span className="text-lg">⭐</span>
-              <span>{5 - stats.completedSeries} to Master</span>
-            </div>
-          )}
-          {stats.completedSeries === 0 && (
-            <div className="flex items-center gap-2 rounded-full bg-white/20 backdrop-blur-sm px-3 py-1.5 text-sm">
-              <span className="text-lg">🎯</span>
-              <span>Complete first series</span>
-            </div>
-          )}
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
         </div>
-      </div>
+      )}
 
-      {/* Stats Cards Section */}
-      <div className="space-y-4">
-        {/* Section Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Your Statistics
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Overview of your tracking progress
-            </p>
-          </div>
-          <div className="text-xs text-gray-400">
-            Updated at{" "}
-            {new Date().toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </div>
-        </div>
+      <HeroSection
+        userName={userName}
+        avatarUrl={avatarUrl}
+        greeting={greeting}
+        totalSeries={stats.totalSeries}
+        overallProgress={stats.overallProgress}
+        completedSeries={stats.completedSeries}
+        hasSeries={hasSeries}
+      />
 
-        {/* 6 Stats Cards */}
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-          {/* Total Series - Blue */}
-          <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 p-4 shadow-sm transition-all duration-300 hover:from-blue-100 hover:to-blue-200 hover:shadow-lg hover:-translate-y-0.5 dark:from-blue-950/50 dark:to-blue-900/30 dark:hover:from-blue-900/60 dark:hover:to-blue-800/40">
-            <div className="relative flex h-full flex-col justify-between">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-medium text-blue-700 dark:text-blue-300">
-                    Total Series
-                  </p>
-                  <p className="text-2xl font-bold text-blue-900 dark:text-white mt-1">
-                    {stats.totalSeries}
-                  </p>
-                </div>
-                <div className="rounded-full bg-white/50 p-2.5 backdrop-blur-sm transition-colors group-hover:bg-white/70 dark:bg-white/10 dark:group-hover:bg-white/20">
-                  <TvIcon className="h-5 w-5 text-blue-600 transition-colors group-hover:text-blue-700 dark:text-blue-400 dark:group-hover:text-blue-300" />
-                </div>
-              </div>
-            </div>
-            <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-blue-500 to-blue-600 opacity-0 transition-opacity group-hover:opacity-100" />
-          </div>
-
-          {/* Completed Series - Green */}
-          <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-green-50 to-green-100 p-4 shadow-sm transition-all duration-300 hover:from-green-100 hover:to-green-200 hover:shadow-lg hover:-translate-y-0.5 dark:from-green-950/50 dark:to-green-900/30 dark:hover:from-green-900/60 dark:hover:to-green-800/40">
-            <div className="relative flex h-full flex-col justify-between">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-medium text-green-700 dark:text-green-300">
-                    Completed
-                  </p>
-                  <p className="text-2xl font-bold text-green-900 dark:text-white mt-1">
-                    {stats.completedSeries}
-                  </p>
-                </div>
-                <div className="rounded-full bg-white/50 p-2.5 backdrop-blur-sm transition-colors group-hover:bg-white/70 dark:bg-white/10 dark:group-hover:bg-white/20">
-                  <CheckCircleIcon className="h-5 w-5 text-green-600 transition-colors group-hover:text-green-700 dark:text-green-400 dark:group-hover:text-green-300" />
-                </div>
-              </div>
-            </div>
-            <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-green-500 to-green-600 opacity-0 transition-opacity group-hover:opacity-100" />
-          </div>
-
-          {/* Total Seasons - Purple */}
-          <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 p-4 shadow-sm transition-all duration-300 hover:from-purple-100 hover:to-purple-200 hover:shadow-lg hover:-translate-y-0.5 dark:from-purple-950/50 dark:to-purple-900/30 dark:hover:from-purple-900/60 dark:hover:to-purple-800/40">
-            <div className="relative flex h-full flex-col justify-between">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-medium text-purple-700 dark:text-purple-300">
-                    Total Seasons
-                  </p>
-                  <p className="text-2xl font-bold text-purple-900 dark:text-white mt-1">
-                    {stats.totalSeasons}
-                  </p>
-                </div>
-                <div className="rounded-full bg-white/50 p-2.5 backdrop-blur-sm transition-colors group-hover:bg-white/70 dark:bg-white/10 dark:group-hover:bg-white/20">
-                  <CalendarIcon className="h-5 w-5 text-purple-600 transition-colors group-hover:text-purple-700 dark:text-purple-400 dark:group-hover:text-purple-300" />
-                </div>
-              </div>
-            </div>
-            <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-purple-500 to-purple-600 opacity-0 transition-opacity group-hover:opacity-100" />
-          </div>
-
-          {/* Watched Seasons - Teal */}
-          <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-teal-50 to-teal-100 p-4 shadow-sm transition-all duration-300 hover:from-teal-100 hover:to-teal-200 hover:shadow-lg hover:-translate-y-0.5 dark:from-teal-950/50 dark:to-teal-900/30 dark:hover:from-teal-900/60 dark:hover:to-teal-800/40">
-            <div className="relative flex h-full flex-col justify-between">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-medium text-teal-700 dark:text-teal-300">
-                    Watched
-                  </p>
-                  <p className="text-2xl font-bold text-teal-900 dark:text-white mt-1">
-                    {stats.totalWatchedSeasons}
-                  </p>
-                </div>
-                <div className="rounded-full bg-white/50 p-2.5 backdrop-blur-sm transition-colors group-hover:bg-white/70 dark:bg-white/10 dark:group-hover:bg-white/20">
-                  <CheckCircleIcon className="h-5 w-5 text-teal-600 transition-colors group-hover:text-teal-700 dark:text-teal-400 dark:group-hover:text-teal-300" />
-                </div>
-              </div>
-            </div>
-            <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-teal-500 to-teal-600 opacity-0 transition-opacity group-hover:opacity-100" />
-          </div>
-
-          {/* Remaining Seasons - Orange */}
-          <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 p-4 shadow-sm transition-all duration-300 hover:from-orange-100 hover:to-orange-200 hover:shadow-lg hover:-translate-y-0.5 dark:from-orange-950/50 dark:to-orange-900/30 dark:hover:from-orange-900/60 dark:hover:to-orange-800/40">
-            <div className="relative flex h-full flex-col justify-between">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-medium text-orange-700 dark:text-orange-300">
-                    Remaining
-                  </p>
-                  <p className="text-2xl font-bold text-orange-900 dark:text-white mt-1">
-                    {stats.totalSeasons - stats.totalWatchedSeasons}
-                  </p>
-                </div>
-                <div className="rounded-full bg-white/50 p-2.5 backdrop-blur-sm transition-colors group-hover:bg-white/70 dark:bg-white/10 dark:group-hover:bg-white/20">
-                  <CalendarIcon className="h-5 w-5 text-orange-600 transition-colors group-hover:text-orange-700 dark:text-orange-400 dark:group-hover:text-orange-300" />
-                </div>
-              </div>
-            </div>
-            <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-orange-500 to-orange-600 opacity-0 transition-opacity group-hover:opacity-100" />
-          </div>
-
-          {/* Progress - Teal */}
-          <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-teal-50 to-teal-100 p-4 shadow-sm transition-all duration-300 hover:from-teal-100 hover:to-teal-200 hover:shadow-lg hover:-translate-y-0.5 dark:from-teal-950/50 dark:to-teal-900/30 dark:hover:from-teal-900/60 dark:hover:to-teal-800/40">
-            <div className="relative flex h-full flex-col justify-between">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-medium text-teal-700 dark:text-teal-300">
-                    Progress
-                  </p>
-                  <div className="relative h-14 w-14 mt-1">
-                    <svg className="h-14 w-14 -rotate-90 transform">
-                      <circle
-                        cx="28"
-                        cy="28"
-                        r="24"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                        fill="none"
-                        className="text-teal-200 dark:text-teal-800"
-                      />
-                      <circle
-                        cx="28"
-                        cy="28"
-                        r="24"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                        fill="none"
-                        strokeDasharray={`${stats.overallProgress * 1.508} 150.8`}
-                        className="text-teal-500 transition-all duration-500"
-                      />
-                    </svg>
-                    <span className="absolute inset-0 flex items-center justify-center text-base font-bold text-teal-700 dark:text-teal-300">
-                      {stats.overallProgress}%
-                    </span>
-                  </div>
-                </div>
-                <div className="rounded-full bg-white/50 p-2.5 backdrop-blur-sm transition-colors group-hover:bg-white/70 dark:bg-white/10 dark:group-hover:bg-white/20">
-                  <ChartBarIcon className="h-5 w-5 text-teal-600 transition-colors group-hover:text-teal-700 dark:text-teal-400 dark:group-hover:text-teal-300" />
-                </div>
-              </div>
-            </div>
-            <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-teal-500 to-teal-600 opacity-0 transition-opacity group-hover:opacity-100" />
-          </div>
-        </div>
-      </div>
-
-      {/* Your Series Section */}
       {hasSeries && (
-        <div className="rounded-xl bg-white shadow-sm dark:bg-gray-800">
-          <div className="border-b border-gray-200 p-5 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Recently Added
-                </h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                  Your latest additions
-                </p>
-              </div>
-              <Link
-                href="/dashboard/tvSeries"
-                className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium text-blue-600 transition-all hover:bg-blue-50"
-              >
-                View All <PlusIcon className="h-4 w-4" />
-              </Link>
-            </div>
-          </div>
-          <div className="divide-y divide-gray-100 dark:divide-gray-700">
-            {stats.recentlyAdded.map((series) => {
-              const upcomingInfo = getUpcomingText(
-                series.upcomingSeasons,
-                series.totalSeasons,
-              );
-              const posterUrl = getPosterUrl(series.posterPath);
-              return (
-                <div
-                  key={series.id}
-                  className="flex items-center gap-4 p-4 transition-all hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                >
-                  {posterUrl && (
-                    <Image
-                      src={posterUrl}
-                      alt={series.name}
-                      width={32}
-                      height={48}
-                      className="h-12 w-8 rounded object-cover"
-                    />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-gray-900 dark:text-white truncate">
-                      {series.name}
-                    </h3>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-                      <span>{series.totalSeasons} seasons</span>
-                      <div className="flex items-center gap-1">
-                        <span>Progress:</span>
-                        <div className="h-1.5 w-20 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500"
-                            style={{ width: `${series.watchProgress}%` }}
-                          />
-                        </div>
-                        <span>{Math.round(series.watchProgress)}%</span>
-                      </div>
-                    </div>
-                    {upcomingInfo.show && (
-                      <p
-                        className={`mt-0.5 text-xs ${upcomingInfo.isUpcoming ? "text-blue-600 dark:text-blue-400" : "text-gray-500"}`}
-                      >
-                        {upcomingInfo.text}
-                      </p>
-                    )}
-                  </div>
-                  <Link
-                    href={`/dashboard/tvSeries/${series.id}`}
-                    className="rounded-lg p-2 text-gray-400 transition-all hover:bg-gray-100 hover:text-blue-600"
-                  >
-                    <EyeIcon className="h-5 w-5" />
-                  </Link>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <>
+          <StatsSection
+            stats={{
+              totalSeries: stats.totalSeries,
+              completedSeries: stats.completedSeries,
+              totalSeasons: stats.totalSeasons,
+              totalWatchedSeasons: stats.totalWatchedSeasons,
+              remainingSeasons: stats.remainingSeasons,
+              overallProgress: stats.overallProgress,
+            }}
+            onRefresh={loadSeries}
+          />
+
+          <RecentlyAddedSection
+            series={stats.recentlyAdded}
+            viewMode={viewMode}
+            onViewModeChange={handleViewModeChange}
+            onUpdateSeries={updateSeries}
+            onDeleteSeries={deleteSeries}
+            onEditSeries={openEditModal}
+          />
+        </>
       )}
 
-      {/* Trending Now Section */}
       {undiscoveredSeries.length > 0 && (
-        <div className="rounded-xl bg-gradient-to-r from-purple-50 to-blue-50 p-6 dark:from-purple-900/20 dark:to-blue-900/20">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <FireIcon className="h-6 w-6 text-orange-500" />
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  Trending Now
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  What people are watching
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/dashboard/discover"
-              className="text-sm font-medium text-blue-600 hover:text-blue-700"
-            >
-              View All →
-            </Link>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {undiscoveredSeries.slice(0, 12).map((series) => (
-              <div
-                key={series.id}
-                className="flex items-center justify-between rounded-lg bg-white p-3 shadow-sm transition-all hover:shadow-md dark:bg-gray-800"
-              >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  {getPosterUrl(series.posterPath, "w92") && (
-                    <Image
-                      src={getPosterUrl(series.posterPath, "w92")!}
-                      alt={series.name}
-                      width={32}
-                      height={48}
-                      className="h-12 w-8 rounded object-cover"
-                    />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-gray-900 dark:text-white truncate">
-                      {series.name}
-                    </h3>
-                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                      <span>{series.totalSeasons || "?"} seasons</span>
-                      {series.voteAverage && series.voteAverage > 0 && (
-                        <span className="flex items-center gap-0.5">
-                          <StarIcon className="h-3 w-3 text-yellow-500" />
-                          {series.voteAverage.toFixed(1)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleAddSuggestedSeries(series)}
-                  disabled={addingSeriesId === series.id}
-                  className="ml-2 inline-flex shrink-0 items-center gap-1 rounded-md bg-blue-500 px-3 py-1.5 text-xs font-medium text-white transition-all hover:bg-blue-600 disabled:opacity-50"
-                >
-                  {addingSeriesId === series.id ? (
-                    <ArrowPathIcon className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <PlusIcon className="h-3 w-3" />
-                  )}
-                  Add
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
+        <TrendingSection
+          series={undiscoveredSeries}
+          onAdd={handleAddSuggestedSeries}
+          addingId={addingSeriesId}
+        />
       )}
 
-      {/* Empty State */}
-      {!hasSeries && (
-        <div className="rounded-xl bg-gradient-to-r from-purple-50 to-blue-50 p-12 text-center dark:from-purple-900/20 dark:to-blue-900/20">
-          <TvIcon className="mx-auto h-16 w-16 text-gray-400" />
-          <h3 className="mt-4 text-xl font-semibold text-gray-900 dark:text-white">
-            Your watchlist is empty
-          </h3>
-          <p className="mt-2 text-gray-500 dark:text-gray-400">
-            Start tracking your favorite TV series today!
-          </p>
-          <button
-            onClick={() =>
-              window.dispatchEvent(new CustomEvent("open-add-modal"))
-            }
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-white transition-all hover:bg-blue-600"
+      {!hasSeries && <EmptyState />}
+
+      <AnimatePresence>
+        {isEditModalOpen && editingSeries && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
           >
-            <PlusIcon className="h-5 w-5" />
-            Add Your First Series
-          </button>
-        </div>
-      )}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-gray-800"
+            >
+              <EditSeriesForm
+                series={editingSeries}
+                onSave={handleEditSeries}
+                onCancel={() => setIsEditModalOpen(false)}
+                isSubmitting={isEditing}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }

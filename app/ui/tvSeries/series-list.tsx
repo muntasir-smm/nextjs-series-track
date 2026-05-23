@@ -43,7 +43,7 @@ interface SeriesListProps {
   updateSeries: (updatedSeries: Series[]) => void;
   deleteSeries: (id: string) => void;
   onEditSeries?: (series: Series) => void;
-  viewMode: "grid" | "list"; // Added viewMode prop
+  viewMode: "grid" | "list";
 }
 
 // Status Badge
@@ -90,7 +90,7 @@ const SeriesList: React.FC<SeriesListProps> = ({
   updateSeries,
   deleteSeries,
   onEditSeries,
-  viewMode, // Receive viewMode from parent
+  viewMode,
 }) => {
   const [localSeries, setLocalSeries] = useState<Series[] | undefined>(series);
   const [updatingSeasons, setUpdatingSeasons] = useState<Set<string>>(
