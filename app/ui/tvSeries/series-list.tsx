@@ -7,8 +7,6 @@ import {
   TrashIcon,
   PencilIcon,
   EyeIcon,
-  Squares2X2Icon,
-  ListBulletIcon,
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
 import { updateWatchProgress } from "@/app/lib/series";
@@ -45,9 +43,10 @@ interface SeriesListProps {
   updateSeries: (updatedSeries: Series[]) => void;
   deleteSeries: (id: string) => void;
   onEditSeries?: (series: Series) => void;
+  viewMode: "grid" | "list"; // Added viewMode prop
 }
 
-// Grid Status Badge
+// Status Badge
 const StatusBadge: React.FC<{ status: string; hasUpcoming: boolean }> = ({
   status,
   hasUpcoming,
@@ -91,25 +90,14 @@ const SeriesList: React.FC<SeriesListProps> = ({
   updateSeries,
   deleteSeries,
   onEditSeries,
+  viewMode, // Receive viewMode from parent
 }) => {
   const [localSeries, setLocalSeries] = useState<Series[] | undefined>(series);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [updatingSeasons, setUpdatingSeasons] = useState<Set<string>>(
     new Set(),
   );
 
-  // Load saved view preference
-  useEffect(() => {
-    const savedView = localStorage.getItem("seriesViewPreference");
-    if (savedView === "grid" || savedView === "list") {
-      setViewMode(savedView);
-    }
-  }, []);
-
-  const handleViewChange = useCallback((mode: "grid" | "list") => {
-    setViewMode(mode);
-    localStorage.setItem("seriesViewPreference", mode);
-  }, []);
+  // Remove internal viewMode state - now controlled by parent
 
   useEffect(() => {
     setLocalSeries(series);
@@ -263,37 +251,7 @@ const SeriesList: React.FC<SeriesListProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* View Toggle */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          {memoizedSeries.length}{" "}
-          {memoizedSeries.length === 1 ? "series" : "series"} tracked
-        </div>
-        <div className="flex gap-1 rounded-xl bg-gray-100 p-1 dark:bg-gray-800">
-          <button
-            onClick={() => handleViewChange("grid")}
-            className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
-              viewMode === "grid"
-                ? "bg-white text-blue-600 shadow-md dark:bg-gray-700 dark:text-blue-400"
-                : "text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700"
-            }`}
-          >
-            <Squares2X2Icon className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => handleViewChange("list")}
-            className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
-              viewMode === "list"
-                ? "bg-white text-blue-600 shadow-md dark:bg-gray-700 dark:text-blue-400"
-                : "text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700"
-            }`}
-          >
-            <ListBulletIcon className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* GRID VIEW - Using ProgressRing */}
+      {/* GRID VIEW */}
       {viewMode === "grid" && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
           {memoizedSeries.map((s, seriesIndex) => {
@@ -366,7 +324,7 @@ const SeriesList: React.FC<SeriesListProps> = ({
                     />
                   </div>
 
-                  {/* Progress Ring - Using imported component */}
+                  {/* Progress Ring */}
                   <div className="absolute bottom-3 right-3 z-10">
                     <ProgressRing progress={s.watchProgress} size="md" />
                   </div>
@@ -424,7 +382,7 @@ const SeriesList: React.FC<SeriesListProps> = ({
         </div>
       )}
 
-      {/* LIST VIEW - Using ProgressBar */}
+      {/* LIST VIEW */}
       {viewMode === "list" && (
         <div className="space-y-3">
           {memoizedSeries.map((s, seriesIndex) => {
@@ -503,7 +461,7 @@ const SeriesList: React.FC<SeriesListProps> = ({
                       </div>
                     </div>
 
-                    {/* Progress Bar - Using imported component */}
+                    {/* Progress Bar */}
                     <div className="mt-3 max-w-[200px]">
                       <ProgressBar
                         width={`${s.watchProgress}%`}

@@ -20,6 +20,7 @@ import type {
   FilterOption,
   SortOption,
   PageSizeOption,
+  ViewMode,
 } from "@/app/ui/tvSeries/series-controls";
 
 import { TvIcon } from "@heroicons/react/24/outline";
@@ -67,6 +68,9 @@ function SeriesContent() {
   const [sortBy, setSortBy] = useState<SortOption>("recent");
   const [filterBy, setFilterBy] = useState<FilterOption>("all");
 
+  // View Mode - ADD THIS
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+
   // Modal
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingSeries, setEditingSeries] = useState<Series | null>(null);
@@ -76,6 +80,20 @@ function SeriesContent() {
 
   // Debounce timer
   const debounceTimer = useRef<NodeJS.Timeout>();
+
+  // Load saved view preference from localStorage
+  useEffect(() => {
+    const savedView = localStorage.getItem("seriesViewPreference");
+    if (savedView === "grid" || savedView === "list") {
+      setViewMode(savedView);
+    }
+  }, []);
+
+  // Save view preference to localStorage
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem("seriesViewPreference", mode);
+  }, []);
 
   useEffect(() => {
     const loadSeries = async () => {
@@ -181,11 +199,11 @@ function SeriesContent() {
         filtered.sort((a, b) => b.name.localeCompare(a.name));
         break;
 
-      case "seasons":
+      case "largest":
         filtered.sort((a, b) => b.totalSeasons - a.totalSeasons);
         break;
 
-      case "LowSeasons":
+      case "smallest":
         filtered.sort((a, b) => a.totalSeasons - b.totalSeasons);
         break;
 
@@ -351,7 +369,7 @@ function SeriesContent() {
         )}
       </AnimatePresence>
 
-      {/* Series Controls */}
+      {/* Series Controls - ADD viewMode props */}
       <SeriesControls
         searchQuery={searchInputValue}
         onSearchChange={setSearchInputValue}
@@ -365,6 +383,8 @@ function SeriesContent() {
           setItemsPerPage(size);
           setCurrentPage(1);
         }}
+        viewMode={viewMode}
+        onViewModeChange={handleViewModeChange}
         totalItems={series.length}
         filteredCount={filteredSeries.length}
         onClearFilters={clearAllFilters}
@@ -410,6 +430,7 @@ function SeriesContent() {
                 updateSeries={updateSeries}
                 deleteSeries={deleteSeries}
                 onEditSeries={openEditModal}
+                viewMode={viewMode}
               />
             </div>
           )}

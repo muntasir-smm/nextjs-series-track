@@ -1,18 +1,45 @@
-.
+
 ├── app
 │   ├── admin
+│   │   ├── components
+│   │   │   ├── Announcements.tsx
+│   │   │   ├── BackupRestore.tsx
+│   │   │   ├── FeaturedSeries.tsx
+│   │   │   ├── StatCard.tsx
+│   │   │   ├── SystemHealth.tsx
+│   │   │   └── UserTable.tsx
 │   │   ├── layout.tsx
 │   │   └── page.tsx
 │   │
 │   ├── api
 │   │   ├── admin
-│   │   │   └── series
+│   │   │   ├── analytics
+│   │   │   │   └── route.ts
+│   │   │   ├── announcements
+│   │   │   │   └── route.ts
+│   │   │   ├── backup
+│   │   │   │   └── route.ts
+│   │   │   ├── featured
+│   │   │   │   └── route.ts
+│   │   │   ├── health
+│   │   │   │   └── route.ts
+│   │   │   ├── series
+│   │   │   │   └── route.ts
+│   │   │   └── users
+│   │   │       └── route.ts
+│   │   │
+│   │   ├── announcements
+│   │   │   └── active
 │   │   │       └── route.ts
 │   │   │
 │   │   ├── auth
 │   │   │   ├── session
 │   │   │   │   └── route.ts
 │   │   │   └── signup
+│   │   │       └── route.ts
+│   │   │
+│   │   ├── public
+│   │   │   └── popular
 │   │   │       └── route.ts
 │   │   │
 │   │   ├── tmdb
@@ -22,6 +49,7 @@
 │   │   │   │   └── route.ts
 │   │   │   └── tv
 │   │   │       └── [id]
+│   │   │           └── route.ts
 │   │   │
 │   │   └── user
 │   │       ├── avatar
@@ -43,6 +71,7 @@
 │   │   │
 │   │   ├── tvSeries
 │   │   │   ├── [id]
+│   │   │   │   └── page.tsx
 │   │   │   └── page.tsx
 │   │   │
 │   │   └── layout.tsx
@@ -74,8 +103,10 @@
 │   │   │   ├── add-series-form.tsx
 │   │   │   ├── edit-series-form.tsx
 │   │   │   ├── progress-bar.tsx
+│   │   │   ├── series-controls.tsx
 │   │   │   └── series-list.tsx
 │   │   │
+│   │   ├── announcements.tsx
 │   │   ├── button.tsx
 │   │   ├── fonts.ts
 │   │   ├── global.css
@@ -100,8 +131,7 @@
 │   │   ├── favicon-32x32.png
 │   │   ├── favicon.ico
 │   │   ├── google.png
-│   │   ├── logo.png
-│   │   └── logoName.png
+│   │   └── logo.png
 │   │
 │   └── site.webmanifest
 │
