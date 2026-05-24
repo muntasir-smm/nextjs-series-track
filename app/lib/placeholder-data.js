@@ -15,8 +15,6 @@ const users = [
   },
 ];
 
-// console.log(users);
-
 // Default series data for new users
 
 const defaultSeries = [

@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       SELECT avatar_url FROM users WHERE email = ${session.user.email}
     `;
     const oldAvatarUrl = currentUser[0]?.avatar_url;
-    console.log("5. Old avatar:", oldAvatarUrl ? "exists" : "none");
+    // console.log("5. Old avatar:", oldAvatarUrl ? "exists" : "none");
 
     // Get file extension
     const ext = file.type.split("/")[1];

@@ -99,8 +99,6 @@ export default function ProfilePage() {
   };
 
   const handleAvatarUpdate = async (newAvatarUrl: string) => {
-    console.log("Avatar updated:", newAvatarUrl);
-
     // Refresh the profile data from server
     try {
       const response = await fetch("/api/user/profile");

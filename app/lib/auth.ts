@@ -73,13 +73,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           // Check if user is banned
           if (user.is_banned) {
-            console.log("User is banned:", email);
             throw new Error("banned");
           }
 
           // Check if user is active
           if (!user.is_active) {
-            console.log("User account is inactive:", email);
             throw new Error("inactive");
           }
 

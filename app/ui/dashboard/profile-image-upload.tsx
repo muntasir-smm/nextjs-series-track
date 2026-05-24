@@ -37,9 +37,7 @@ export default function ProfileImageUpload({
 
     try {
       const compressedFile = await imageCompression(file, options);
-      console.log(
-        `Compressed from ${(file.size / 1024).toFixed(2)}KB to ${(compressedFile.size / 1024).toFixed(2)}KB`,
-      );
+
       return compressedFile;
     } catch (error) {
       console.error("Compression error:", error);

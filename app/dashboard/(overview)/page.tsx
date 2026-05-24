@@ -56,7 +56,6 @@ export default function Page() {
   useEffect(() => {
     isMounted.current = true;
     return () => {
-      console.log("Component unmounting");
       isMounted.current = false;
       if (popularAbortControllerRef.current) {
         popularAbortControllerRef.current.abort();
@@ -99,22 +98,16 @@ export default function Page() {
   // Load series
   const loadSeries = useCallback(async () => {
     const currentLoadId = ++loadCounterRef.current;
-    console.log(`loadSeries called (ID: ${currentLoadId})`);
 
     setIsLoading(true);
 
     try {
-      console.log("Calling getUserSeries...");
       const series = await getUserSeries();
-      console.log(
-        `getUserSeries returned ${series.length} series (Load ID: ${currentLoadId})`,
-      );
 
       // Only update if this is still the latest request and component is mounted
       if (currentLoadId === loadCounterRef.current && isMounted.current) {
         setSeriesData(series);
         setError(null);
-        console.log("seriesData updated");
       }
     } catch (err) {
       console.error("Error loading series:", err);
@@ -124,7 +117,6 @@ export default function Page() {
     } finally {
       // Only set loading false if this is the latest request
       if (currentLoadId === loadCounterRef.current && isMounted.current) {
-        console.log("Setting isLoading to false");
         setIsLoading(false);
       }
     }
@@ -141,12 +133,10 @@ export default function Page() {
     popularAbortControllerRef.current = controller;
 
     try {
-      console.log("Fetching popular series...");
       const res = await fetch("/api/tmdb/popular?page=1&limit=9", {
         signal: controller.signal,
       });
       const data = await res.json();
-      console.log(`Popular series fetched: ${data.series?.length || 0} series`);
 
       if (isMounted.current && !controller.signal.aborted) {
         setSuggestedSeries(data.series || []);
@@ -164,7 +154,6 @@ export default function Page() {
 
   // Initial load
   useEffect(() => {
-    console.log("Initial load useEffect running");
     loadSeries();
     loadPopularSeries();
   }, [loadSeries, loadPopularSeries]);
@@ -172,7 +161,6 @@ export default function Page() {
   // Handle series added event - background refresh
   useEffect(() => {
     const handleSeriesAdded = () => {
-      console.log("series-added event received");
       loadSeries();
       loadPopularSeries();
     };
@@ -381,18 +369,8 @@ export default function Page() {
     (s) => !userSeriesIds.has(s.id),
   );
 
-  console.log(
-    "Rendering - isLoading:",
-    isLoading,
-    "seriesData.length:",
-    seriesData.length,
-    "error:",
-    error,
-  );
-
   // Show loading only when loading and no data
   if (isLoading && seriesData.length === 0 && !error) {
-    console.log("Showing loading skeleton");
     return (
       <div className="space-y-6 animate-pulse">
         <div className="h-32 rounded-2xl bg-gray-200 dark:bg-gray-700" />
@@ -402,7 +380,6 @@ export default function Page() {
     );
   }
 
-  console.log("Showing main content");
   const hasSeries = stats.totalSeries > 0;
 
   return (

@@ -8,8 +8,6 @@ const sql = neon(process.env.POSTGRES_URL);
 
 async function seed() {
   try {
-    console.log("🌱 Starting database seed...\n");
-
     // Create tables if they don't exist
     await sql`
       CREATE TABLE IF NOT EXISTS users (
@@ -21,7 +19,6 @@ async function seed() {
         updated_at TIMESTAMP DEFAULT NOW()
       );
     `;
-    console.log("✅ Users table ready");
 
     await sql`
       CREATE TABLE IF NOT EXISTS user_series (
@@ -38,7 +35,6 @@ async function seed() {
         UNIQUE(user_id, series_id)
       );
     `;
-    console.log("✅ User series table ready");
 
     // Seed demo users (only if they don't exist)
     for (const user of users) {
@@ -54,7 +50,6 @@ async function seed() {
         `;
       }
     }
-    console.log(`✅ Seeded ${users.length} demo users`);
 
     // Seed default series ONLY for the demo user
     const demoUser = await sql`
@@ -82,15 +77,9 @@ async function seed() {
             ON CONFLICT (user_id, series_id) DO NOTHING;
           `;
         }
-        console.log(`✅ Seeded ${defaultSeries.length} series for demo user`);
       } else {
-        console.log(
-          `✅ Demo user already has ${existingSeries[0].count} series`,
-        );
       }
     }
-
-    console.log("\n✅ Database seeded successfully!");
   } catch (error) {
     console.error("❌ Error seeding database:", error);
   }
