@@ -47,24 +47,48 @@ export async function getUserSeries(): Promise<Series[]> {
   }
 
   try {
-    // First, get all existing columns
     const series = await sql`
       SELECT 
         series_id as id,
         name,
+        original_name as "originalName",
         total_seasons as "totalSeasons",
+        total_episodes as "totalEpisodes",
         upcoming_seasons as "upcomingSeasons",
         watched_seasons as "watchedSeasons",
         watch_progress as "watchProgress",
         poster_path as "posterPath",
         backdrop_path as "backdropPath",
-        overview
+        overview,
+        vote_average as "voteAverage",
+        vote_count as "voteCount",
+        first_air_date as "firstAirDate",
+        last_air_date as "lastAirDate",
+        genres,
+        status,
+        tagline,
+        original_language as "originalLanguage",
+        popularity,
+        in_production as "inProduction",
+        networks,
+        seasons_data as seasons
       FROM user_series
       WHERE user_id = ${session.user.id}::uuid
       ORDER BY created_at DESC
     `;
 
-    return series as Series[];
+    // Parse JSON fields and ensure totalEpisodes is a number
+    return series.map((s) => ({
+      ...s,
+      totalEpisodes: s.totalEpisodes ? Number(s.totalEpisodes) : 0,
+      genres: s.genres || [],
+      networks: s.networks || [],
+      seasons: s.seasons
+        ? typeof s.seasons === "string"
+          ? JSON.parse(s.seasons)
+          : s.seasons
+        : [],
+    })) as Series[];
   } catch (error) {
     console.error("Error fetching user series:", error);
     return [];
