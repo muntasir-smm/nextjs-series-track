@@ -9,7 +9,9 @@ import { revalidatePath } from "next/cache";
 export interface Series {
   id: string;
   name: string;
+  originalName?: string;
   totalSeasons: number;
+  totalEpisodes?: number;
   upcomingSeasons: string[];
   watchedSeasons: boolean[];
   watchProgress: number;
@@ -17,11 +19,27 @@ export interface Series {
   backdropPath?: string | null;
   overview?: string | null;
   voteAverage?: number;
+  voteCount?: number;
   firstAirDate?: string | null;
+  lastAirDate?: string | null;
   genres?: string[];
+  status?: string;
+  tagline?: string;
+  originalLanguage?: string;
+  popularity?: number;
+  inProduction?: boolean;
+  networks?: string[];
+  seasons?: {
+    seasonNumber: number;
+    episodeCount: number;
+    airDate?: string;
+    overview?: string;
+    posterPath?: string | null;
+  }[];
 }
 
 // Get all series for the current user
+
 export async function getUserSeries(): Promise<Series[]> {
   const session = await auth();
   if (!session?.user?.id) {
@@ -29,6 +47,7 @@ export async function getUserSeries(): Promise<Series[]> {
   }
 
   try {
+    // First, get all existing columns
     const series = await sql`
       SELECT 
         series_id as id,
@@ -60,6 +79,20 @@ export async function addSeries(
   posterPath?: string | null,
   backdropPath?: string | null,
   overview?: string | null,
+  voteAverage?: number,
+  voteCount?: number,
+  firstAirDate?: string | null,
+  lastAirDate?: string | null,
+  genres?: string[],
+  status?: string,
+  tagline?: string,
+  originalName?: string,
+  originalLanguage?: string,
+  popularity?: number,
+  inProduction?: boolean,
+  networks?: string[],
+  totalEpisodes?: number,
+  seasons?: any[],
 ) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -76,29 +109,58 @@ export async function addSeries(
         user_id, 
         series_id, 
         name, 
+        original_name,
         total_seasons, 
+        total_episodes,
         upcoming_seasons, 
         watched_seasons, 
         watch_progress,
         poster_path,
         backdrop_path,
-        overview
+        overview,
+        vote_average,
+        vote_count,
+        first_air_date,
+        last_air_date,
+        genres,
+        status,
+        tagline,
+        original_language,
+        popularity,
+        in_production,
+        networks,
+        seasons_data
       ) VALUES (
         ${session.user.id}::uuid,
         ${seriesId},
         ${name},
+        ${originalName || null},
         ${totalSeasons},
+        ${totalEpisodes || null},
         ${upcomingSeasons},
         ${watchedSeasons},
         ${watchProgress},
         ${posterPath || null},
         ${backdropPath || null},
-        ${overview || null}
+        ${overview || null},
+        ${voteAverage || null},
+        ${voteCount || null},
+        ${firstAirDate || null},
+        ${lastAirDate || null},
+        ${genres || null},
+        ${status || null},
+        ${tagline || null},
+        ${originalLanguage || null},
+        ${popularity || null},
+        ${inProduction || null},
+        ${networks || null},
+        ${seasons ? JSON.stringify(seasons) : null}
       )
     `;
 
-    revalidatePath("/dashboard/tv-series");
-    return { success: true };
+    revalidatePath("/dashboard/tvSeries");
+    revalidatePath("/dashboard/(overview)");
+    return { success: true, seriesId };
   } catch (error) {
     console.error("Error adding series:", error);
     return { success: false, error: "Failed to add series" };
