@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   getUserSeries,
@@ -22,7 +22,17 @@ import { TrendingSection } from "./components/trending-section";
 import { EmptyState } from "./components/empty-state";
 import type { SuggestedSeries } from "@/app/lib/definitions";
 
+// Simple array comparison
+const arraysEqual = (a: boolean[], b: boolean[]): boolean => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+};
+
 export default function Page() {
+  // State
   const [seriesData, setSeriesData] = useState<Series[]>([]);
   const [suggestedSeries, setSuggestedSeries] = useState<SuggestedSeries[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -36,18 +46,22 @@ export default function Page() {
   const [editingSeries, setEditingSeries] = useState<Series | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
-  const handleViewModeChange = useCallback((mode: ViewMode) => {
-    setViewMode(mode);
-    localStorage.setItem("dashboardViewMode", mode);
-  }, []);
+  // Simple ref to track mounted state
+  const isMounted = useRef(true);
+  const seriesMapRef = useRef<Map<string, Series>>(new Map());
 
   useEffect(() => {
-    const savedViewMode = localStorage.getItem("dashboardViewMode") as ViewMode;
-    if (savedViewMode === "grid" || savedViewMode === "list") {
-      setViewMode(savedViewMode);
-    }
+    return () => {
+      isMounted.current = false;
+    };
   }, []);
 
+  // Update map when series data changes
+  useEffect(() => {
+    seriesMapRef.current = new Map(seriesData.map((s) => [s.id, s]));
+  }, [seriesData]);
+
+  // Greeting
   useEffect(() => {
     const hour = new Date().getHours();
     if (hour < 12) setGreeting("Good morning");
@@ -55,60 +69,79 @@ export default function Page() {
     else setGreeting("Good evening");
   }, []);
 
+  // Load user profile
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const response = await fetch("/api/user/profile");
-        const data = await response.json();
-        if (response.ok) {
+    let isActive = true;
+
+    fetch("/api/user/profile")
+      .then((res) => res.json())
+      .then((data) => {
+        if (isActive && isMounted.current) {
           setUserName(data.name || "User");
           setAvatarUrl(data.avatar_url);
         }
-      } catch (error) {
-        console.error("Error loading user:", error);
-      }
+      })
+      .catch((err) => console.error("Error loading user:", err));
+
+    return () => {
+      isActive = false;
     };
-    loadUser();
   }, []);
 
-  const loadSeries = useCallback(async () => {
-    try {
+  // Load series
+  const loadSeries = useCallback(async (background = false) => {
+    if (!background && isMounted.current) {
       setIsLoading(true);
+    }
+
+    try {
       const series = await getUserSeries();
-      setSeriesData(series);
-      setError(null);
-    } catch (error) {
-      console.error("Error loading series:", error);
-      setError("Failed to load your series. Please refresh the page.");
+      if (isMounted.current) {
+        setSeriesData(series);
+        setError(null);
+      }
+    } catch (err) {
+      console.error("Error loading series:", err);
+      if (isMounted.current) {
+        setError("Failed to load your series. Please refresh the page.");
+      }
     } finally {
-      setIsLoading(false);
+      if (isMounted.current && !background) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
+  // Load popular series
   const loadPopularSeries = useCallback(async () => {
     try {
-      const response = await fetch("/api/tmdb/popular?page=1&limit=9");
-      const data = await response.json();
-      setSuggestedSeries(data.series || []);
-    } catch (error) {
-      console.error("Error loading popular series:", error);
+      const res = await fetch("/api/tmdb/popular?page=1&limit=9");
+      const data = await res.json();
+      if (isMounted.current) {
+        setSuggestedSeries(data.series || []);
+      }
+    } catch (err) {
+      console.error("Error loading popular series:", err);
     }
   }, []);
 
+  // Initial load
   useEffect(() => {
-    loadSeries();
+    loadSeries(false);
     loadPopularSeries();
   }, [loadSeries, loadPopularSeries]);
 
+  // Handle series added event
   useEffect(() => {
-    const handleSeriesAdded = async () => {
-      await loadSeries();
-      await loadPopularSeries();
+    const handleSeriesAdded = () => {
+      loadSeries(true);
+      loadPopularSeries();
     };
     window.addEventListener("series-added", handleSeriesAdded);
     return () => window.removeEventListener("series-added", handleSeriesAdded);
   }, [loadSeries, loadPopularSeries]);
 
+  // Add suggested series
   const handleAddSuggestedSeries = useCallback(
     async (series: SuggestedSeries) => {
       setAddingSeriesId(series.id);
@@ -121,70 +154,89 @@ export default function Page() {
           series.backdropPath,
           series.overview,
         );
-        if (result.success) {
-          await loadSeries();
+        if (result.success && isMounted.current) {
+          await loadSeries(true);
           await loadPopularSeries();
         }
-      } catch (error) {
-        console.error("Error adding series:", error);
+      } catch (err) {
+        console.error("Error adding series:", err);
       } finally {
-        setAddingSeriesId(null);
+        if (isMounted.current) setAddingSeriesId(null);
       }
     },
     [loadSeries, loadPopularSeries],
   );
 
+  // Update series with proper merge
   const updateSeries = useCallback(
     async (updatedSeries: Series[]) => {
-      const previousSeries = seriesData;
-      setSeriesData(updatedSeries);
+      // Create map for O(1) lookups
+      const updatedMap = new Map(updatedSeries.map((s) => [s.id, s]));
+
+      // Merge and update
+      setSeriesData((prev) =>
+        prev.map((series) => updatedMap.get(series.id) || series),
+      );
+
+      // Find changed series for backend sync
+      const changedSeries = updatedSeries.filter((series) => {
+        const original = seriesMapRef.current.get(series.id);
+        return (
+          original &&
+          !arraysEqual(original.watchedSeasons, series.watchedSeasons)
+        );
+      });
+
+      if (changedSeries.length === 0) return;
 
       try {
-        const changedSeries = updatedSeries.filter((series) => {
-          const original = previousSeries.find((s) => s.id === series.id);
-          return (
-            original &&
-            JSON.stringify(original.watchedSeasons) !==
-              JSON.stringify(series.watchedSeasons)
-          );
-        });
-
         await Promise.all(
           changedSeries.map((series) =>
             updateWatchProgress(series.id, series.watchedSeasons),
           ),
         );
-      } catch (error) {
-        console.error("Failed to update progress:", error);
-        setSeriesData(previousSeries);
-        setError("Failed to update watch progress. Please try again.");
+      } catch (err) {
+        console.error("Failed to update progress:", err);
+        // Reload to fix inconsistency
+        await loadSeries(true);
+        if (isMounted.current)
+          setError("Failed to update. Reloaded latest data.");
+        setTimeout(() => {
+          if (isMounted.current) setError(null);
+        }, 3000);
       }
     },
-    [seriesData],
+    [loadSeries],
   );
 
+  // Delete series
   const deleteSeries = useCallback(
     async (id: string) => {
-      if (!confirm("Are you sure you want to delete this series?")) return;
+      if (!confirm("Delete this series?")) return;
 
-      const previousSeries = seriesData;
+      const previous = seriesData;
       setSeriesData((prev) => prev.filter((s) => s.id !== id));
 
       try {
         const result = await deleteSeriesAction(id);
-        if (!result.success) {
-          setError(result.error || "Failed to delete series");
-          setSeriesData(previousSeries);
+        if (!result.success && isMounted.current) {
+          setSeriesData(previous);
+          setError(result.error || "Failed to delete");
+          setTimeout(() => setError(null), 3000);
         }
-      } catch (error) {
-        console.error("Error deleting series:", error);
-        setError("Failed to delete series. Please try again.");
-        setSeriesData(previousSeries);
+      } catch (err) {
+        console.error("Error deleting series:", err);
+        if (isMounted.current) {
+          setSeriesData(previous);
+          setError("Failed to delete. Please try again.");
+          setTimeout(() => setError(null), 3000);
+        }
       }
     },
     [seriesData],
   );
 
+  // Edit modal handlers
   const openEditModal = useCallback((series: Series) => {
     setEditingSeries(series);
     setIsEditModalOpen(true);
@@ -199,90 +251,109 @@ export default function Page() {
     ) => {
       setIsEditing(true);
 
-      const seriesToUpdate = seriesData.find((s) => s.id === id);
+      const seriesToUpdate = seriesMapRef.current.get(id);
       if (!seriesToUpdate) {
         setIsEditing(false);
         return;
       }
 
-      const updatedSeriesObj = {
+      const updatedSeries = {
         ...seriesToUpdate,
         name,
         totalSeasons,
         upcomingSeasons,
       };
 
+      // Optimistic update
+      setSeriesData((prev) =>
+        prev.map((s) => (s.id === id ? updatedSeries : s)),
+      );
+
       try {
-        const result = await updateSeriesAction(updatedSeriesObj);
-        if (result.success) {
-          await loadSeries();
+        const result = await updateSeriesAction(updatedSeries);
+        if (result.success && isMounted.current) {
+          await loadSeries(true);
           setIsEditModalOpen(false);
           setEditingSeries(null);
-          setError(null);
         } else {
-          setError(result.error || "Failed to edit series");
+          await loadSeries(true); // Rollback
+          setError(result.error || "Failed to edit");
+          setTimeout(() => setError(null), 3000);
         }
       } catch (err) {
         console.error("Error editing series:", err);
-        setError("Failed to edit series. Please try again.");
+        await loadSeries(true);
+        setError("Failed to edit. Please try again.");
+        setTimeout(() => setError(null), 3000);
       } finally {
-        setIsEditing(false);
+        if (isMounted.current) setIsEditing(false);
       }
     },
-    [seriesData, loadSeries],
+    [loadSeries],
   );
 
+  // View mode persistence
+  useEffect(() => {
+    const saved = localStorage.getItem("dashboardViewMode");
+    if (saved === "grid" || saved === "list") setViewMode(saved);
+  }, []);
+
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem("dashboardViewMode", mode);
+  }, []);
+
+  // Calculate stats - single pass O(n)
+  const stats = useMemo(() => {
+    let totalSeasons = 0;
+    let watchedSeasons = 0;
+    let completed = 0;
+
+    for (const s of seriesData) {
+      totalSeasons += s.totalSeasons;
+      const watched = s.watchedSeasons.filter(Boolean).length;
+      watchedSeasons += watched;
+      if (s.watchProgress === 100) completed++;
+    }
+
+    const progress =
+      totalSeasons > 0 ? Math.round((watchedSeasons / totalSeasons) * 100) : 0;
+
+    // Sort by timestamp (extract number from ID)
+    const recentlyAdded = [...seriesData]
+      .sort((a, b) => {
+        const aNum = parseInt(a.id.split("-").pop() || "0");
+        const bNum = parseInt(b.id.split("-").pop() || "0");
+        return bNum - aNum;
+      })
+      .slice(0, 6);
+
+    return {
+      totalSeries: seriesData.length,
+      totalSeasons,
+      watchedSeasons,
+      remainingSeasons: totalSeasons - watchedSeasons,
+      progress,
+      recentlyAdded,
+      completed,
+    };
+  }, [seriesData]);
+
+  // Filter undiscovered series
   const userSeriesIds = useMemo(
     () => new Set(seriesData.map((s) => s.id)),
     [seriesData],
   );
-
-  const undiscoveredSeries = useMemo(() => {
-    return suggestedSeries.filter((s) => !userSeriesIds.has(s.id));
-  }, [suggestedSeries, userSeriesIds]);
-
-  const stats = useMemo(() => {
-    const totalSeries = seriesData.length;
-    const totalSeasons = seriesData.reduce(
-      (acc, series) => acc + (series.totalSeasons || 0),
-      0,
-    );
-    const totalWatchedSeasons = seriesData.reduce(
-      (acc, series) =>
-        acc + (series.watchedSeasons?.filter(Boolean).length || 0),
-      0,
-    );
-    const overallProgress =
-      totalSeasons > 0
-        ? Math.round((totalWatchedSeasons / totalSeasons) * 100)
-        : 0;
-    const recentlyAdded = [...seriesData]
-      .sort((a, b) => b.id.localeCompare(a.id))
-      .slice(0, 6);
-    const completedSeries = seriesData.filter(
-      (s) => s.watchProgress === 100,
-    ).length;
-
-    return {
-      totalSeries,
-      totalSeasons,
-      totalWatchedSeasons,
-      remainingSeasons: totalSeasons - totalWatchedSeasons,
-      overallProgress,
-      recentlyAdded,
-      completedSeries,
-    };
-  }, [seriesData]);
+  const undiscoveredSeries = suggestedSeries.filter(
+    (s) => !userSeriesIds.has(s.id),
+  );
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Loading dashboard...
-          </p>
-        </div>
+      <div className="space-y-6 animate-pulse">
+        <div className="h-32 rounded-2xl bg-gray-200 dark:bg-gray-700" />
+        <div className="h-64 rounded-2xl bg-gray-200 dark:bg-gray-700" />
+        <div className="h-96 rounded-2xl bg-gray-200 dark:bg-gray-700" />
       </div>
     );
   }
@@ -302,8 +373,8 @@ export default function Page() {
         avatarUrl={avatarUrl}
         greeting={greeting}
         totalSeries={stats.totalSeries}
-        overallProgress={stats.overallProgress}
-        completedSeries={stats.completedSeries}
+        overallProgress={stats.progress}
+        completedSeries={stats.completed}
         hasSeries={hasSeries}
       />
 
@@ -312,13 +383,13 @@ export default function Page() {
           <StatsSection
             stats={{
               totalSeries: stats.totalSeries,
-              completedSeries: stats.completedSeries,
+              completedSeries: stats.completed,
               totalSeasons: stats.totalSeasons,
-              totalWatchedSeasons: stats.totalWatchedSeasons,
+              totalWatchedSeasons: stats.watchedSeasons,
               remainingSeasons: stats.remainingSeasons,
-              overallProgress: stats.overallProgress,
+              overallProgress: stats.progress,
             }}
-            onRefresh={loadSeries}
+            onRefresh={() => loadSeries(true)}
           />
 
           <RecentlyAddedSection
@@ -349,12 +420,14 @@ export default function Page() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+            onClick={() => setIsEditModalOpen(false)}
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-gray-800"
+              onClick={(e) => e.stopPropagation()}
             >
               <EditSeriesForm
                 series={editingSeries}
