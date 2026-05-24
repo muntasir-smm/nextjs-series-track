@@ -158,8 +158,8 @@ export async function addSeries(
       )
     `;
 
+    revalidatePath("/dashboard");
     revalidatePath("/dashboard/tvSeries");
-    revalidatePath("/dashboard/(overview)");
     return { success: true, seriesId };
   } catch (error) {
     console.error("Error adding series:", error);
@@ -192,7 +192,7 @@ export async function updateSeries(updatedSeries: Series) {
       AND series_id = ${updatedSeries.id}
     `;
 
-    revalidatePath("/dashboard/tv-series");
+    revalidatePath("/dashboard/tvSeries");
     return { success: true };
   } catch (error) {
     console.error("Error updating series:", error);
@@ -214,7 +214,7 @@ export async function deleteSeries(seriesId: string) {
       AND series_id = ${seriesId}
     `;
 
-    revalidatePath("/dashboard/tv-series");
+    revalidatePath("/dashboard/tvSeries");
     return { success: true };
   } catch (error) {
     console.error("Error deleting series:", error);

@@ -46,13 +46,21 @@ export default function Page() {
   const [editingSeries, setEditingSeries] = useState<Series | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
-  // Simple ref to track mounted state
+  // Refs
   const isMounted = useRef(true);
   const seriesMapRef = useRef<Map<string, Series>>(new Map());
+  const popularAbortControllerRef = useRef<AbortController | null>(null);
+  const loadCounterRef = useRef(0);
 
+  // Cleanup on unmount
   useEffect(() => {
+    isMounted.current = true;
     return () => {
+      console.log("Component unmounting");
       isMounted.current = false;
+      if (popularAbortControllerRef.current) {
+        popularAbortControllerRef.current.abort();
+      }
     };
   }, []);
 
@@ -89,16 +97,24 @@ export default function Page() {
   }, []);
 
   // Load series
-  const loadSeries = useCallback(async (background = false) => {
-    if (!background && isMounted.current) {
-      setIsLoading(true);
-    }
+  const loadSeries = useCallback(async () => {
+    const currentLoadId = ++loadCounterRef.current;
+    console.log(`loadSeries called (ID: ${currentLoadId})`);
+
+    setIsLoading(true);
 
     try {
+      console.log("Calling getUserSeries...");
       const series = await getUserSeries();
-      if (isMounted.current) {
+      console.log(
+        `getUserSeries returned ${series.length} series (Load ID: ${currentLoadId})`,
+      );
+
+      // Only update if this is still the latest request and component is mounted
+      if (currentLoadId === loadCounterRef.current && isMounted.current) {
         setSeriesData(series);
         setError(null);
+        console.log("seriesData updated");
       }
     } catch (err) {
       console.error("Error loading series:", err);
@@ -106,35 +122,58 @@ export default function Page() {
         setError("Failed to load your series. Please refresh the page.");
       }
     } finally {
-      if (isMounted.current && !background) {
+      // Only set loading false if this is the latest request
+      if (currentLoadId === loadCounterRef.current && isMounted.current) {
+        console.log("Setting isLoading to false");
         setIsLoading(false);
       }
     }
   }, []);
 
-  // Load popular series
+  // Load popular series with AbortController
   const loadPopularSeries = useCallback(async () => {
+    // Cancel previous request
+    if (popularAbortControllerRef.current) {
+      popularAbortControllerRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    popularAbortControllerRef.current = controller;
+
     try {
-      const res = await fetch("/api/tmdb/popular?page=1&limit=9");
+      console.log("Fetching popular series...");
+      const res = await fetch("/api/tmdb/popular?page=1&limit=9", {
+        signal: controller.signal,
+      });
       const data = await res.json();
-      if (isMounted.current) {
+      console.log(`Popular series fetched: ${data.series?.length || 0} series`);
+
+      if (isMounted.current && !controller.signal.aborted) {
         setSuggestedSeries(data.series || []);
       }
     } catch (err) {
-      console.error("Error loading popular series:", err);
+      if (err instanceof Error && err.name !== "AbortError") {
+        console.error("Error loading popular series:", err);
+      }
+    } finally {
+      if (popularAbortControllerRef.current === controller) {
+        popularAbortControllerRef.current = null;
+      }
     }
   }, []);
 
   // Initial load
   useEffect(() => {
-    loadSeries(false);
+    console.log("Initial load useEffect running");
+    loadSeries();
     loadPopularSeries();
   }, [loadSeries, loadPopularSeries]);
 
-  // Handle series added event
+  // Handle series added event - background refresh
   useEffect(() => {
     const handleSeriesAdded = () => {
-      loadSeries(true);
+      console.log("series-added event received");
+      loadSeries();
       loadPopularSeries();
     };
     window.addEventListener("series-added", handleSeriesAdded);
@@ -155,7 +194,7 @@ export default function Page() {
           series.overview,
         );
         if (result.success && isMounted.current) {
-          await loadSeries(true);
+          await loadSeries();
           await loadPopularSeries();
         }
       } catch (err) {
@@ -170,15 +209,12 @@ export default function Page() {
   // Update series with proper merge
   const updateSeries = useCallback(
     async (updatedSeries: Series[]) => {
-      // Create map for O(1) lookups
       const updatedMap = new Map(updatedSeries.map((s) => [s.id, s]));
 
-      // Merge and update
       setSeriesData((prev) =>
         prev.map((series) => updatedMap.get(series.id) || series),
       );
 
-      // Find changed series for backend sync
       const changedSeries = updatedSeries.filter((series) => {
         const original = seriesMapRef.current.get(series.id);
         return (
@@ -197,8 +233,7 @@ export default function Page() {
         );
       } catch (err) {
         console.error("Failed to update progress:", err);
-        // Reload to fix inconsistency
-        await loadSeries(true);
+        await loadSeries();
         if (isMounted.current)
           setError("Failed to update. Reloaded latest data.");
         setTimeout(() => {
@@ -264,7 +299,6 @@ export default function Page() {
         upcomingSeasons,
       };
 
-      // Optimistic update
       setSeriesData((prev) =>
         prev.map((s) => (s.id === id ? updatedSeries : s)),
       );
@@ -272,17 +306,17 @@ export default function Page() {
       try {
         const result = await updateSeriesAction(updatedSeries);
         if (result.success && isMounted.current) {
-          await loadSeries(true);
+          await loadSeries();
           setIsEditModalOpen(false);
           setEditingSeries(null);
         } else {
-          await loadSeries(true); // Rollback
+          await loadSeries();
           setError(result.error || "Failed to edit");
           setTimeout(() => setError(null), 3000);
         }
       } catch (err) {
         console.error("Error editing series:", err);
-        await loadSeries(true);
+        await loadSeries();
         setError("Failed to edit. Please try again.");
         setTimeout(() => setError(null), 3000);
       } finally {
@@ -319,7 +353,6 @@ export default function Page() {
     const progress =
       totalSeasons > 0 ? Math.round((watchedSeasons / totalSeasons) * 100) : 0;
 
-    // Sort by timestamp (extract number from ID)
     const recentlyAdded = [...seriesData]
       .sort((a, b) => {
         const aNum = parseInt(a.id.split("-").pop() || "0");
@@ -348,7 +381,18 @@ export default function Page() {
     (s) => !userSeriesIds.has(s.id),
   );
 
-  if (isLoading) {
+  console.log(
+    "Rendering - isLoading:",
+    isLoading,
+    "seriesData.length:",
+    seriesData.length,
+    "error:",
+    error,
+  );
+
+  // Show loading only when loading and no data
+  if (isLoading && seriesData.length === 0 && !error) {
+    console.log("Showing loading skeleton");
     return (
       <div className="space-y-6 animate-pulse">
         <div className="h-32 rounded-2xl bg-gray-200 dark:bg-gray-700" />
@@ -358,6 +402,7 @@ export default function Page() {
     );
   }
 
+  console.log("Showing main content");
   const hasSeries = stats.totalSeries > 0;
 
   return (
@@ -389,7 +434,7 @@ export default function Page() {
               remainingSeasons: stats.remainingSeasons,
               overallProgress: stats.progress,
             }}
-            onRefresh={() => loadSeries(true)}
+            onRefresh={() => loadSeries()}
           />
 
           <RecentlyAddedSection
