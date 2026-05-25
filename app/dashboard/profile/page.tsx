@@ -3,32 +3,29 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import ProfileImageUpload from "@/app/ui/dashboard/profile-image-upload";
 import { getUserSeries } from "@/app/lib/series";
 import type { Series } from "@/app/lib/series";
 import {
-  UserIcon,
-  EnvelopeIcon,
-  CalendarIcon,
-  PencilIcon,
-  CheckIcon,
-  XMarkIcon,
-  ArrowPathIcon,
   ShieldCheckIcon,
-  TrophyIcon,
-  ClockIcon,
+  RocketLaunchIcon,
+  BellIcon,
+  KeyIcon,
   GlobeAltIcon,
   FingerPrintIcon,
   DeviceTabletIcon,
-  BellIcon,
-  KeyIcon,
-  RocketLaunchIcon,
   HeartIcon,
+  UserIcon,
+  CheckIcon,
   TvIcon,
   CheckCircleIcon,
+  ClockIcon,
+  TrophyIcon,
 } from "@heroicons/react/24/outline";
-import { motion, AnimatePresence, Variants } from "framer-motion";
+import { motion, Variants } from "framer-motion";
 import Avatar from "@/app/ui/dashboard/avatar";
+import { EditProfileForm } from "./components/edit-profile-form";
+import { ProfileView } from "./components/profile-view";
+import { StatsCards } from "./components/stats-cards";
 
 interface UserProfile {
   id: string;
@@ -49,9 +46,6 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-  });
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
@@ -62,6 +56,7 @@ export default function ProfilePage() {
     "profile" | "security" | "preferences"
   >("profile");
   const [seriesData, setSeriesData] = useState<Series[]>([]);
+  const [tempAvatarUrl, setTempAvatarUrl] = useState<string | null>(null);
 
   // Load user profile
   useEffect(() => {
@@ -72,8 +67,8 @@ export default function ProfilePage() {
 
         if (response.ok) {
           setProfile(data);
-          setFormData({ name: data.name });
           setAvatarUrl(data.avatar_url);
+          setTempAvatarUrl(data.avatar_url);
         } else {
           setMessage({
             type: "error",
@@ -149,8 +144,16 @@ export default function ProfilePage() {
     ];
   }, [seriesData]);
 
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Handle avatar change (temporary, not saved yet)
+  const handleAvatarChange = (newAvatarUrl: string | null) => {
+    setTempAvatarUrl(newAvatarUrl);
+  };
+
+  // Handle profile save with both name and avatar
+  const handleUpdateProfile = async (
+    name: string,
+    avatarUrlValue: string | null,
+  ) => {
     setIsSaving(true);
     setMessage(null);
 
@@ -158,14 +161,21 @@ export default function ProfilePage() {
       const response = await fetch("/api/user/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: formData.name }),
+        body: JSON.stringify({ name, avatar_url: avatarUrlValue }),
       });
 
       const data = await response.json();
 
+      // In handleUpdateProfile, after successful save:
       if (response.ok) {
         setProfile(data.user);
+        setAvatarUrl(data.user.avatar_url);
+        setTempAvatarUrl(data.user.avatar_url);
         setIsEditing(false);
+
+        // Dispatch the same event that navbar is listening for
+        window.dispatchEvent(new Event("avatar-updated")); // ← Use Event, not CustomEvent
+
         setMessage({
           type: "success",
           text: "Profile updated successfully!",
@@ -178,24 +188,11 @@ export default function ProfilePage() {
         });
       }
     } catch (error) {
+      console.error("Error:", error);
       setMessage({ type: "error", text: "Network error updating profile" });
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const handleAvatarUpdate = async (newAvatarUrl: string) => {
-    try {
-      const response = await fetch("/api/user/profile");
-      const data = await response.json();
-      if (response.ok) {
-        setProfile(data);
-        setAvatarUrl(data.avatar_url);
-      }
-    } catch (error) {
-      console.error("Error refreshing profile:", error);
-    }
-    window.dispatchEvent(new Event("avatar-updated"));
   };
 
   const formatDate = (dateString: string) => {
@@ -309,43 +306,6 @@ export default function ProfilePage() {
           </div>
         </motion.div>
 
-        {/* Message Toast */}
-        <AnimatePresence>
-          {message && (
-            <motion.div
-              initial={{ opacity: 0, y: -20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.95 }}
-              className="mb-4 sm:mb-6"
-            >
-              <div
-                className={`rounded-xl p-3 sm:p-4 backdrop-blur-sm ${
-                  message.type === "success"
-                    ? "bg-green-500/10 border border-green-500/20"
-                    : "bg-red-500/10 border border-red-500/20"
-                }`}
-              >
-                <div className="flex items-center gap-2 sm:gap-3">
-                  {message.type === "success" ? (
-                    <CheckIcon className="h-4 w-4 sm:h-5 sm:w-5 text-green-500" />
-                  ) : (
-                    <XMarkIcon className="h-4 w-4 sm:h-5 sm:w-5 text-red-500" />
-                  )}
-                  <p
-                    className={`text-xs sm:text-sm ${
-                      message.type === "success"
-                        ? "text-green-600 dark:text-green-400"
-                        : "text-red-600 dark:text-red-400"
-                    }`}
-                  >
-                    {message.text}
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Main Content */}
         <div className="grid lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-8">
           {/* Sidebar */}
@@ -363,7 +323,7 @@ export default function ProfilePage() {
                     <div className="relative group">
                       <div className="rounded-xl sm:rounded-2xl bg-white dark:bg-gray-900 p-1 shadow-xl">
                         <Avatar
-                          src={avatarUrl}
+                          src={tempAvatarUrl || avatarUrl}
                           name={profile.name}
                           size="xl"
                           shape="rounded"
@@ -481,386 +441,182 @@ export default function ProfilePage() {
               ))}
             </div>
 
-            {/* Tab Content */}
-            <AnimatePresence mode="wait">
-              {activeTab === "profile" && (
-                <motion.div
-                  key="profile"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <div className="bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-800">
-                    <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-800">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        <div>
-                          <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
-                            Profile Information
-                          </h2>
-                          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
-                            Update your personal details
-                          </p>
-                        </div>
-                        {!isEditing && (
-                          <button
-                            onClick={() => setIsEditing(true)}
-                            className="inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium hover:from-blue-600 hover:to-purple-600 transition-all shadow-lg"
-                          >
-                            <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                            Edit Profile
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="p-4 sm:p-6">
-                      <AnimatePresence mode="wait">
-                        {isEditing ? (
-                          <motion.div
-                            key="edit"
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 20 }}
-                          >
-                            <form
-                              onSubmit={handleUpdateProfile}
-                              className="space-y-4 sm:space-y-6"
-                            >
-                              <div className="rounded-lg sm:rounded-xl bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 p-4 sm:p-6">
-                                <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">
-                                  Profile Picture
-                                </label>
-                                <ProfileImageUpload
-                                  currentAvatar={avatarUrl}
-                                  userName={profile.name}
-                                  onAvatarUpdate={handleAvatarUpdate}
-                                />
-                              </div>
-
-                              <div>
-                                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">
-                                  Full Name
-                                </label>
-                                <div className="relative">
-                                  <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
-                                  <input
-                                    type="text"
-                                    value={formData.name}
-                                    onChange={(e) =>
-                                      setFormData({
-                                        ...formData,
-                                        name: e.target.value,
-                                      })
-                                    }
-                                    required
-                                    className="w-full rounded-lg sm:rounded-xl border border-gray-300 bg-white pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white transition-all"
-                                  />
-                                </div>
-                              </div>
-
-                              <div>
-                                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">
-                                  Email Address
-                                </label>
-                                <div className="relative">
-                                  <EnvelopeIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
-                                  <input
-                                    type="email"
-                                    value={profile.email}
-                                    disabled
-                                    className="w-full rounded-lg sm:rounded-xl border border-gray-200 bg-gray-50 pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 text-gray-500 cursor-not-allowed dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-400 text-sm"
-                                  />
-                                </div>
-                                <p className="mt-1 sm:mt-2 text-[10px] sm:text-xs text-gray-500">
-                                  Email cannot be changed for security reasons
-                                </p>
-                              </div>
-
-                              <div className="flex gap-2 sm:gap-3 pt-2 sm:pt-4">
-                                <button
-                                  type="submit"
-                                  disabled={isSaving}
-                                  className="flex-1 inline-flex items-center justify-center gap-1 sm:gap-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 px-3 sm:px-6 py-2 sm:py-3 text-white font-medium text-xs sm:text-sm hover:from-blue-600 hover:to-purple-600 transition-all disabled:opacity-50 shadow-lg"
-                                >
-                                  {isSaving ? (
-                                    <ArrowPathIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5 animate-spin" />
-                                  ) : (
-                                    <CheckIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
-                                  )}
-                                  <span className="hidden sm:inline">
-                                    Save Changes
-                                  </span>
-                                  <span className="sm:hidden">Save</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setIsEditing(false);
-                                    setFormData({ name: profile.name });
-                                    setMessage(null);
-                                  }}
-                                  className="flex-1 inline-flex items-center justify-center gap-1 sm:gap-2 rounded-lg sm:rounded-xl border border-gray-300 bg-white px-3 sm:px-6 py-2 sm:py-3 text-gray-700 font-medium text-xs sm:text-sm hover:bg-gray-50 transition-all dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-                                >
-                                  <XMarkIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
-                                  <span className="hidden sm:inline">
-                                    Cancel
-                                  </span>
-                                  <span className="sm:hidden">Cancel</span>
-                                </button>
-                              </div>
-                            </form>
-                          </motion.div>
-                        ) : (
-                          <motion.div
-                            key="view"
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 20 }}
-                            className="space-y-4 sm:space-y-6"
-                          >
-                            <div className="grid gap-3 sm:gap-6 grid-cols-1 sm:grid-cols-2">
-                              <div className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gray-50 dark:bg-gray-800/50">
-                                <div className="p-1.5 sm:p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                                  <UserIcon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                                    Full Name
-                                  </p>
-                                  <p className="mt-1 font-medium text-gray-900 dark:text-white text-sm sm:text-base break-words">
-                                    {profile.name}
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gray-50 dark:bg-gray-800/50">
-                                <div className="p-1.5 sm:p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                                  <EnvelopeIcon className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 dark:text-purple-400" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                                    Email Address
-                                  </p>
-                                  <p className="mt-1 font-medium text-gray-900 dark:text-white text-sm sm:text-base break-all">
-                                    {profile.email}
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gray-50 dark:bg-gray-800/50">
-                                <div className="p-1.5 sm:p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                                  <CalendarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 dark:text-green-400" />
-                                </div>
-                                <div>
-                                  <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                                    Member Since
-                                  </p>
-                                  <p className="mt-1 font-medium text-gray-900 dark:text-white text-sm sm:text-base">
-                                    {formatDate(profile.created_at)}
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gray-50 dark:bg-gray-800/50">
-                                <div className="p-1.5 sm:p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                                  <TrophyIcon className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 dark:text-orange-400" />
-                                </div>
-                                <div>
-                                  <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                                    Member Duration
-                                  </p>
-                                  <p className="mt-1 font-medium text-gray-900 dark:text-white text-sm sm:text-base">
-                                    {getMemberDuration()}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {activeTab === "security" && (
-                <motion.div
-                  key="security"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <div className="bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-800">
-                    <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-800">
+            {/* Profile Tab Content */}
+            {activeTab === "profile" && (
+              <div className="bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-800">
+                <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-800">
+                  <div className="flex items-center justify-between">
+                    <div>
                       <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
-                        Security Settings
+                        Profile Information
                       </h2>
                       <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Manage your account security
+                        {isEditing
+                          ? "Update your personal details"
+                          : "View your personal details"}
                       </p>
                     </div>
-                    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-                        <div className="flex items-center gap-3">
-                          <div className="p-1.5 sm:p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
-                            <KeyIcon className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600 dark:text-amber-400" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-amber-800 dark:text-amber-300 text-sm sm:text-base">
-                              Password Protection
-                            </p>
-                            <p className="text-xs sm:text-sm text-amber-700 dark:text-amber-400">
-                              Last changed 30 days ago
-                            </p>
-                          </div>
-                        </div>
-                        <button className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded-lg transition-all">
-                          Change Password
-                        </button>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gray-50 dark:bg-gray-800/50">
-                        <div className="flex items-center gap-3">
-                          <div className="p-1.5 sm:p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                            <DeviceTabletIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 dark:text-gray-400" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
-                              Two-Factor Authentication
-                            </p>
-                            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                              Add an extra layer of security
-                            </p>
-                          </div>
-                        </div>
-                        <button className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all">
-                          Enable
-                        </button>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gray-50 dark:bg-gray-800/50">
-                        <div className="flex items-center gap-3">
-                          <div className="p-1.5 sm:p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                            <FingerPrintIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 dark:text-gray-400" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
-                              Active Sessions
-                            </p>
-                            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                              Manage devices where you&apos;re logged in
-                            </p>
-                          </div>
-                        </div>
-                        <button className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all">
-                          Manage
-                        </button>
-                      </div>
-                    </div>
                   </div>
-                </motion.div>
-              )}
+                </div>
 
-              {activeTab === "preferences" && (
-                <motion.div
-                  key="preferences"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <div className="bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-800">
-                    <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-800">
-                      <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
-                        Preferences
-                      </h2>
-                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Customize your experience
-                      </p>
-                    </div>
-                    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gray-50 dark:bg-gray-800/50">
-                        <div className="flex items-center gap-3">
-                          <div className="p-1.5 sm:p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                            <BellIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 dark:text-gray-400" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
-                              Email Notifications
-                            </p>
-                            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                              Receive updates about your activity
-                            </p>
-                          </div>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            defaultChecked
-                            className="sr-only peer"
-                          />
-                          <div className="w-9 h-5 sm:w-11 sm:h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                        </label>
+                <div className="p-4 sm:p-6">
+                  {isEditing ? (
+                    <EditProfileForm
+                      profile={profile}
+                      avatarUrl={tempAvatarUrl} // ← CHANGE: use tempAvatarUrl here
+                      onAvatarChange={handleAvatarChange}
+                      onSave={handleUpdateProfile}
+                      onCancel={() => {
+                        setIsEditing(false);
+                        setTempAvatarUrl(avatarUrl); // Reset to original on cancel
+                      }}
+                      isSaving={isSaving}
+                    />
+                  ) : (
+                    <ProfileView
+                      profile={profile}
+                      onEdit={() => setIsEditing(true)}
+                      formatDate={formatDate}
+                      getMemberDuration={getMemberDuration}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Security Tab Content */}
+            {activeTab === "security" && (
+              <div className="bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-800">
+                <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-800">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                    Security Settings
+                  </h2>
+                  <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Manage your account security
+                  </p>
+                </div>
+                <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                    <div className="flex items-center gap-3">
+                      <div className="p-1.5 sm:p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+                        <KeyIcon className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600 dark:text-amber-400" />
                       </div>
-
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gray-50 dark:bg-gray-800/50">
-                        <div className="flex items-center gap-3">
-                          <div className="p-1.5 sm:p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                            <GlobeAltIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 dark:text-gray-400" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
-                              Language
-                            </p>
-                            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                              Choose your preferred language
-                            </p>
-                          </div>
-                        </div>
-                        <select className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
-                          <option>English</option>
-                          <option>বাংলা</option>
-                        </select>
+                      <div>
+                        <p className="font-medium text-amber-800 dark:text-amber-300 text-sm sm:text-base">
+                          Password Protection
+                        </p>
+                        <p className="text-xs sm:text-sm text-amber-700 dark:text-amber-400">
+                          Last changed 30 days ago
+                        </p>
                       </div>
                     </div>
+                    <button className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded-lg transition-all">
+                      Change Password
+                    </button>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                    <div className="flex items-center gap-3">
+                      <div className="p-1.5 sm:p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                        <DeviceTabletIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 dark:text-gray-400" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
+                          Two-Factor Authentication
+                        </p>
+                        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                          Add an extra layer of security
+                        </p>
+                      </div>
+                    </div>
+                    <button className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all">
+                      Enable
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                    <div className="flex items-center gap-3">
+                      <div className="p-1.5 sm:p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                        <FingerPrintIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 dark:text-gray-400" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
+                          Active Sessions
+                        </p>
+                        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                          Manage devices where you&apos;re logged in
+                        </p>
+                      </div>
+                    </div>
+                    <button className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all">
+                      Manage
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Preferences Tab Content */}
+            {activeTab === "preferences" && (
+              <div className="bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-800">
+                <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-800">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                    Preferences
+                  </h2>
+                  <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Customize your experience
+                  </p>
+                </div>
+                <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                    <div className="flex items-center gap-3">
+                      <div className="p-1.5 sm:p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                        <BellIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 dark:text-gray-400" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
+                          Email Notifications
+                        </p>
+                        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                          Receive updates about your activity
+                        </p>
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        defaultChecked
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 sm:w-11 sm:h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                    <div className="flex items-center gap-3">
+                      <div className="p-1.5 sm:p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                        <GlobeAltIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600 dark:text-gray-400" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">
+                          Language
+                        </p>
+                        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                          Choose your preferred language
+                        </p>
+                      </div>
+                    </div>
+                    <select className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                      <option>English</option>
+                      <option>বাংলা</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Stats Cards */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-              className="mt-6 sm:mt-8"
-            >
-              <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
-                {stats.map((stat, index) => (
-                  <motion.div
-                    key={stat.label}
-                    whileHover={{ scale: 1.02, y: -2 }}
-                    className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-900 rounded-xl sm:rounded-2xl p-3 sm:p-6 shadow-lg border border-gray-200 dark:border-gray-800"
-                  >
-                    <div className="flex items-center justify-between mb-2 sm:mb-4">
-                      <div
-                        className={`w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-gradient-to-r ${stat.color} flex items-center justify-center shadow-lg`}
-                      >
-                        <stat.icon className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
-                      </div>
-                      <span className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-                        {stat.value}
-                      </span>
-                    </div>
-                    <p className="text-[10px] sm:text-sm text-gray-600 dark:text-gray-400">
-                      {stat.label}
-                    </p>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
+            <StatsCards stats={stats} />
           </motion.div>
         </div>
       </div>

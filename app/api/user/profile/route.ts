@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/app/lib/auth";
 import { sql } from "@/app/lib/db";
 
-// GET - Fetch user profile
 export async function GET() {
   try {
     const session = await auth();
@@ -31,13 +30,12 @@ export async function GET() {
   } catch (error) {
     console.error("Error fetching profile:", error);
     return NextResponse.json(
-      { error: "Failed to fetch profile: " + (error as Error).message },
+      { error: "Failed to fetch profile" },
       { status: 500 },
     );
   }
 }
 
-// PUT - Update user profile
 export async function PUT(request: NextRequest) {
   try {
     const session = await auth();
@@ -46,34 +44,36 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { name } = await request.json();
+    const body = await request.json();
+
+    const { name, avatar_url } = body;
 
     if (!name || name.trim() === "") {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    await sql`
+    const result = await sql`
       UPDATE users
-      SET name = ${name.trim()}
+      SET 
+        name = ${name.trim()},
+        avatar_url = ${avatar_url || null}
       WHERE email = ${session.user.email}
+      RETURNING id, name, email, role, created_at, avatar_url
     `;
 
-    const updatedUser = await sql`
-      SELECT id, name, email, role, created_at, avatar_url
-      FROM users
-      WHERE email = ${session.user.email}
-      LIMIT 1
-    `;
+    if (result.length === 0) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
     return NextResponse.json({
       success: true,
-      user: updatedUser[0],
+      user: result[0],
       message: "Profile updated successfully",
     });
   } catch (error) {
     console.error("Error updating profile:", error);
     return NextResponse.json(
-      { error: "Failed to update profile" },
+      { error: "Failed to update profile: " + (error as Error).message },
       { status: 500 },
     );
   }
