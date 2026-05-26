@@ -1,16 +1,18 @@
-// app/ui/tvSeries/add-series-form.tsx
-
 "use client";
 
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-  useRef,
-} from "react";
-import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  MagnifyingGlassIcon,
+  XMarkIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
+  TvIcon,
+  CalendarIcon,
+} from "@heroicons/react/24/outline";
+import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
+import { getUserSeries } from "@/app/lib/series";
 
 interface TMDBResult {
   id: number;
@@ -25,72 +27,83 @@ interface TMDBResult {
 
 interface AddSeriesFormProps {
   addSeries: (
+    tmdbId: number,
     name: string,
     totalSeasons: number,
     upcomingSeasons: string[],
     posterPath?: string | null,
     backdropPath?: string | null,
     overview?: string | null,
-  ) => void;
+  ) => Promise<{
+    success?: boolean;
+    error?: string;
+    duplicate?: boolean;
+  } | void>;
   isSubmitting?: boolean;
+  onCancel?: () => void;
 }
-
-// Safe array comparison utility
-const arraysEqual = (a?: boolean[], b?: boolean[]): boolean => {
-  if (a === b) return true;
-  if (!a || !b) return false;
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
-};
 
 const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
   addSeries,
   isSubmitting = false,
+  onCancel,
 }) => {
-  // Form state
-  const [name, setName] = useState("");
-  const [totalSeasons, setTotalSeasons] = useState<number | null>(null);
-  const [hasUpcoming, setHasUpcoming] = useState<boolean | null>(null);
-  const [isLocalSubmitting, setIsLocalSubmitting] = useState(false);
-
-  // TMDB Search states
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<TMDBResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [selectedFromTMDB, setSelectedFromTMDB] = useState<TMDBResult | null>(
-    null,
+  const [selectedSeries, setSelectedSeries] = useState<TMDBResult | null>(null);
+  const [isLocalSubmitting, setIsLocalSubmitting] = useState(false);
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [existingTmdbIds, setExistingTmdbIds] = useState<Set<number>>(
+    new Set(),
   );
 
-  // Refs for abort controller
   const abortControllerRef = useRef<AbortController | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
-  const [errors, setErrors] = useState<{
-    name?: string;
-    totalSeasons?: string;
-    hasUpcoming?: string;
-  }>({});
+  // Fetch existing series TMDB IDs
+  useEffect(() => {
+    const loadExistingSeries = async () => {
+      try {
+        const series = await getUserSeries();
+        const tmdbIds = new Set(
+          series
+            .map((s) => s.tmdbId)
+            .filter((id): id is number => id !== undefined && id !== null),
+        );
+        setExistingTmdbIds(tmdbIds);
+      } catch (error) {
+        console.error("Error loading existing series:", error);
+      }
+    };
+    loadExistingSeries();
+  }, []);
 
-  // Memoized poster URL helper
-  const getPosterUrl = useCallback(
-    (posterPath: string | null, size: string = "w92") => {
-      if (!posterPath) return null;
-      return `https://image.tmdb.org/t/p/${size}${posterPath}`;
-    },
-    [],
-  );
+  const getPosterUrl = (posterPath: string | null, size: string = "w92") => {
+    if (!posterPath) return null;
+    return `https://image.tmdb.org/t/p/${size}${posterPath}`;
+  };
 
-  // Memoized upcoming season text
-  const upcomingSeasonText = useMemo(() => {
-    if (hasUpcoming !== true) return null;
-    return `Season ${totalSeasons ? totalSeasons + 1 : "?"} will be added as upcoming`;
-  }, [hasUpcoming, totalSeasons]);
+  // Check duplicate by TMDB ID only
+  const isDuplicateSeries = (tmdbId: number): boolean => {
+    return existingTmdbIds.has(tmdbId);
+  };
 
-  // Debounced search with abort controller
+  const selectSeries = (series: TMDBResult) => {
+    setSelectedSeries(series);
+    setShowResults(false);
+    setSearchQuery("");
+    setSearchResults([]);
+    setDuplicateError(null);
+  };
+
+  const isDuplicateSelected = selectedSeries
+    ? isDuplicateSeries(selectedSeries.id)
+    : false;
+
+  // Debounced search
   useEffect(() => {
     const trimmedQuery = searchQuery.trim();
 
@@ -100,15 +113,8 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
       return;
     }
 
-    // Clear previous timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    // Abort previous request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    if (abortControllerRef.current) abortControllerRef.current.abort();
 
     searchTimeoutRef.current = setTimeout(async () => {
       const controller = new AbortController();
@@ -116,17 +122,24 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
 
       try {
         setIsSearching(true);
-
         const response = await fetch(
           `/api/tmdb/search?query=${encodeURIComponent(trimmedQuery)}`,
           { signal: controller.signal },
         );
-
         const data = await response.json();
 
-        // Only update if not aborted
         if (!controller.signal.aborted) {
-          setSearchResults(data.series || []);
+          const results = (data.series || []).map((show: any) => ({
+            id: show.id,
+            name: show.name,
+            totalSeasons: show.totalSeasons || 0,
+            overview: show.overview,
+            posterPath: show.posterPath,
+            backdropPath: show.backdropPath,
+            firstAirDate: show.firstAirDate,
+            voteAverage: show.voteAverage,
+          }));
+          setSearchResults(results);
           setShowResults(true);
         }
       } catch (error) {
@@ -134,145 +147,105 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
           console.error("Search failed:", error);
         }
       } finally {
-        if (!controller.signal.aborted) {
-          setIsSearching(false);
-        }
+        if (!controller.signal.aborted) setIsSearching(false);
       }
-    }, 500);
+    }, 400);
 
     return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
     };
   }, [searchQuery]);
 
-  // Close search results on outside click
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest(".tmdb-search-container")) {
-        setShowResults(false);
-      }
-    };
-
-    document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
-  }, []);
-
-  const selectFromTMDB = async (show: TMDBResult) => {
-    setName(show.name);
-    setTotalSeasons(show.totalSeasons || 0);
-    setSelectedFromTMDB(show);
-    setShowResults(false);
-    setSearchQuery("");
-    setSearchResults([]);
-  };
-
-  const validateForm = (): boolean => {
-    const newErrors: {
-      name?: string;
-      totalSeasons?: string;
-      hasUpcoming?: string;
-    } = {};
-
-    if (!name.trim()) {
-      newErrors.name = "Series name is required";
-    }
-
-    if (totalSeasons === null || totalSeasons < 1) {
-      newErrors.totalSeasons =
-        "Total seasons is required and must be at least 1";
-    }
-
-    if (hasUpcoming === null) {
-      newErrors.hasUpcoming = "Please select Yes or No for upcoming season";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const resetForm = () => {
-    setName("");
-    setTotalSeasons(null);
-    setHasUpcoming(null);
-    setSelectedFromTMDB(null);
-    setSearchQuery("");
-    setSearchResults([]);
-    setShowResults(false);
-    setErrors({});
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    if (!selectedSeries) return;
     if (isLocalSubmitting || isSubmitting) return;
-    if (!validateForm()) return;
+
+    if (isDuplicateSelected) {
+      setDuplicateError(
+        `"${selectedSeries.name}" is already in your collection!`,
+      );
+      return;
+    }
 
     try {
       setIsLocalSubmitting(true);
 
-      let upcomingSeasons: string[] = [];
-
-      if (hasUpcoming === true) {
-        const nextSeasonNumber = (totalSeasons as number) + 1;
-        upcomingSeasons = [`Season ${nextSeasonNumber}`];
-      }
-
-      await addSeries(
-        name,
-        totalSeasons as number,
-        upcomingSeasons,
-        selectedFromTMDB?.posterPath,
-        selectedFromTMDB?.backdropPath,
-        selectedFromTMDB?.overview,
+      const result = await addSeries(
+        selectedSeries.id,
+        selectedSeries.name,
+        selectedSeries.totalSeasons,
+        [],
+        selectedSeries.posterPath,
+        selectedSeries.backdropPath,
+        selectedSeries.overview,
       );
 
-      resetForm();
+      if (result?.duplicate) {
+        setDuplicateError(result.error || "Series already exists");
+        return;
+      }
+
+      if (result?.success) {
+        // Add to existing TMDB IDs set
+        setExistingTmdbIds((prev) => new Set([...prev, selectedSeries.id]));
+        setSuccessMessage(`${selectedSeries.name} added successfully!`);
+        setTimeout(() => {
+          setSuccessMessage(null);
+          setSelectedSeries(null);
+          if (onCancel) onCancel();
+        }, 1500);
+      }
     } catch (error) {
       console.error("Error adding series:", error);
+      setDuplicateError("Failed to add series. Please try again.");
     } finally {
       setIsLocalSubmitting(false);
     }
   };
 
-  const handleTotalSeasonsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (value === "") {
-      setTotalSeasons(null);
-    } else {
-      const numValue = parseInt(value);
-      setTotalSeasons(isNaN(numValue) ? null : Math.max(1, numValue));
-    }
-  };
+  const isSubmitDisabled =
+    isLocalSubmitting || isSubmitting || !selectedSeries || isDuplicateSelected;
 
-  const isSubmitDisabled = isLocalSubmitting || isSubmitting;
-  const submitButtonText =
-    isLocalSubmitting || isSubmitting ? "Adding..." : "Add Series";
+  // Get series display name with year
+  const getSeriesDisplayName = (series: TMDBResult): string => {
+    const year = series.firstAirDate?.split("-")[0];
+    return year ? `${series.name} (${year})` : series.name;
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* TMDB Search Section */}
-      <div className="relative tmdb-search-container">
-        <label
-          htmlFor="tmdb-search"
-          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-        >
-          Search from TMDB
-        </label>
+      {/* Success Message */}
+      <AnimatePresence>
+        {successMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="rounded-lg bg-green-50 p-3 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+          >
+            <div className="flex items-center gap-2">
+              <CheckCircleIcon className="h-4 w-4 text-green-500" />
+              <p className="text-sm text-green-600 dark:text-green-400">
+                {successMessage}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Search Section */}
+      <div className="relative">
         <div className="relative">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
-            id="tmdb-search"
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search series..."
-            className="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 pl-9 pr-8 text-sm outline-none focus:border-blue-500 focus:bg-green-100 focus:text-black focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            placeholder="Search for a TV series..."
+            className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 py-3 pl-10 pr-10 text-sm outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+            autoFocus
           />
           {searchQuery && (
             <button
@@ -282,64 +255,87 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
                 setSearchResults([]);
                 setShowResults(false);
               }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              aria-label="Clear search"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
             >
               <XMarkIcon className="h-4 w-4" />
             </button>
           )}
         </div>
 
-        {/* Search Results Dropdown */}
-        {showResults && !isSearching && searchResults.length === 0 && (
-          <div className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white p-4 text-center shadow-lg dark:border-gray-700 dark:bg-gray-800">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              No series found
-            </p>
-          </div>
-        )}
-
+        {/* Search Results */}
         {showResults && searchResults.length > 0 && (
-          <div className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
-            {searchResults.map((show) => (
-              <button
-                key={show.id}
-                type="button"
-                onClick={() => selectFromTMDB(show)}
-                className="flex w-full items-center gap-3 border-b border-gray-100 p-3 text-left transition-colors hover:bg-gray-50 last:border-0 dark:border-gray-700 dark:hover:bg-gray-700"
-              >
-                {getPosterUrl(show.posterPath) ? (
-                  <div className="relative h-12 w-8 flex-shrink-0">
-                    <Image
-                      src={getPosterUrl(show.posterPath)!}
-                      alt={show.name}
-                      fill
-                      className="rounded object-cover"
-                      sizes="32px"
-                    />
-                  </div>
-                ) : (
-                  <div className="h-12 w-8 flex-shrink-0 rounded bg-gray-200 dark:bg-gray-700" />
-                )}
+          <div className="absolute z-10 mt-2 max-h-80 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800">
+            {searchResults.map((show) => {
+              // Check by TMDB ID only - this disables the button and shows the badge
+              const alreadyExists = isDuplicateSeries(show.id);
+              const displayName = getSeriesDisplayName(show);
 
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-gray-900 dark:text-white truncate">
-                    {show.name}
+              return (
+                <button
+                  key={show.id}
+                  type="button"
+                  onClick={() => !alreadyExists && selectSeries(show)}
+                  disabled={alreadyExists}
+                  className={`flex w-full items-center gap-3 border-b border-gray-100 p-4 text-left transition-all last:border-0 ${
+                    alreadyExists
+                      ? "opacity-60 cursor-not-allowed bg-gray-50 dark:bg-gray-800/50"
+                      : "hover:bg-gray-50 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  {getPosterUrl(show.posterPath) ? (
+                    <div className="relative h-14 w-10 flex-shrink-0 overflow-hidden rounded">
+                      <Image
+                        src={getPosterUrl(show.posterPath)!}
+                        alt={show.name}
+                        width={40}
+                        height={56}
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex h-14 w-10 items-center justify-center rounded bg-gray-100 dark:bg-gray-700">
+                      <TvIcon className="h-5 w-5 text-gray-400" />
+                    </div>
+                  )}
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {displayName}
+                      </span>
+                      {show.voteAverage > 0 && (
+                        <span className="inline-flex items-center gap-0.5 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+                          <StarSolidIcon className="h-3 w-3" />
+                          {show.voteAverage.toFixed(1)}
+                        </span>
+                      )}
+                      {alreadyExists && (
+                        <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                          Already Added
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                      <span className="flex items-center gap-1">
+                        <CalendarIcon className="h-3 w-3" />
+                        {show.firstAirDate?.split("-")[0] || "Unknown"}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <TvIcon className="h-3 w-3" />
+                        {show.totalSeasons || "?"} seasons
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {show.firstAirDate?.split("-")[0] || "Unknown"} •{" "}
-                    {show.totalSeasons || "?"} seasons
-                  </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         )}
 
         {isSearching && (
-          <div className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white p-4 text-center shadow-lg dark:border-gray-700 dark:bg-gray-800">
-            <div className="flex items-center justify-center gap-2">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></div>
+          <div className="absolute z-10 mt-2 w-full rounded-xl border border-gray-200 bg-white p-6 text-center shadow-xl dark:border-gray-700 dark:bg-gray-800">
+            <div className="flex flex-col items-center gap-2">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
               <span className="text-sm text-gray-500 dark:text-gray-400">
                 Searching...
               </span>
@@ -348,144 +344,100 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
         )}
       </div>
 
-      {/* Selected TMDB Preview */}
-      {selectedFromTMDB && (
-        <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
-          <p className="text-sm text-blue-600 dark:text-blue-400">
-            ✓ Added from TMDB: {selectedFromTMDB.name}
-            {selectedFromTMDB.overview && (
-              <span className="mt-1 block text-xs text-gray-600 dark:text-gray-400">
-                {selectedFromTMDB.overview.substring(0, 100)}...
-              </span>
-            )}
-          </p>
-        </div>
-      )}
+      {/* Selected Series Preview */}
+      <AnimatePresence>
+        {selectedSeries && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className={`overflow-hidden rounded-xl p-4 border ${
+              isDuplicateSelected
+                ? "bg-red-50 border-red-300 dark:bg-red-950/30 dark:border-red-800"
+                : "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 dark:from-blue-950/30 dark:to-indigo-950/30 dark:border-blue-800"
+            }`}
+          >
+            <div className="flex gap-3">
+              {getPosterUrl(selectedSeries.posterPath, "w92") ? (
+                <div className="relative h-16 w-11 flex-shrink-0 overflow-hidden rounded-lg shadow">
+                  <Image
+                    src={getPosterUrl(selectedSeries.posterPath, "w92")!}
+                    alt={selectedSeries.name}
+                    width={44}
+                    height={64}
+                    className="object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="flex h-16 w-11 items-center justify-center rounded-lg bg-white/50 dark:bg-gray-800/50">
+                  <TvIcon className="h-6 w-6 text-gray-400" />
+                </div>
+              )}
+              <div className="flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {getSeriesDisplayName(selectedSeries)}
+                  </span>
+                  <span className="inline-flex items-center gap-0.5 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+                    <StarSolidIcon className="h-3 w-3" />
+                    {selectedSeries.voteAverage.toFixed(1)}
+                  </span>
+                </div>
+                <div className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                  {selectedSeries.totalSeasons} seasons
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <div className="h-px bg-gray-200 dark:bg-gray-700" />
-
-      {/* Series Name Input */}
-      <div>
-        <label
-          htmlFor="series-name"
-          className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-        >
-          Series Name <span className="text-red-500">*</span>
-        </label>
-        <input
-          id="series-name"
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          disabled={isSubmitDisabled}
-          className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-1 disabled:opacity-50 disabled:cursor-not-allowed ${
-            errors.name
-              ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-              : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-          } dark:border-gray-600 dark:bg-gray-700 dark:text-white`}
-          placeholder="Enter series name"
-        />
-        {errors.name && (
-          <p className="mt-1 text-xs text-red-500">{errors.name}</p>
+      {/* Error Alert */}
+      <AnimatePresence>
+        {duplicateError && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="rounded-lg bg-red-50 p-3 border border-red-200 dark:bg-red-900/20 dark:border-red-800"
+          >
+            <div className="flex items-center gap-2">
+              <ExclamationTriangleIcon className="h-4 w-4 text-red-500" />
+              <p className="text-sm text-red-600 dark:text-red-400">
+                {duplicateError}
+              </p>
+            </div>
+          </motion.div>
         )}
-      </div>
-
-      {/* Total Seasons Input */}
-      <div>
-        <label
-          htmlFor="total-seasons"
-          className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-        >
-          Total Seasons <span className="text-red-500">*</span>
-        </label>
-        <input
-          id="total-seasons"
-          type="number"
-          value={totalSeasons === null ? "" : totalSeasons}
-          onChange={handleTotalSeasonsChange}
-          disabled={isSubmitDisabled}
-          min={1}
-          className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-1 disabled:opacity-50 disabled:cursor-not-allowed ${
-            errors.totalSeasons
-              ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-              : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-          } dark:border-gray-600 dark:bg-gray-700 dark:text-white`}
-          placeholder="Enter number of seasons"
-        />
-        {errors.totalSeasons && (
-          <p className="mt-1 text-xs text-red-500">{errors.totalSeasons}</p>
-        )}
-      </div>
-
-      {/* Upcoming Season Selection */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Any Upcoming Season? <span className="text-red-500">*</span>
-        </label>
-        <div className="flex gap-4">
-          <label className="inline-flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="hasUpcoming"
-              value="yes"
-              checked={hasUpcoming === true}
-              onChange={() => setHasUpcoming(true)}
-              disabled={isSubmitDisabled}
-              className="h-4 w-4 border-gray-300 text-blue-500 focus:ring-blue-500"
-            />
-            <span className="text-sm text-gray-700 dark:text-gray-300">
-              Yes
-            </span>
-          </label>
-          <label className="inline-flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="hasUpcoming"
-              value="no"
-              checked={hasUpcoming === false}
-              onChange={() => setHasUpcoming(false)}
-              disabled={isSubmitDisabled}
-              className="h-4 w-4 border-gray-300 text-blue-500 focus:ring-blue-500"
-            />
-            <span className="text-sm text-gray-700 dark:text-gray-300">No</span>
-          </label>
-        </div>
-        {errors.hasUpcoming && (
-          <p className="mt-1 text-xs text-red-500">{errors.hasUpcoming}</p>
-        )}
-        {upcomingSeasonText && !errors.hasUpcoming && (
-          <p className="mt-2 text-xs text-green-600 dark:text-green-400">
-            {upcomingSeasonText}
-          </p>
-        )}
-        {hasUpcoming === false && !errors.hasUpcoming && (
-          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-            Series will be marked as ended
-          </p>
-        )}
-      </div>
+      </AnimatePresence>
 
       {/* Action Buttons */}
       <div className="flex gap-3 pt-2">
         <button
           type="submit"
           disabled={isSubmitDisabled}
-          className="flex-1 rounded-md bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          className={`flex-1 rounded-xl py-3 text-white font-semibold text-sm transition-all shadow-lg ${
+            isDuplicateSelected
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+          }`}
         >
-          {isSubmitDisabled ? (
+          {isLocalSubmitting ? (
             <div className="flex items-center justify-center gap-2">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              <span>{submitButtonText}</span>
+              <span>Adding...</span>
             </div>
+          ) : isDuplicateSelected ? (
+            <span>Already in Collection</span>
           ) : (
-            submitButtonText
+            <span>Add to Collection</span>
           )}
         </button>
+
         <button
           type="button"
-          onClick={resetForm}
-          disabled={isSubmitDisabled}
-          className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+          onClick={onCancel}
+          className="flex-1 rounded-xl border-2 border-gray-300 bg-white py-3 text-gray-700 font-semibold text-sm transition-all hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
         >
           Cancel
         </button>

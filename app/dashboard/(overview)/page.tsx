@@ -45,6 +45,7 @@ export default function Page() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingSeries, setEditingSeries] = useState<Series | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
 
   // Refs
   const isMounted = useRef(true);
@@ -168,12 +169,36 @@ export default function Page() {
     return () => window.removeEventListener("series-added", handleSeriesAdded);
   }, [loadSeries, loadPopularSeries]);
 
-  // Add suggested series
+  // Get existing series TMDB IDs for duplicate checking
+  const existingSeriesTmdbIds = useMemo(() => {
+    return new Set(
+      seriesData
+        .map((s) => s.tmdbId)
+        .filter((id): id is number => id !== undefined),
+    );
+  }, [seriesData]);
+
+  // Add suggested series with duplicate check by TMDB ID
   const handleAddSuggestedSeries = useCallback(
     async (series: SuggestedSeries) => {
+      // Check if series already exists by TMDB ID
+      const alreadyExists = series.tmdbId
+        ? existingSeriesTmdbIds.has(series.tmdbId)
+        : false;
+
+      if (alreadyExists) {
+        setDuplicateError(`"${series.name}" is already in your collection!`);
+        setTimeout(() => setDuplicateError(null), 3000);
+        return;
+      }
+
       setAddingSeriesId(series.id);
+      setDuplicateError(null);
+
       try {
+        // Pass tmdbId as first parameter (number)
         const result = await addSeriesAction(
+          series.tmdbId, // TMDB ID as number
           series.name,
           series.totalSeasons,
           [],
@@ -181,6 +206,16 @@ export default function Page() {
           series.backdropPath,
           series.overview,
         );
+
+        // Check for duplicate response from server
+        if (result.duplicate) {
+          setDuplicateError(
+            result.error || `"${series.name}" is already in your collection`,
+          );
+          setAddingSeriesId(null);
+          return;
+        }
+
         if (result.success && isMounted.current) {
           await loadSeries();
           await loadPopularSeries();
@@ -191,7 +226,7 @@ export default function Page() {
         if (isMounted.current) setAddingSeriesId(null);
       }
     },
-    [loadSeries, loadPopularSeries],
+    [loadSeries, loadPopularSeries, existingSeriesTmdbIds],
   );
 
   // Update series with proper merge
@@ -360,13 +395,19 @@ export default function Page() {
     };
   }, [seriesData]);
 
-  // Filter undiscovered series
-  const userSeriesIds = useMemo(
-    () => new Set(seriesData.map((s) => s.id)),
+  // Filter undiscovered series using TMDB ID
+  const userSeriesTmdbIds = useMemo(
+    () =>
+      new Set(
+        seriesData
+          .map((s) => s.tmdbId)
+          .filter((id): id is number => id !== undefined),
+      ),
     [seriesData],
   );
+
   const undiscoveredSeries = suggestedSeries.filter(
-    (s) => !userSeriesIds.has(s.id),
+    (s) => !userSeriesTmdbIds.has(s.tmdbId),
   );
 
   // Show loading only when loading and no data
@@ -384,6 +425,15 @@ export default function Page() {
 
   return (
     <main className="space-y-8">
+      {/* Duplicate Error Alert */}
+      {duplicateError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+          <p className="text-sm text-red-600 dark:text-red-400">
+            {duplicateError}
+          </p>
+        </div>
+      )}
+
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
           <p className="text-sm text-red-600 dark:text-red-400">{error}</p>

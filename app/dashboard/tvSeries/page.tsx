@@ -22,6 +22,7 @@ import type {
   PageSizeOption,
   ViewMode,
 } from "@/app/ui/tvSeries/series-controls";
+import AddSeriesModal from "@/app/ui/dashboard/add-series-modal";
 
 import { TvIcon } from "@heroicons/react/24/outline";
 
@@ -68,12 +69,13 @@ function SeriesContent() {
   const [sortBy, setSortBy] = useState<SortOption>("recent");
   const [filterBy, setFilterBy] = useState<FilterOption>("all");
 
-  // View Mode - ADD THIS
+  // View Mode
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
-  // Modal
+  // Modals
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingSeries, setEditingSeries] = useState<Series | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Submission
   const [isEditing, setIsEditing] = useState(false);
@@ -307,6 +309,16 @@ function SeriesContent() {
     }
   }, []);
 
+  // Handle series added from modal
+  const handleSeriesAdded = useCallback(() => {
+    const refreshSeries = async () => {
+      const updatedSeries = await getUserSeries();
+      setSeries(updatedSeries);
+      setCurrentPage(1);
+    };
+    refreshSeries();
+  }, []);
+
   if (isLoading) return <LoadingSkeleton />;
 
   const filterLabel: Record<string, string> = {
@@ -369,7 +381,7 @@ function SeriesContent() {
         )}
       </AnimatePresence>
 
-      {/* Series Controls - ADD viewMode props */}
+      {/* Series Controls */}
       <SeriesControls
         searchQuery={searchInputValue}
         onSearchChange={setSearchInputValue}
@@ -471,6 +483,13 @@ function SeriesContent() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Add Series Modal - Removed unused existingSeriesNames prop */}
+      <AddSeriesModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSeriesAdded={handleSeriesAdded}
+      />
     </div>
   );
 }

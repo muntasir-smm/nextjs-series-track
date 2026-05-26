@@ -9,6 +9,7 @@ export type User = {
 
 export type SuggestedSeries = {
   id: string;
+  tmdbId: number;
   name: string;
   totalSeasons: number;
   upcomingSeasons: string[];

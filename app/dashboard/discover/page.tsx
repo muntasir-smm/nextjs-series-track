@@ -17,6 +17,7 @@ import SeriesCard from "@/app/ui/series-card";
 
 interface Series {
   id: string;
+  tmdbId: number;
   name: string;
   totalSeasons: number;
   upcomingSeasons: string[];
@@ -30,7 +31,9 @@ interface Series {
 
 export default function DiscoverPage() {
   const [allSeries, setAllSeries] = useState<Series[]>([]);
-  const [userSeriesIds, setUserSeriesIds] = useState<Set<string>>(new Set());
+  const [userSeriesTmdbIds, setUserSeriesTmdbIds] = useState<Set<number>>(
+    new Set(),
+  ); // CHANGE to Set of numbers
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -132,14 +135,17 @@ export default function DiscoverPage() {
     loadInitial();
   }, [searchTMDB]);
 
-  // Load user's series
+  // Load user's series - get TMDB IDs instead of string IDs
   useEffect(() => {
     const loadUserSeries = async () => {
       try {
         const userSeries = await getUserSeries();
-        setUserSeriesIds(
-          new Set(Array.isArray(userSeries) ? userSeries.map((s) => s.id) : []),
+        const tmdbIds = new Set(
+          userSeries
+            .map((s) => s.tmdbId)
+            .filter((id): id is number => id !== undefined && id !== null),
         );
+        setUserSeriesTmdbIds(tmdbIds);
       } catch (error) {
         console.error("Error loading user series:", error);
       }
@@ -173,16 +179,33 @@ export default function DiscoverPage() {
   const handleAddSeries = async (seriesItem: Series) => {
     setAddingSeriesId(seriesItem.id);
     try {
+      // FIXED: Pass tmdbId as first parameter (number)
       const result = await addSeriesAction(
+        seriesItem.tmdbId, // TMDB ID as number
         seriesItem.name,
         seriesItem.totalSeasons,
         [],
         seriesItem.posterPath,
         seriesItem.backdropPath,
         seriesItem.overview,
+        seriesItem.voteAverage,
+        0, // voteCount (optional)
+        seriesItem.firstAirDate,
+        null, // lastAirDate
+        seriesItem.genres,
+        undefined, // status
+        undefined, // tagline
+        undefined, // originalName
+        undefined, // originalLanguage
+        undefined, // popularity
+        undefined, // inProduction
+        undefined, // networks
+        undefined, // totalEpisodes
+        undefined, // seasons
       );
       if (result.success) {
-        setUserSeriesIds((prev) => new Set([...prev, seriesItem.id]));
+        // Add TMDB ID to the set
+        setUserSeriesTmdbIds((prev) => new Set([...prev, seriesItem.tmdbId]));
       }
     } catch (error) {
       console.error("Error adding series:", error);
@@ -203,9 +226,9 @@ export default function DiscoverPage() {
     searchTMDB("", 1, false);
   };
 
-  // Filter out series already in user's collection - ensure allSeries is always an array
+  // Filter out series already in user's collection using TMDB ID
   const availableSeries = Array.isArray(allSeries)
-    ? allSeries.filter((s) => !userSeriesIds.has(s.id))
+    ? allSeries.filter((s) => !userSeriesTmdbIds.has(s.tmdbId))
     : [];
 
   if (isLoading) {

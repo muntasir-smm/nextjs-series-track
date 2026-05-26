@@ -49,16 +49,23 @@
 │   │   │   │   └── route.ts
 │   │   │   └── tv
 │   │   │       └── [id]
-│   │   │           └── route.ts
 │   │   │
 │   │   └── user
 │   │       ├── avatar
+│   │       │   ├── temp
+│   │       │   │   └── route.ts
 │   │       │   └── route.ts
 │   │       └── profile
 │   │           └── route.ts
 │   │
 │   ├── dashboard
 │   │   ├── (overview)
+│   │   │   ├── components
+│   │   │   │   ├── empty-state.tsx
+│   │   │   │   ├── hero-section.tsx
+│   │   │   │   ├── recently-added-section.tsx
+│   │   │   │   ├── stats-section.tsx
+│   │   │   │   └── trending-section.tsx
 │   │   │   ├── error.tsx
 │   │   │   ├── loading.tsx
 │   │   │   └── page.tsx
@@ -67,11 +74,15 @@
 │   │   │   └── page.tsx
 │   │   │
 │   │   ├── profile
+│   │   │   ├── components
+│   │   │   │   ├── edit-profile-form.tsx
+│   │   │   │   ├── profile-image-upload.tsx
+│   │   │   │   ├── profile-view.tsx
+│   │   │   │   └── stats-cards.tsx
 │   │   │   └── page.tsx
 │   │   │
 │   │   ├── tvSeries
 │   │   │   ├── [id]
-│   │   │   │   └── page.tsx
 │   │   │   └── page.tsx
 │   │   │
 │   │   └── layout.tsx
@@ -96,7 +107,6 @@
 │   │   │   ├── add-series-modal.tsx
 │   │   │   ├── avatar.tsx
 │   │   │   ├── nav-links.tsx
-│   │   │   ├── profile-image-upload.tsx
 │   │   │   └── topnav.tsx
 │   │   │
 │   │   ├── tvSeries
@@ -132,11 +142,9 @@
 │   │   ├── favicon.ico
 │   │   ├── google.png
 │   │   └── logo.png
-│   │
 │   └── site.webmanifest
 │
 ├── scripts
-│   ├── cleanup-avatars.js
 │   └── seed.js
 │
 ├── .env

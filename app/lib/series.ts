@@ -1,5 +1,3 @@
-// app/lib/series.ts
-
 "use server";
 
 import { auth } from "@/app/lib/auth";
@@ -8,6 +6,7 @@ import { revalidatePath } from "next/cache";
 
 export interface Series {
   id: string;
+  tmdbId?: number;
   name: string;
   originalName?: string;
   totalSeasons: number;
@@ -39,7 +38,6 @@ export interface Series {
 }
 
 // Get all series for the current user
-
 export async function getUserSeries(): Promise<Series[]> {
   const session = await auth();
   if (!session?.user?.id) {
@@ -50,6 +48,7 @@ export async function getUserSeries(): Promise<Series[]> {
     const series = await sql`
       SELECT 
         series_id as id,
+        tmdb_id as "tmdbId",
         name,
         original_name as "originalName",
         total_seasons as "totalSeasons",
@@ -83,6 +82,7 @@ export async function getUserSeries(): Promise<Series[]> {
       totalEpisodes: s.totalEpisodes ? Number(s.totalEpisodes) : 0,
       genres: s.genres || [],
       networks: s.networks || [],
+      tmdbId: s.tmdbId, // Make sure this is included
       seasons: s.seasons
         ? typeof s.seasons === "string"
           ? JSON.parse(s.seasons)
@@ -95,8 +95,9 @@ export async function getUserSeries(): Promise<Series[]> {
   }
 }
 
-// Add a new series
+// Add a new series with duplicate prevention using TMDB ID
 export async function addSeries(
+  tmdbId: number,
   name: string,
   totalSeasons: number,
   upcomingSeasons: string[],
@@ -123,6 +124,22 @@ export async function addSeries(
     throw new Error("Not authenticated");
   }
 
+  // CHECK FOR DUPLICATE USING TMDB ID (not name)
+  const existingSeries = await sql`
+    SELECT series_id, name, tmdb_id FROM user_series
+    WHERE user_id = ${session.user.id}::uuid
+    AND tmdb_id = ${tmdbId}
+    LIMIT 1
+  `;
+
+  if (existingSeries.length > 0) {
+    return {
+      success: false,
+      error: `"${name}" is already in your collection`,
+      duplicate: true,
+    };
+  }
+
   const seriesId = `series-${Date.now()}`;
   const watchedSeasons = Array.from({ length: totalSeasons }, () => false);
   const watchProgress = 0;
@@ -131,7 +148,8 @@ export async function addSeries(
     await sql`
       INSERT INTO user_series (
         user_id, 
-        series_id, 
+        series_id,
+        tmdb_id,
         name, 
         original_name,
         total_seasons, 
@@ -157,6 +175,7 @@ export async function addSeries(
       ) VALUES (
         ${session.user.id}::uuid,
         ${seriesId},
+        ${tmdbId},
         ${name},
         ${originalName || null},
         ${totalSeasons},
@@ -184,6 +203,7 @@ export async function addSeries(
 
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/tvSeries");
+    revalidatePath("/dashboard/(overview)");
     return { success: true, seriesId };
   } catch (error) {
     console.error("Error adding series:", error);
@@ -239,6 +259,7 @@ export async function deleteSeries(seriesId: string) {
     `;
 
     revalidatePath("/dashboard/tvSeries");
+    revalidatePath("/dashboard/(overview)");
     return { success: true };
   } catch (error) {
     console.error("Error deleting series:", error);
@@ -272,6 +293,8 @@ export async function updateWatchProgress(
       AND series_id = ${seriesId}
     `;
 
+    revalidatePath("/dashboard/tvSeries");
+    revalidatePath(`/dashboard/tvSeries/${seriesId}`);
     return { success: true, watchProgress };
   } catch (error) {
     console.error("Error updating watch progress:", error);
