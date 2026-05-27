@@ -32,29 +32,58 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json();
 
-    const series = await Promise.all(
+    // Fetch season counts efficiently with Promise.all (limited to first 24 results)
+    const seriesWithSeasons = await Promise.all(
       data.results.slice(0, 24).map(async (show: any) => {
-        const detailsResponse = await fetch(
-          `${BASE_URL}/tv/${show.id}?api_key=${TMDB_API_KEY}&language=en-US`,
-        );
-        const details = await detailsResponse.json();
+        // If number_of_seasons is already in search result, use it
+        if (show.number_of_seasons && show.number_of_seasons > 0) {
+          return {
+            id: show.id,
+            name: show.name,
+            totalSeasons: show.number_of_seasons,
+            overview: show.overview || "",
+            posterPath: show.poster_path,
+            backdropPath: show.backdrop_path,
+            firstAirDate: show.first_air_date || "",
+            voteAverage: show.vote_average || 0,
+          };
+        }
 
-        return {
-          id: show.id.toString(),
-          name: show.name,
-          totalSeasons: details.number_of_seasons || 0,
-          upcomingSeasons: [],
-          posterPath: show.poster_path,
-          backdropPath: details.backdrop_path,
-          voteAverage: show.vote_average,
-          firstAirDate: show.first_air_date,
-          overview: details.overview || show.overview || "",
-        };
+        // Otherwise fetch details (but only for shows missing season data)
+        try {
+          const detailsResponse = await fetch(
+            `${BASE_URL}/tv/${show.id}?api_key=${TMDB_API_KEY}&language=en-US`,
+          );
+          const details = await detailsResponse.json();
+
+          return {
+            id: show.id,
+            name: show.name,
+            totalSeasons: details.number_of_seasons || 0,
+            overview: show.overview || "",
+            posterPath: show.poster_path,
+            backdropPath: show.backdrop_path || details.backdrop_path,
+            firstAirDate: show.first_air_date || "",
+            voteAverage: show.vote_average || 0,
+          };
+        } catch {
+          // Fallback if details fetch fails
+          return {
+            id: show.id,
+            name: show.name,
+            totalSeasons: 0,
+            overview: show.overview || "",
+            posterPath: show.poster_path,
+            backdropPath: show.backdrop_path,
+            firstAirDate: show.first_air_date || "",
+            voteAverage: show.vote_average || 0,
+          };
+        }
       }),
     );
 
     return NextResponse.json({
-      series,
+      series: seriesWithSeasons,
       totalResults: data.total_results,
       totalPages: data.total_pages,
       currentPage: page,

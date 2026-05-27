@@ -27,6 +27,7 @@
     "postcss": "8.4.31",
     "react": "19.0.0-rc-6230622a1a-20240610",
     "react-dom": "19.0.0-rc-6230622a1a-20240610",
+    "resend": "^6.12.4",
     "styled-components": "^6.1.11",
     "tailwindcss": "3.3.3",
     "typescript": "5.2.2",
