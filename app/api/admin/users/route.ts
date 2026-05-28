@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const users = await sql`
-      SELECT id, name, email, role, created_at, last_login, is_banned, is_active, ban_reason
+      SELECT id, name, email, role, created_at, last_login, is_banned, is_active, is_approved, approved_at, ban_reason
       FROM users
       ORDER BY created_at DESC
     `;
@@ -39,6 +39,46 @@ export async function PUT(request: NextRequest) {
         { error: "Missing required fields" },
         { status: 400 },
       );
+    }
+
+    // Approve User - new action for pending approvals
+    if (action === "approve") {
+      await sql`
+        UPDATE users 
+        SET 
+          is_approved = true, 
+          is_active = true,
+          approved_at = NOW(),
+          approved_by = ${session.user.id}
+        WHERE id = ${userId}
+      `;
+      return NextResponse.json({
+        success: true,
+        message: "User approved successfully",
+      });
+    }
+
+    // Reject User - delete pending user
+    if (action === "reject") {
+      // Check if user is not approved before deleting
+      const user = await sql`
+        SELECT is_approved FROM users WHERE id = ${userId}
+      `;
+
+      if (user[0]?.is_approved) {
+        return NextResponse.json(
+          { error: "Cannot reject an already approved user" },
+          { status: 400 },
+        );
+      }
+
+      await sql`
+        DELETE FROM users WHERE id = ${userId}
+      `;
+      return NextResponse.json({
+        success: true,
+        message: "User rejected and removed",
+      });
     }
 
     // Reset Password
@@ -113,6 +153,28 @@ export async function PUT(request: NextRequest) {
         UPDATE users SET role = ${data?.role} WHERE id = ${userId}
       `;
       return NextResponse.json({ success: true, message: "User role updated" });
+    }
+
+    // Make Admin
+    if (action === "makeAdmin") {
+      await sql`
+        UPDATE users SET role = 'admin' WHERE id = ${userId}
+      `;
+      return NextResponse.json({
+        success: true,
+        message: "User promoted to admin",
+      });
+    }
+
+    // Remove Admin
+    if (action === "removeAdmin") {
+      await sql`
+        UPDATE users SET role = 'user' WHERE id = ${userId}
+      `;
+      return NextResponse.json({
+        success: true,
+        message: "Admin privileges removed",
+      });
     }
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });

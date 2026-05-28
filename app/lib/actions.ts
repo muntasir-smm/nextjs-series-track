@@ -15,6 +15,7 @@ export async function authenticate(
       password: formData.get("password"),
       redirectTo: "/dashboard",
     });
+    return undefined;
   } catch (error) {
     if (error instanceof AuthError) {
       // Handle specific error types
@@ -22,7 +23,7 @@ export async function authenticate(
         return "Invalid email or password";
       }
 
-      // Check for custom error messages
+      // Check for custom error messages from your authorize function
       if (error.cause?.err?.message === "banned") {
         return "Your account has been banned. Please contact support.";
       }
@@ -31,7 +32,13 @@ export async function authenticate(
         return "Your account is deactivated. Please contact support.";
       }
 
-      return "Invalid email or/and password";
+      if (error.cause?.err?.message === "not_approved") {
+        // Get email from formData to include in return
+        const email = formData.get("email");
+        return `not_approved:${email}`;
+      }
+
+      return "Invalid email or password";
     }
     throw error;
   }

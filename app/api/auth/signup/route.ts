@@ -19,6 +19,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: "Invalid email format" },
+        { status: 400 },
+      );
+    }
+
     if (password.length < 6) {
       return NextResponse.json(
         { error: "Password must be at least 6 characters" },
@@ -26,32 +35,49 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (name.trim().length < 2) {
+      return NextResponse.json(
+        { error: "Name must be at least 2 characters" },
+        { status: 400 },
+      );
+    }
+
     // Check if user already exists
     const existingUser = await sql`
-      SELECT id FROM users WHERE email = ${email} LIMIT 1
+      SELECT id, is_approved FROM users WHERE email = ${email} LIMIT 1
     `;
 
     if (existingUser.length > 0) {
+      // If user exists but not approved, inform them
+      if (!existingUser[0].is_approved) {
+        return NextResponse.json(
+          {
+            error: "Account pending approval. Please wait for admin approval.",
+          },
+          { status: 403 },
+        );
+      }
       return NextResponse.json(
         { error: "User already exists with this email" },
         { status: 400 },
       );
     }
 
-    // Create new user (without any auto-added series)
+    // Create new user (pending approval)
     const userId = uuidv4();
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await sql`
-      INSERT INTO users (id, name, email, password)
-      VALUES (${userId}, ${name}, ${email}, ${hashedPassword})
+      INSERT INTO users (id, name, email, password, is_approved, is_active)
+      VALUES (${userId}, ${name}, ${email}, ${hashedPassword}, false, false)
     `;
 
-    // REMOVED: No auto-add series for new users
-    // New users start with an empty collection
-
     return NextResponse.json(
-      { message: "User created successfully" },
+      {
+        message:
+          "Account created! Your account is pending admin approval. You'll be able to sign in once approved.",
+        requiresApproval: true,
+      },
       { status: 201 },
     );
   } catch (error) {

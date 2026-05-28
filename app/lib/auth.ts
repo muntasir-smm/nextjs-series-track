@@ -16,6 +16,7 @@ declare module "next-auth" {
       role: string;
       is_banned: boolean;
       is_active: boolean;
+      is_approved: boolean;
     };
   }
 
@@ -23,6 +24,7 @@ declare module "next-auth" {
     role?: string;
     is_banned?: boolean;
     is_active?: boolean;
+    is_approved?: boolean;
   }
 }
 
@@ -55,11 +57,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const { email, password } = validated.data;
 
         try {
-          // Query user from Neon database including role, is_banned, is_active
+          // Query user from Neon database including role, is_banned, is_active, is_approved
           const users = await sql`
             SELECT id, email, name, password, COALESCE(role, 'user') as role, 
                    COALESCE(is_banned, false) as is_banned, 
-                   COALESCE(is_active, true) as is_active
+                   COALESCE(is_active, true) as is_active,
+                   COALESCE(is_approved, false) as is_approved
             FROM users 
             WHERE email = ${email}
             LIMIT 1
@@ -69,6 +72,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           if (!user) {
             throw new Error("Invalid email or password");
+          }
+
+          // Check if user is approved (pending approval)
+          if (!user.is_approved) {
+            throw new Error("not_approved");
           }
 
           // Check if user is banned
@@ -101,6 +109,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             role: user.role || "user",
             is_banned: user.is_banned || false,
             is_active: user.is_active || true,
+            is_approved: user.is_approved || false,
           };
         } catch (error) {
           console.error("Authorization error:", error);
@@ -126,6 +135,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.role = user.role;
         token.is_banned = user.is_banned;
         token.is_active = user.is_active;
+        token.is_approved = user.is_approved;
       }
       return token;
     },
@@ -137,6 +147,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.role = token.role as string;
         session.user.is_banned = token.is_banned as boolean;
         session.user.is_active = token.is_active as boolean;
+        session.user.is_approved = token.is_approved as boolean;
       }
       return session;
     },
@@ -152,7 +163,7 @@ export async function getCurrentUser() {
 
   try {
     const users = await sql`
-      SELECT id, email, name, role, is_banned, is_active
+      SELECT id, email, name, role, is_banned, is_active, is_approved
       FROM users 
       WHERE email = ${session.user.email}
       LIMIT 1
