@@ -8,7 +8,6 @@ import {
   TvIcon,
   ChartBarIcon,
   MegaphoneIcon,
-  ShieldCheckIcon,
   UserGroupIcon,
   StarIcon,
   ArrowDownTrayIcon,
@@ -130,23 +129,7 @@ export default function AdminPanel() {
 
   return (
     <div className="space-y-6">
-      {/* Header with Gradient */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-purple-600 via-pink-500 to-red-500 p-6 text-white shadow-xl">
-        <div className="absolute inset-0 bg-black/10"></div>
-        <div className="relative flex items-center gap-3">
-          <div className="rounded-xl bg-white/20 p-3 backdrop-blur-sm">
-            <ShieldCheckIcon className="h-8 w-8" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold md:text-3xl">Admin Panel</h1>
-            <p className="mt-1 text-sm text-white/80">
-              Manage users, monitor system, and control content
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Modern Tab Navigation */}
+      {/* Tab Navigation */}
       <div className="flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1 dark:bg-gray-800">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -188,7 +171,7 @@ export default function AdminPanel() {
         })}
       </div>
 
-      {/* Content Area with Card Style */}
+      {/* Content Area */}
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
         {/* Overview Tab */}
         {activeTab === "overview" && analytics && (
