@@ -1,4 +1,4 @@
-
+.
 ├── app
 │   ├── admin
 │   │   ├── components
@@ -103,6 +103,7 @@
 │   │   ├── auth.ts
 │   │   ├── db.ts
 │   │   ├── definitions.ts
+│   │   ├── guards.ts
 │   │   ├── placeholder-data.js
 │   │   ├── series.ts
 │   │   └── signout-action.ts
@@ -117,6 +118,7 @@
 │   │   ├── dashboard
 │   │   │   ├── add-series-modal.tsx
 │   │   │   ├── avatar.tsx
+│   │   │   ├── nav-config.ts
 │   │   │   ├── nav-links.tsx
 │   │   │   └── topnav.tsx
 │   │   │
@@ -132,11 +134,13 @@
 │   │   ├── fonts.ts
 │   │   ├── global.css
 │   │   ├── login-form.tsx
+│   │   ├── page-transition.tsx
 │   │   ├── pagination.tsx
 │   │   ├── search.tsx
 │   │   ├── series-card.tsx
 │   │   ├── signup-form.tsx
 │   │   └── skeletons.tsx
+│   │
 │   ├── layout.tsx
 │   ├── not-found.tsx
 │   └── page.tsx
