@@ -15,7 +15,7 @@ import EditSeriesForm from "@/app/ui/tvSeries/edit-series-form";
 import { ViewToggle } from "@/app/ui/tvSeries/series-controls";
 import type { ViewMode } from "@/app/ui/tvSeries/series-controls";
 import type { Series } from "@/app/lib/series";
-import { HeroSection } from "./components/hero-section";
+
 import { StatsSection } from "./components/stats-section";
 import { RecentlyAddedSection } from "./components/recently-added-section";
 import { TrendingSection } from "./components/trending-section";
@@ -361,7 +361,7 @@ export default function Page() {
     localStorage.setItem("dashboardViewMode", mode);
   }, []);
 
-  // Calculate stats - single pass O(n)
+  // Calculate stats
   const stats = useMemo(() => {
     let totalSeasons = 0;
     let watchedSeasons = 0;
@@ -434,25 +434,11 @@ export default function Page() {
           </p>
         </div>
       )}
-
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
           <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
         </div>
       )}
-
-      <HeroSection
-        userName={userName}
-        avatarUrl={avatarUrl}
-        greeting={greeting}
-        totalSeries={stats.totalSeries}
-        overallProgress={stats.progress}
-        completedSeries={stats.completed}
-        hasSeries={hasSeries}
-      />
-
-      {/* NEW: Featured Section - Shows curated series from admin */}
-      {/* <FeaturedSection /> */}
 
       {hasSeries && (
         <>
@@ -465,7 +451,7 @@ export default function Page() {
               remainingSeasons: stats.remainingSeasons,
               overallProgress: stats.progress,
             }}
-            onRefresh={() => loadSeries()}
+            userName={userName || "User"}
           />
 
           <RecentlyAddedSection
@@ -486,9 +472,7 @@ export default function Page() {
           addingId={addingSeriesId}
         />
       )}
-
       {!hasSeries && <EmptyState />}
-
       <AnimatePresence>
         {isEditModalOpen && editingSeries && (
           <motion.div

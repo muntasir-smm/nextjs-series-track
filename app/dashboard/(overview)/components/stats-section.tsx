@@ -2,9 +2,8 @@
 
 "use client";
 
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import {
-  ArrowPathIcon,
   TvIcon,
   CalendarIcon,
   CheckCircleIcon,
@@ -20,8 +19,7 @@ interface StatsSectionProps {
     remainingSeasons: number;
     overallProgress: number;
   };
-  onRefresh: () => void;
-  isRefreshing?: boolean;
+  userName: string;
 }
 
 // Extract StatCard as memoized component to prevent unnecessary re-renders
@@ -106,7 +104,6 @@ const StatCard = memo<{
               {showProgressRing ? (
                 <div className="relative h-14 w-14 mt-1">
                   <svg className="h-14 w-14 -rotate-90 transform">
-                    {/* Background circle */}
                     <circle
                       cx="28"
                       cy="28"
@@ -116,7 +113,6 @@ const StatCard = memo<{
                       fill="none"
                       className={style.ringTrack}
                     />
-                    {/* Progress circle */}
                     <circle
                       cx="28"
                       cy="28"
@@ -163,71 +159,113 @@ StatCard.displayName = "StatCard";
 
 export const StatsSection: React.FC<StatsSectionProps> = ({
   stats,
-  onRefresh,
-  isRefreshing = false,
-}) => (
-  <div className="space-y-4">
-    <div className="flex items-center justify-between">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Your Statistics
-        </h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Overview of your tracking progress
-        </p>
-      </div>
-      <button
-        onClick={onRefresh}
-        disabled={isRefreshing}
-        className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed dark:hover:bg-gray-700"
-        aria-label="Refresh"
-      >
-        <ArrowPathIcon
-          className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
-        />
-      </button>
-    </div>
+  userName,
+}) => {
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-    <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-      <StatCard
-        title="Total Series"
-        value={stats.totalSeries}
-        icon={TvIcon}
-        color="blue"
-      />
-      <StatCard
-        title="Completed"
-        value={stats.completedSeries}
-        icon={CheckCircleIcon}
-        color="green"
-      />
-      <StatCard
-        title="Total Seasons"
-        value={stats.totalSeasons}
-        icon={CalendarIcon}
-        color="purple"
-      />
-      <StatCard
-        title="Watched"
-        value={stats.totalWatchedSeasons}
-        icon={CheckCircleIcon}
-        color="teal"
-      />
-      <StatCard
-        title="Remaining"
-        value={stats.remainingSeasons}
-        icon={CalendarIcon}
-        color="orange"
-      />
-      <StatCard
-        title="Progress"
-        value={stats.overallProgress}
-        icon={ChartBarIcon}
-        color="teal"
-        suffix="%"
-        showProgressRing
-        progress={stats.overallProgress}
-      />
+  // Auto-refresh stats every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsRefreshing(true);
+      window.dispatchEvent(new CustomEvent("refresh-stats"));
+      setTimeout(() => setIsRefreshing(false), 500);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Listen for manual refresh events
+  useEffect(() => {
+    const handleRefresh = () => {
+      setIsRefreshing(true);
+      setTimeout(() => setIsRefreshing(false), 500);
+    };
+
+    window.addEventListener("series-added", handleRefresh);
+    window.addEventListener("refresh-stats", handleRefresh);
+
+    return () => {
+      window.removeEventListener("series-added", handleRefresh);
+      window.removeEventListener("refresh-stats", handleRefresh);
+    };
+  }, []);
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-50/80 via-white to-purple-50/80 dark:from-gray-900/80 dark:via-gray-800/50 dark:to-gray-900/80 p-6 shadow-lg border border-gray-200/50 dark:border-gray-700/50 backdrop-blur-sm">
+      {/* Decorative background elements */}
+      <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-400/10 dark:bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-purple-400/10 dark:bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-300/5 dark:bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="relative z-10 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              {userName}&apos;s Statistics
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Overview of your tracking progress
+              {isRefreshing && (
+                <span className="ml-2 inline-block animate-pulse text-xs text-blue-500">
+                  updating...
+                </span>
+              )}
+            </p>
+          </div>
+          {/* Live indicator */}
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+            </span>
+            <span className="text-xs text-gray-400 dark:text-gray-500">
+              Live
+            </span>
+          </div>
+        </div>
+
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+          <StatCard
+            title="Total Series"
+            value={stats.totalSeries}
+            icon={TvIcon}
+            color="blue"
+          />
+          <StatCard
+            title="Completed"
+            value={stats.completedSeries}
+            icon={CheckCircleIcon}
+            color="green"
+          />
+          <StatCard
+            title="Total Seasons"
+            value={stats.totalSeasons}
+            icon={CalendarIcon}
+            color="purple"
+          />
+          <StatCard
+            title="Watched"
+            value={stats.totalWatchedSeasons}
+            icon={CheckCircleIcon}
+            color="teal"
+          />
+          <StatCard
+            title="Remaining"
+            value={stats.remainingSeasons}
+            icon={CalendarIcon}
+            color="orange"
+          />
+          <StatCard
+            title="Progress"
+            value={stats.overallProgress}
+            icon={ChartBarIcon}
+            color="teal"
+            suffix="%"
+            showProgressRing
+            progress={stats.overallProgress}
+          />
+        </div>
+      </div>
     </div>
-  </div>
-);
+  );
+};
