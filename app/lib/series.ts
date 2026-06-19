@@ -4,6 +4,10 @@ import { auth } from "@/app/lib/auth";
 import { sql } from "@/app/lib/db";
 import { revalidatePath } from "next/cache";
 
+/* =========================
+   TYPES
+========================= */
+
 export interface Series {
   id: string;
   tmdbId?: number;
@@ -37,12 +41,22 @@ export interface Series {
   }[];
 }
 
-// Get all series for the current user
-export async function getUserSeries(): Promise<Series[]> {
+/* =========================
+   HELPERS
+========================= */
+
+async function requireUserId(): Promise<string | null> {
   const session = await auth();
-  if (!session?.user?.id) {
-    return [];
-  }
+  return session?.user?.id || null;
+}
+
+/* =========================
+   GET ALL SERIES
+========================= */
+
+export async function getUserSeries(): Promise<Series[]> {
+  const userId = await requireUserId();
+  if (!userId) return [];
 
   try {
     const series = await sql`
@@ -72,22 +86,19 @@ export async function getUserSeries(): Promise<Series[]> {
         networks,
         seasons_data as seasons
       FROM user_series
-      WHERE user_id = ${session.user.id}::uuid
+      WHERE user_id = ${userId}::uuid
       ORDER BY created_at DESC
     `;
 
-    // Parse JSON fields and ensure totalEpisodes is a number
     return series.map((s) => ({
       ...s,
       totalEpisodes: s.totalEpisodes ? Number(s.totalEpisodes) : 0,
       genres: s.genres || [],
       networks: s.networks || [],
-      tmdbId: s.tmdbId, // Make sure this is included
-      seasons: s.seasons
-        ? typeof s.seasons === "string"
-          ? JSON.parse(s.seasons)
-          : s.seasons
-        : [],
+      upcomingSeasons: s.upcomingSeasons || [],
+      watchedSeasons: s.watchedSeasons || [],
+      seasons:
+        typeof s.seasons === "string" ? JSON.parse(s.seasons) : s.seasons || [],
     })) as Series[];
   } catch (error) {
     console.error("Error fetching user series:", error);
@@ -95,7 +106,32 @@ export async function getUserSeries(): Promise<Series[]> {
   }
 }
 
-// Add a new series with duplicate prevention using TMDB ID
+/* =========================
+   FAST COUNT (FOR NAV BADGE)
+========================= */
+
+export async function getSeriesCount(): Promise<number> {
+  const userId = await requireUserId();
+  if (!userId) return 0;
+
+  try {
+    const result = await sql`
+      SELECT COUNT(*)::int as count
+      FROM user_series
+      WHERE user_id = ${userId}::uuid
+    `;
+
+    return result?.[0]?.count ?? 0;
+  } catch (error) {
+    console.error("Error fetching series count:", error);
+    return 0;
+  }
+}
+
+/* =========================
+   ADD SERIES
+========================= */
+
 export async function addSeries(
   tmdbId: number,
   name: string,
@@ -119,43 +155,40 @@ export async function addSeries(
   totalEpisodes?: number,
   seasons?: any[],
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    throw new Error("Not authenticated");
-  }
-
-  // CHECK FOR DUPLICATE USING TMDB ID (not name)
-  const existingSeries = await sql`
-    SELECT series_id, name, tmdb_id FROM user_series
-    WHERE user_id = ${session.user.id}::uuid
-    AND tmdb_id = ${tmdbId}
-    LIMIT 1
-  `;
-
-  if (existingSeries.length > 0) {
-    return {
-      success: false,
-      error: `"${name}" is already in your collection`,
-      duplicate: true,
-    };
-  }
-
-  const seriesId = `series-${Date.now()}`;
-  const watchedSeasons = Array.from({ length: totalSeasons }, () => false);
-  const watchProgress = 0;
+  const userId = await requireUserId();
+  if (!userId) throw new Error("Not authenticated");
 
   try {
+    // Duplicate check (fast & correct index usage)
+    const existing = await sql`
+      SELECT 1 FROM user_series
+      WHERE user_id = ${userId}::uuid
+      AND tmdb_id = ${tmdbId}
+      LIMIT 1
+    `;
+
+    if (existing.length > 0) {
+      return {
+        success: false,
+        duplicate: true,
+        error: `"${name}" is already in your collection`,
+      };
+    }
+
+    const seriesId = `series-${Date.now()}`;
+    const watchedSeasons = Array.from({ length: totalSeasons }, () => false);
+
     await sql`
       INSERT INTO user_series (
-        user_id, 
+        user_id,
         series_id,
         tmdb_id,
-        name, 
+        name,
         original_name,
-        total_seasons, 
+        total_seasons,
         total_episodes,
-        upcoming_seasons, 
-        watched_seasons, 
+        upcoming_seasons,
+        watched_seasons,
         watch_progress,
         poster_path,
         backdrop_path,
@@ -173,7 +206,7 @@ export async function addSeries(
         networks,
         seasons_data
       ) VALUES (
-        ${session.user.id}::uuid,
+        ${userId}::uuid,
         ${seriesId},
         ${tmdbId},
         ${name},
@@ -182,7 +215,7 @@ export async function addSeries(
         ${totalEpisodes || null},
         ${upcomingSeasons},
         ${watchedSeasons},
-        ${watchProgress},
+        0,
         ${posterPath || null},
         ${backdropPath || null},
         ${overview || null},
@@ -203,7 +236,7 @@ export async function addSeries(
 
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/tvSeries");
-    revalidatePath("/dashboard/(overview)");
+
     return { success: true, seriesId };
   } catch (error) {
     console.error("Error adding series:", error);
@@ -211,29 +244,28 @@ export async function addSeries(
   }
 }
 
-// Update series
-export async function updateSeries(updatedSeries: Series) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    throw new Error("Not authenticated");
-  }
+/* =========================
+   UPDATE SERIES
+========================= */
 
-  const roundedProgress = Math.round(updatedSeries.watchProgress);
+export async function updateSeries(updated: Series) {
+  const userId = await requireUserId();
+  if (!userId) throw new Error("Not authenticated");
 
   try {
     await sql`
       UPDATE user_series
       SET 
-        name = ${updatedSeries.name},
-        total_seasons = ${updatedSeries.totalSeasons},
-        upcoming_seasons = ${updatedSeries.upcomingSeasons},
-        watched_seasons = ${updatedSeries.watchedSeasons},
-        watch_progress = ${roundedProgress},
-        poster_path = ${updatedSeries.posterPath || null},
-        backdrop_path = ${updatedSeries.backdropPath || null},
-        overview = ${updatedSeries.overview || null}
-      WHERE user_id = ${session.user.id}::uuid
-      AND series_id = ${updatedSeries.id}
+        name = ${updated.name},
+        total_seasons = ${updated.totalSeasons},
+        upcoming_seasons = ${updated.upcomingSeasons},
+        watched_seasons = ${updated.watchedSeasons},
+        watch_progress = ${Math.round(updated.watchProgress)},
+        poster_path = ${updated.posterPath || null},
+        backdrop_path = ${updated.backdropPath || null},
+        overview = ${updated.overview || null}
+      WHERE user_id = ${userId}::uuid
+      AND series_id = ${updated.id}
     `;
 
     revalidatePath("/dashboard/tvSeries");
@@ -244,22 +276,22 @@ export async function updateSeries(updatedSeries: Series) {
   }
 }
 
-// Delete a series
+/* =========================
+   DELETE SERIES
+========================= */
+
 export async function deleteSeries(seriesId: string) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    throw new Error("Not authenticated");
-  }
+  const userId = await requireUserId();
+  if (!userId) throw new Error("Not authenticated");
 
   try {
     await sql`
       DELETE FROM user_series
-      WHERE user_id = ${session.user.id}::uuid
+      WHERE user_id = ${userId}::uuid
       AND series_id = ${seriesId}
     `;
 
     revalidatePath("/dashboard/tvSeries");
-    revalidatePath("/dashboard/(overview)");
     return { success: true };
   } catch (error) {
     console.error("Error deleting series:", error);
@@ -267,20 +299,19 @@ export async function deleteSeries(seriesId: string) {
   }
 }
 
-// Update watch progress for a series
+/* =========================
+   UPDATE WATCH PROGRESS
+========================= */
+
 export async function updateWatchProgress(
   seriesId: string,
   watchedSeasons: boolean[],
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    throw new Error("Not authenticated");
-  }
+  const userId = await requireUserId();
+  if (!userId) throw new Error("Not authenticated");
 
-  const watchProgress = Math.round(
-    (watchedSeasons.filter((watched) => watched).length /
-      watchedSeasons.length) *
-      100,
+  const progress = Math.round(
+    (watchedSeasons.filter(Boolean).length / watchedSeasons.length) * 100,
   );
 
   try {
@@ -288,14 +319,15 @@ export async function updateWatchProgress(
       UPDATE user_series
       SET 
         watched_seasons = ${watchedSeasons},
-        watch_progress = ${watchProgress}
-      WHERE user_id = ${session.user.id}::uuid
+        watch_progress = ${progress}
+      WHERE user_id = ${userId}::uuid
       AND series_id = ${seriesId}
     `;
 
     revalidatePath("/dashboard/tvSeries");
     revalidatePath(`/dashboard/tvSeries/${seriesId}`);
-    return { success: true, watchProgress };
+
+    return { success: true, watchProgress: progress };
   } catch (error) {
     console.error("Error updating watch progress:", error);
     return { success: false, error: "Failed to update progress" };
