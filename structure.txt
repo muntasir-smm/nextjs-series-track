@@ -2,6 +2,15 @@
 ├── app
 │   ├── admin
 │   │   ├── components
+│   │   │   ├── UserTable
+│   │   │   │   ├── ApprovedUsersTable.tsx
+│   │   │   │   ├── BanUserModal.tsx
+│   │   │   │   ├── EmptyState.tsx
+│   │   │   │   ├── PendingUsersSection.tsx
+│   │   │   │   ├── ResetPasswordModal.tsx
+│   │   │   │   ├── StatCard.tsx
+│   │   │   │   ├── types.ts
+│   │   │   │   └── UserDetailsModal.tsx
 │   │   │   ├── Announcements.tsx
 │   │   │   ├── BackupRestore.tsx
 │   │   │   ├── FeaturedSeries.tsx
@@ -35,8 +44,9 @@
 │   │   ├── auth
 │   │   │   ├── session
 │   │   │   │   └── route.ts
-│   │   │   └── signup
-│   │   │       └── route.ts
+│   │   │   ├── signup
+│   │   │   │   └── route.ts
+│   │   │   └── verify-email
 │   │   │
 │   │   ├── public
 │   │   │   └── popular
@@ -62,6 +72,7 @@
 │   │   ├── (overview)
 │   │   │   ├── components
 │   │   │   │   ├── empty-state.tsx
+│   │   │   │   ├── featured-section.tsx
 │   │   │   │   ├── hero-section.tsx
 │   │   │   │   ├── recently-added-section.tsx
 │   │   │   │   ├── stats-section.tsx
@@ -126,7 +137,6 @@
 │   │   ├── series-card.tsx
 │   │   ├── signup-form.tsx
 │   │   └── skeletons.tsx
-│   │
 │   ├── layout.tsx
 │   ├── not-found.tsx
 │   └── page.tsx
@@ -143,10 +153,6 @@
 │   │   ├── google.png
 │   │   └── logo.png
 │   └── site.webmanifest
-│
-├── scripts
-│   └── seed.js
-│
 ├── .env
 ├── .eslintrc.json
 ├── .gitignore

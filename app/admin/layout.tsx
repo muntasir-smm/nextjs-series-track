@@ -13,8 +13,8 @@ export default function AdminLayout({
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <TopNav />
 
-      {/* Combined Admin Header - Banner + Title + Exit Button */}
-      <div className="sticky top-0 z-40 border-b border-white/20 bg-gradient-to-r from-purple-600 via-pink-500 to-red-500 shadow-lg">
+      {/* Admin Header */}
+      <div className=" border-b border-white/20 bg-gradient-to-r from-purple-600 via-pink-500 to-red-500 shadow-lg">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-4">
             {/* Left side - Logo and Title */}

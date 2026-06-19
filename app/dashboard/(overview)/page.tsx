@@ -21,6 +21,7 @@ import { RecentlyAddedSection } from "./components/recently-added-section";
 import { TrendingSection } from "./components/trending-section";
 import { EmptyState } from "./components/empty-state";
 import type { SuggestedSeries } from "@/app/lib/definitions";
+import { FeaturedSection } from "./components/featured-section";
 
 // Simple array comparison
 const arraysEqual = (a: boolean[], b: boolean[]): boolean => {
@@ -449,6 +450,9 @@ export default function Page() {
         completedSeries={stats.completed}
         hasSeries={hasSeries}
       />
+
+      {/* NEW: Featured Section - Shows curated series from admin */}
+      {/* <FeaturedSection /> */}
 
       {hasSeries && (
         <>
