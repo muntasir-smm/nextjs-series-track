@@ -12,280 +12,271 @@ import {
   UserIcon,
   ShieldCheckIcon,
   PlusIcon,
-  ChevronDownIcon,
 } from "@heroicons/react/24/outline";
-import { useState, useEffect, useRef } from "react";
-import clsx from "clsx";
-import { signOutAction } from "@/app/lib/signout-action";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import clsx from "clsx";
+
+import { signOutAction } from "@/app/lib/signout-action";
 import Avatar from "./avatar";
 import AddSeriesModal from "./add-series-modal";
 
-export default function TopNav() {
+/* =========================
+   TYPES (FIX FOR TS ERROR)
+========================= */
+
+type SessionUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  is_banned?: boolean;
+  is_active?: boolean;
+  is_approved?: boolean;
+};
+
+type TopNavProps = {
+  user?: SessionUser;
+  seriesCount?: number;
+};
+
+export default function TopNav({ user, seriesCount }: TopNavProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [userRole, setUserRole] = useState<string>("user");
+
+  const [userRole, setUserRole] = useState("user");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [userName, setUserName] = useState<string>("");
-  const [userEmail, setUserEmail] = useState<string>(""); // Added for the design
+  const [userName, setUserName] = useState("My Account");
+  const [userEmail, setUserEmail] = useState("");
+
   const [isAddSeriesModalOpen, setIsAddSeriesModalOpen] = useState(false);
+
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
 
-  // Hide FAB on Discover page
   const hideFAB = pathname === "/dashboard/discover";
 
-  // Close dropdown when clicking outside
+  /* =========================
+     INIT FROM SERVER USER (FIX)
+  ========================= */
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    if (user) {
+      setUserRole(user.role || "user");
+      setUserEmail(user.email || "");
+      setUserName(user.name || "My Account");
+    }
+  }, [user]);
+
+  /* =========================
+     SESSION LOAD (fallback)
+  ========================= */
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/auth/session", { cache: "no-store" });
+        const session = await res.json();
+
+        if (!mounted || !res.ok) return;
+
+        const u = session?.user;
+
+        setUserRole(u?.role || "user");
+        setUserEmail(u?.email || "");
+        setUserName(u?.name || "My Account");
+      } catch {
+        setUserRole("user");
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  /* =========================
+     PROFILE LOAD
+  ========================= */
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/user/profile");
+        const data = await res.json();
+
+        if (!mounted || !res.ok) return;
+
+        setAvatarUrl(data.avatar_url || null);
+        setUserName(data.name || "My Account");
+      } catch {}
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  /* =========================
+     OUTSIDE CLICK CLOSE
+  ========================= */
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
       if (
         dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
+        !dropdownRef.current.contains(e.target as Node)
       ) {
         setIsProfileOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Close dropdown on route change
-  useEffect(() => {
-    setIsProfileOpen(false);
-  }, [pathname]);
+  useEffect(() => setIsProfileOpen(false), [pathname]);
 
-  // Load user session (role, email, maybe basic profile info)
-  useEffect(() => {
-    const loadSession = async () => {
-      try {
-        const response = await fetch("/api/auth/session");
-        const session = await response.json();
-        if (response.ok) {
-          setUserRole(session?.user?.role || "user");
-          setUserEmail(session?.user?.email || "");
-          // Initialize userName with email or some placeholder, can be updated by loadProfile
-          setUserName(session?.user?.name || "My Account");
-        }
-      } catch (error) {
-        console.error("Error loading user role:", error);
-      }
-    };
-    loadSession();
-  }, []);
+  /* =========================
+     ACTIONS
+  ========================= */
+  const toggleMobileMenu = useCallback(
+    () => setIsMobileMenuOpen((p) => !p),
+    [],
+  );
 
-  useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        const response = await fetch("/api/user/profile");
-        const data = await response.json();
-        if (response.ok) {
-          setAvatarUrl(data.avatar_url);
-          setUserName(data.name);
-          // If userName from profile is more accurate, it's already set
-        }
-      } catch (error) {
-        console.error("Error loading profile:", error);
-      }
-    };
-    loadProfile();
-  }, []);
-
-  useEffect(() => {
-    const handleAvatarUpdate = () => {
-      fetch("/api/user/profile")
-        .then((res) => res.json())
-        .then((data) => {
-          setAvatarUrl(data.avatar_url);
-          setUserName(data.name);
-        });
-    };
-
-    window.addEventListener("avatar-updated", handleAvatarUpdate);
-    return () =>
-      window.removeEventListener("avatar-updated", handleAvatarUpdate);
-  }, []);
-
-  const handleSeriesAdded = () => {
-    router.refresh();
-  };
-
-  const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
-  const closeMobileMenu = () => setIsMobileMenuOpen(false);
-  const toggleProfile = () => setIsProfileOpen(!isProfileOpen);
+  const toggleProfile = useCallback(() => setIsProfileOpen((p) => !p), []);
 
   const handleSignOut = async () => {
     if (isSigningOut) return;
     setIsSigningOut(true);
+
     try {
       await signOutAction();
-    } catch (error) {
-      console.error("Sign out error:", error);
+    } finally {
       setIsSigningOut(false);
     }
   };
 
-  // Listen for open-add-modal event
-  useEffect(() => {
-    const handleOpenModal = () => {
-      setIsAddSeriesModalOpen(true);
-    };
-
-    window.addEventListener("open-add-modal", handleOpenModal);
-    return () => window.removeEventListener("open-add-modal", handleOpenModal);
-  }, []);
+  const handleSeriesAdded = () => router.refresh();
 
   return (
     <>
-      {/* Add Series Modal */}
+      {/* MODAL */}
       <AddSeriesModal
         isOpen={isAddSeriesModalOpen}
         onClose={() => setIsAddSeriesModalOpen(false)}
         onSeriesAdded={handleSeriesAdded}
       />
 
-      {/* Floating Action Button - Hidden on Discover page */}
+      {/* FLOATING ACTION BUTTON */}
       {!hideFAB && (
         <>
-          {/* Desktop */}
           <button
             onClick={() => setIsAddSeriesModalOpen(true)}
-            className="fixed bottom-6 right-6 z-40 hidden rounded-full bg-gradient-to-r from-blue-500 to-blue-600 p-4 text-white shadow-lg transition-all hover:scale-110 hover:shadow-xl md:block"
-            aria-label="Add Series"
+            className="fixed bottom-6 right-6 z-40 hidden md:block rounded-full bg-blue-600 hover:bg-blue-700 p-4 text-white shadow-lg transition"
           >
             <PlusIcon className="h-6 w-6" />
           </button>
 
-          {/* Mobile */}
           <button
             onClick={() => setIsAddSeriesModalOpen(true)}
-            className="fixed bottom-4 right-4 z-40 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 p-3 text-white shadow-lg transition-all hover:scale-110 hover:shadow-xl md:hidden"
-            aria-label="Add Series"
+            className="fixed bottom-4 right-4 z-40 md:hidden rounded-full bg-blue-600 hover:bg-blue-700 p-3 text-white shadow-lg transition"
           >
             <PlusIcon className="h-5 w-5" />
           </button>
         </>
       )}
 
-      {/* Top Navbar with frosted glass effect */}
-      <nav className="fixed top-0 z-50 w-full bg-white/95 backdrop-blur-sm shadow-md dark:bg-gray-900/95">
-        <div className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8">
+      {/* NAVBAR */}
+      <nav className="fixed top-0 z-50 w-full border-b border-gray-200 dark:border-gray-800 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md shadow-sm transition-colors">
+        <div className="mx-auto max-w-[1200px] px-4">
           <div className="flex h-16 items-center justify-between">
-            {/* Logo/Brand */}
+            {/* LOGO */}
             <Link
               href="/dashboard"
-              className="group flex items-center gap-2 rounded-full p-1.5 transition-all duration-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/50"
-              onClick={closeMobileMenu}
+              className="flex items-center gap-2 text-gray-900 dark:text-white"
             >
-              <div className="relative h-6 w-6 sm:h-7 sm:w-7">
-                <Image
-                  src="/images/logo.png"
-                  alt="Series Tracker Logo"
-                  fill
-                  className="object-contain"
-                  priority
-                />
-              </div>
-              {/* BRAND TEXT with blue "Tracker" */}
-              <span className="text-xl sm:text-2xl font-extrabold tracking-tight text-gray-950 dark:text-white">
-                Series
-                <span className="text-blue-600 dark:text-blue-500">
-                  Tracker
-                </span>
+              <Image src="/images/logo.png" alt="logo" width={28} height={28} />
+              <span className="text-xl font-extrabold">
+                Series<span className="text-blue-600">Tracker</span>
               </span>
             </Link>
 
-            {/* Desktop Navigation Links */}
+            {/* DESKTOP NAV */}
             <div className="hidden md:block">
-              <NavLinks userRole={userRole} />
+              <NavLinks userRole={userRole} seriesCount={seriesCount} />
             </div>
 
-            {/* Desktop User Menu - Compact Dropdown */}
+            {/* PROFILE */}
             <div className="hidden md:block" ref={dropdownRef}>
-              <div className="relative">
-                <button
-                  onClick={toggleProfile}
-                  className="flex items-center gap-2 rounded-full p-1 text-gray-600 transition-all hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-                  aria-label="Profile menu"
-                >
-                  <Avatar src={avatarUrl} name={userName} size="md" />
-                  <ChevronDownIcon
-                    className={clsx(
-                      "h-4 w-4 transition-transform duration-200",
-                      {
-                        "rotate-180": isProfileOpen,
-                      },
-                    )}
-                  />
-                </button>
+              <button
+                onClick={toggleProfile}
+                className="flex items-center gap-2 rounded-full p-1 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+              >
+                <Avatar src={avatarUrl} name={userName} size="md" />
+              </button>
 
-                {/* Dropdown Menu - Card Design */}
-                {isProfileOpen && (
-                  <div className="absolute right-0 mt-3 w-64 origin-top-right rounded-2xl bg-white p-2 shadow-xl ring-1 ring-black ring-opacity-5 dark:bg-gray-800">
-                    {/* User Info - Prominent Header */}
-                    <div className="flex items-center gap-3 p-3 border-b border-gray-100 dark:border-gray-700">
-                      <Avatar src={avatarUrl} name={userName} size="xl" />
-                      <div>
-                        <p className="text-base font-bold text-gray-950 dark:text-white">
-                          {userName || "John Doe"}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {userEmail || "you@email.com"}
-                        </p>
-                      </div>
-                    </div>
+              {isProfileOpen && (
+                <div className="absolute right-3 mt-3 w-64 rounded-2xl p-2 shadow-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 transition-colors">
+                  {/* HEADER */}
+                  <div className="flex items-center gap-3 p-3 border-b border-gray-200 dark:border-gray-800">
+                    <div className="w-full text-center space-y-0.5 min-w-0">
+                      <p className="font-semibold text-base text-gray-900 dark:text-white truncate">
+                        {userName}
+                      </p>
 
-                    <div className="py-2 space-y-1">
-                      {/* Profile Link */}
-                      <Link
-                        href="/dashboard/profile"
-                        onClick={() => setIsProfileOpen(false)}
-                        className="flex w-full items-center gap-3 rounded-lg px-4 py-2 text-left text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                      >
-                        <UserIcon className="h-4 w-4 text-blue-500" />
-                        Profile
-                      </Link>
-
-                      {/* Admin Panel Link - Distinct Admin badge/icon */}
-                      {userRole === "admin" && (
-                        <Link
-                          href="/admin"
-                          onClick={() => setIsProfileOpen(false)}
-                          className="flex w-full items-center gap-3 rounded-lg px-4 py-2 text-left text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                        >
-                          <ShieldCheckIcon className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                          <span className="flex-1">Admin Panel</span>
-                          <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700 dark:bg-purple-950 dark:text-purple-300">
-                            ADMIN
-                          </span>
-                        </Link>
-                      )}
-                    </div>
-
-                    {/* Sign Out - Red Button Design */}
-                    <div className="pt-2">
-                      <button
-                        onClick={handleSignOut}
-                        disabled={isSigningOut}
-                        className="flex w-full items-center justify-center gap-2.5 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-70"
-                      >
-                        <PowerIcon className="h-5 w-5" />
-                        {isSigningOut ? "Signing out..." : "Sign Out"}
-                      </button>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {userEmail}
+                      </p>
                     </div>
                   </div>
-                )}
-              </div>
+
+                  {/* LINKS */}
+                  <Link
+                    href="/dashboard/profile"
+                    className="flex items-center gap-2 p-2 rounded-lg mt-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  >
+                    <UserIcon className="h-4 w-4 text-blue-500" />
+                    Profile
+                  </Link>
+
+                  {userRole === "admin" && (
+                    <Link
+                      href="/admin"
+                      className="flex items-center gap-2 p-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    >
+                      <ShieldCheckIcon className="h-4 w-4 text-purple-500" />
+                      Admin Panel
+                    </Link>
+                  )}
+
+                  {/* SIGN OUT */}
+                  <button
+                    onClick={handleSignOut}
+                    disabled={isSigningOut}
+                    className="w-full mt-3 py-2 rounded-lg font-semibold bg-red-600 hover:bg-red-700 text-white transition"
+                  >
+                    {isSigningOut ? "Signing out..." : "Sign Out"}
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* Mobile menu button and avatar */}
-            <div className="flex items-center gap-2 md:hidden">
-              <Avatar src={avatarUrl} name={userName} size="sm" />
+            {/* MOBILE */}
+            <div className="md:hidden flex items-center gap-2">
+              <Link
+                href="/dashboard/profile"
+                className="flex items-center gap-2 p-2 rounded-lg mt-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <Avatar src={avatarUrl} name={userName} size="sm" />
+              </Link>
+
               <button
                 onClick={toggleMobileMenu}
-                className="rounded-md p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
-                aria-label="Toggle menu"
+                className="text-gray-700 dark:text-gray-300"
               >
                 {isMobileMenuOpen ? (
                   <XMarkIcon className="h-6 w-6" />
@@ -297,31 +288,22 @@ export default function TopNav() {
           </div>
         </div>
 
-        {/* Mobile menu dropdown */}
-        <div
-          className={clsx("md:hidden", {
-            block: isMobileMenuOpen,
-            hidden: !isMobileMenuOpen,
-          })}
-        >
-          <div className="space-y-1.5 px-3.5 pb-4 pt-3">
-            <NavLinks isMobile userRole={userRole} />
+        {/* MOBILE MENU */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden px-4 pb-4 border-t border-gray-200 dark:border-gray-800">
+            <NavLinks isMobile userRole={userRole} seriesCount={seriesCount} />
 
-            {/* Mobile Sign Out Button */}
             <button
               onClick={handleSignOut}
-              disabled={isSigningOut}
-              className="flex w-full items-center justify-center gap-2.5 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-red-700 disabled:opacity-70"
+              className="w-full mt-3 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg"
             >
-              <PowerIcon className="h-5 w-5" />
-              <span>{isSigningOut ? "Signing out..." : "Sign Out"}</span>
+              Sign Out
             </button>
           </div>
-        </div>
+        )}
       </nav>
 
-      {/* Spacer */}
-      <div className="h-16"></div>
+      <div className="h-16" />
     </>
   );
 }

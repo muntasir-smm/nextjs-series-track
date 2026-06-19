@@ -42,12 +42,17 @@ export interface Series {
 }
 
 /* =========================
-   HELPERS
+   HELPERS (V5 SECURE CORE)
 ========================= */
 
-async function requireUserId(): Promise<string | null> {
+async function requireUserId(): Promise<string> {
   const session = await auth();
-  return session?.user?.id || null;
+
+  if (!session?.user?.id) {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  return session.user.id;
 }
 
 /* =========================
@@ -56,7 +61,6 @@ async function requireUserId(): Promise<string | null> {
 
 export async function getUserSeries(): Promise<Series[]> {
   const userId = await requireUserId();
-  if (!userId) return [];
 
   try {
     const series = await sql`
@@ -107,18 +111,19 @@ export async function getUserSeries(): Promise<Series[]> {
 }
 
 /* =========================
-   FAST COUNT (FOR NAV BADGE)
+   FAST COUNT (NAV OPTIMIZED)
 ========================= */
 
-export async function getSeriesCount(): Promise<number> {
-  const userId = await requireUserId();
-  if (!userId) return 0;
+export async function getSeriesCount(userId?: string): Promise<number> {
+  const id = userId || (await auth())?.user?.id;
+
+  if (!id) return 0;
 
   try {
     const result = await sql`
       SELECT COUNT(*)::int as count
       FROM user_series
-      WHERE user_id = ${userId}::uuid
+      WHERE user_id = ${id}::uuid
     `;
 
     return result?.[0]?.count ?? 0;
@@ -156,10 +161,8 @@ export async function addSeries(
   seasons?: any[],
 ) {
   const userId = await requireUserId();
-  if (!userId) throw new Error("Not authenticated");
 
   try {
-    // Duplicate check (fast & correct index usage)
     const existing = await sql`
       SELECT 1 FROM user_series
       WHERE user_id = ${userId}::uuid
@@ -171,7 +174,7 @@ export async function addSeries(
       return {
         success: false,
         duplicate: true,
-        error: `"${name}" is already in your collection`,
+        error: "Already exists in your collection",
       };
     }
 
@@ -250,7 +253,6 @@ export async function addSeries(
 
 export async function updateSeries(updated: Series) {
   const userId = await requireUserId();
-  if (!userId) throw new Error("Not authenticated");
 
   try {
     await sql`
@@ -269,6 +271,7 @@ export async function updateSeries(updated: Series) {
     `;
 
     revalidatePath("/dashboard/tvSeries");
+
     return { success: true };
   } catch (error) {
     console.error("Error updating series:", error);
@@ -282,7 +285,6 @@ export async function updateSeries(updated: Series) {
 
 export async function deleteSeries(seriesId: string) {
   const userId = await requireUserId();
-  if (!userId) throw new Error("Not authenticated");
 
   try {
     await sql`
@@ -292,6 +294,7 @@ export async function deleteSeries(seriesId: string) {
     `;
 
     revalidatePath("/dashboard/tvSeries");
+
     return { success: true };
   } catch (error) {
     console.error("Error deleting series:", error);
@@ -308,7 +311,6 @@ export async function updateWatchProgress(
   watchedSeasons: boolean[],
 ) {
   const userId = await requireUserId();
-  if (!userId) throw new Error("Not authenticated");
 
   const progress = Math.round(
     (watchedSeasons.filter(Boolean).length / watchedSeasons.length) * 100,

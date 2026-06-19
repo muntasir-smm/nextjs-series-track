@@ -1,46 +1,70 @@
 // middleware.ts
 
 import { auth } from "@/app/lib/auth";
+import { NextResponse } from "next/server";
 
 export default auth((req) => {
-  const isLoggedIn = !!req.auth;
-  const pathname = req.nextUrl.pathname;
-  const userRole = req.auth?.user?.role;
-  const isBanned = req.auth?.user?.is_banned === true;
+  const { nextUrl } = req;
+  const pathname = nextUrl.pathname;
 
-  // Block banned users from accessing any route
+  const user = req.auth?.user;
+  const isLoggedIn = !!user;
+
+  const role = user?.role ?? "user";
+  const isBanned = user?.is_banned === true;
+
+  // ==============================
+  // 🚫 1. BLOCK BANNED USERS (HIGHEST PRIORITY)
+  // ==============================
   if (isLoggedIn && isBanned) {
-    const newUrl = new URL("/login?error=banned", req.nextUrl.origin);
-    return Response.redirect(newUrl);
+    const url = nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("error", "banned");
+
+    return NextResponse.redirect(url);
   }
 
-  // Admin route protection
-  if (pathname.startsWith("/admin") && userRole !== "admin") {
-    const newUrl = new URL("/dashboard", req.nextUrl.origin);
-    return Response.redirect(newUrl);
-  }
+  // ==============================
+  // 🔐 2. PUBLIC ROUTES
+  // ==============================
+  const publicRoutes = ["/", "/login", "/signup"];
 
-  // Define public routes
-  const isPublicRoute =
-    pathname === "/" || pathname === "/login" || pathname === "/signup";
+  const isPublicRoute = publicRoutes.includes(pathname);
 
-  // Redirect logged-in users away from public routes to dashboard
+  // Redirect logged-in users away from auth pages
   if (isLoggedIn && isPublicRoute) {
-    return Response.redirect(new URL("/dashboard", req.nextUrl.origin));
+    const url = nextUrl.clone();
+    url.pathname = "/dashboard";
+    return NextResponse.redirect(url);
   }
 
-  // Allow public routes for non-logged-in users
-  if (isPublicRoute) {
-    return;
+  // Allow public access for guests
+  if (isPublicRoute && !isLoggedIn) {
+    return NextResponse.next();
   }
 
-  // Protect all other routes
+  // ==============================
+  // 🔐 3. PROTECT ALL APP ROUTES
+  // ==============================
   if (!isLoggedIn) {
-    return Response.redirect(new URL("/login", req.nextUrl.origin));
+    const url = nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
   }
 
-  // Allow access to authenticated users
-  return;
+  // ==============================
+  // 🛡️ 4. ADMIN PROTECTION
+  // ==============================
+  if (pathname.startsWith("/admin") && role !== "admin") {
+    const url = nextUrl.clone();
+    url.pathname = "/dashboard";
+    return NextResponse.redirect(url);
+  }
+
+  // ==============================
+  // ✅ 5. ALLOW ACCESS
+  // ==============================
+  return NextResponse.next();
 });
 
 export const config = {

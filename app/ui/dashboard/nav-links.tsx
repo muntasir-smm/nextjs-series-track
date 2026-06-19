@@ -1,50 +1,38 @@
-// app/ui/dashboard/nav-links.tsx
-
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-
 import { navLinks } from "./nav-config";
-import { getSeriesCount } from "@/app/lib/series";
 
-interface NavLinksProps {
+type NavLinksProps = {
   isMobile?: boolean;
   userRole?: string;
-}
+  seriesCount?: number;
+};
 
 export default function NavLinks({
   isMobile = false,
   userRole = "user",
+  seriesCount = 0,
 }: NavLinksProps) {
   const pathname = usePathname();
-  const [seriesCount, setSeriesCount] = useState(0);
 
-  // Load ONLY count (fast)
-  useEffect(() => {
-    const loadCount = async () => {
-      const count = await getSeriesCount();
-      setSeriesCount(count);
-    };
-    loadCount();
-  }, []);
-
-  // Filter admin links
-  const filteredLinks = navLinks.filter(
-    (link) => !link.adminOnly || userRole === "admin",
+  const links = useMemo(
+    () => navLinks.filter((l) => !l.adminOnly || userRole === "admin"),
+    [userRole],
   );
 
   return (
     <div
-      className={clsx("flex items-center gap-1", {
+      className={clsx("flex gap-1", {
         "flex-col w-full": isMobile,
         "flex-row": !isMobile,
       })}
     >
-      {filteredLinks.map((link) => {
-        const isActive = pathname === link.href;
+      {links.map((link) => {
+        const active = pathname === link.href;
         const Icon = link.icon;
 
         const showBadge =
@@ -55,30 +43,34 @@ export default function NavLinks({
             key={link.name}
             href={link.href}
             className={clsx(
-              "relative flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-200",
-              {
-                "w-full": isMobile,
-                "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800":
-                  !isActive,
-                "bg-blue-600 text-white shadow-md": isActive,
-              },
+              "relative flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200",
+              !active &&
+                "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800",
+
+              active &&
+                "bg-blue-600 text-white dark:bg-blue-500 dark:text-white shadow-md",
             )}
           >
             <Icon className="h-5 w-5" />
 
             <span className="flex-1">{link.name}</span>
 
-            {/* Series Count Badge */}
+            {/* BADGE */}
             {showBadge && (
-              <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold">
+              <span
+                className={clsx(
+                  "ml-auto text-xs px-2 py-0.5 rounded-full font-semibold",
+                  "bg-white/20 text-white dark:bg-white/10",
+                )}
+              >
                 {seriesCount}
               </span>
             )}
 
-            {/* Active underline (clean V1 style) */}
-            {isActive && !isMobile && (
-              <span className="absolute bottom-0 left-0 h-0.5 w-full rounded-full bg-white" />
-            )}
+            {/* ACTIVE INDICATOR */}
+            {/* {active && !isMobile && (
+              <span className="absolute bottom-0 left-0 h-0.5 w-full bg-white/80 rounded-full" />
+            )} */}
           </Link>
         );
       })}
