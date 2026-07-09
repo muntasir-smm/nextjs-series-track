@@ -1,8 +1,6 @@
-// app/ui/signup-form.tsx
-
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -16,7 +14,6 @@ import {
   CheckCircleIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
-import { useExitTransition } from "@/app/ui/login-form";
 
 interface PasswordRequirement {
   label: string;
@@ -37,7 +34,24 @@ export default function SignupForm() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
-  const { isExiting, navigateTo } = useExitTransition();
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  // CSRF Token state
+  const [csrfToken, setCsrfToken] = useState<string>("");
+
+  // Fetch CSRF token on component mount
+  useEffect(() => {
+    const fetchCSRFToken = async () => {
+      try {
+        const response = await fetch("/api/auth/csrf-token");
+        const data = await response.json();
+        setCsrfToken(data.token);
+      } catch (error) {
+        console.error("Error fetching CSRF token:", error);
+      }
+    };
+    fetchCSRFToken();
+  }, []);
 
   const validatePassword = (password: string): string[] => {
     const errors: string[] = [];
@@ -88,6 +102,7 @@ export default function SignupForm() {
           name: formData.name,
           email: formData.email,
           password: formData.password,
+          _csrf: csrfToken, // Add CSRF token to request
         }),
       });
 
@@ -103,8 +118,7 @@ export default function SignupForm() {
         );
         setFormData({ name: "", email: "", password: "", confirmPassword: "" });
       } else {
-        // Use exit transition before navigating to login
-        navigateTo("/login?message=Account created! Please sign in.");
+        router.push("/login?message=Account created! Please sign in.");
       }
     } catch (err: any) {
       setError(err.message || "Something went wrong.");
@@ -115,7 +129,10 @@ export default function SignupForm() {
 
   const handleLoginRedirect = (e: React.MouseEvent) => {
     e.preventDefault();
-    navigateTo("/login");
+    setIsTransitioning(true);
+    setTimeout(() => {
+      router.push("/login");
+    }, 500);
   };
 
   const passwordRequirements: PasswordRequirement[] = [
@@ -131,28 +148,22 @@ export default function SignupForm() {
 
   return (
     <form onSubmit={handleSubmit} className="w-full">
-      {/*
-        Exit transition: slide right + fade out when navigating back to login.
-        The parent PageTransition handles the enter animation for this page.
-      */}
       <div
-        style={{
-          opacity: isExiting ? 0 : 1,
-          transform: isExiting
-            ? "translateX(40px) scale(0.97)"
-            : "translateX(0) scale(1)",
-          transition:
-            "opacity 0.4s cubic-bezier(0.4, 0, 1, 1), transform 0.4s cubic-bezier(0.4, 0, 1, 1)",
-          willChange: "opacity, transform",
-        }}
-        className="bg-white dark:bg-gray-950 p-5 md:p-7 rounded-3xl shadow-xl shadow-gray-200/50 dark:shadow-black/50 border-t-2 border-l-2 border-gradient-from-blue-500-to-purple-600 dark:border-gray-800 space-y-4"
+        className={`bg-white dark:bg-gray-950 p-5 md:p-7 rounded-3xl shadow-xl shadow-gray-200/50 dark:shadow-black/50 border-t-2 border-l-2 border-gradient-from-blue-500-to-purple-600 dark:border-gray-800 space-y-4 transition-all duration-500 ease-in-out ${
+          isTransitioning
+            ? "opacity-0 -translate-x-12 scale-95"
+            : "opacity-100 translate-x-0 scale-100"
+        }`}
       >
+        {/* Hidden CSRF token input (for debugging, optional) */}
+        <input type="hidden" name="_csrf" value={csrfToken} />
+
         {/* Header */}
         <div className="flex items-center gap-2.5">
           <div className="relative h-8 w-8 flex-shrink-0">
             <Image
               src="/images/logo.png"
-              alt="Logo"
+              alt="Series Tracker Logo"
               width={32}
               height={32}
               className="object-contain"
@@ -181,7 +192,7 @@ export default function SignupForm() {
               </p>
               <button
                 type="button"
-                onClick={() => navigateTo("/login")}
+                onClick={() => router.push("/login")}
                 className="mt-0.5 text-xs font-semibold text-green-700 dark:text-green-300 hover:text-green-800 dark:hover:text-green-200 transition-colors"
               >
                 Continue to Login →
@@ -289,6 +300,7 @@ export default function SignupForm() {
                 )}
               </button>
             </div>
+            {/* Password Validation */}
             {(passwordFocused || formData.password) && (
               <div className="mt-2 p-2.5 rounded-lg border border-gray-100 dark:border-gray-800/50 bg-gray-50/50 dark:bg-gray-900/30 space-y-1">
                 {passwordRequirements.map((req) => {
@@ -297,7 +309,11 @@ export default function SignupForm() {
                   return (
                     <div
                       key={req.label}
-                      className={`flex items-center gap-1.5 text-xs ${isValid ? "text-green-600 dark:text-green-400" : "text-gray-500 dark:text-gray-600"}`}
+                      className={`flex items-center gap-1.5 text-xs ${
+                        isValid
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-gray-500 dark:text-gray-600"
+                      }`}
                     >
                       <StatusIcon className="h-3.5 w-3.5" />
                       <span>{req.label}</span>
@@ -349,7 +365,11 @@ export default function SignupForm() {
             </div>
             {formData.confirmPassword && (
               <div
-                className={`mt-1.5 flex items-center gap-1.5 text-xs ${formData.password === formData.confirmPassword ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}
+                className={`mt-1.5 flex items-center gap-1.5 text-xs ${
+                  formData.password === formData.confirmPassword
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-red-600 dark:text-red-400"
+                }`}
               >
                 {formData.password === formData.confirmPassword ? (
                   <CheckCircleIcon className="h-3.5 w-3.5" />

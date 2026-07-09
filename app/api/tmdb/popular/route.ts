@@ -1,6 +1,7 @@
 // app/api/tmdb/popular/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
+import { withRateLimit } from "@/app/lib/rate-limit";
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const BASE_URL = "https://api.themoviedb.org/3";
@@ -48,66 +49,75 @@ async function getGenreMap(): Promise<Map<number, string>> {
 }
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const page = parseInt(searchParams.get("page") || "1");
-  const limit = Math.min(parseInt(searchParams.get("limit") || "24"), 50);
+  return withRateLimit(
+    request,
+    async () => {
+      const searchParams = request.nextUrl.searchParams;
+      const page = parseInt(searchParams.get("page") || "1");
+      const limit = Math.min(parseInt(searchParams.get("limit") || "24"), 50);
 
-  if (!TMDB_API_KEY) {
-    return NextResponse.json({ error: "API not configured" }, { status: 500 });
-  }
+      if (!TMDB_API_KEY) {
+        return NextResponse.json(
+          { error: "API not configured" },
+          { status: 500 },
+        );
+      }
 
-  try {
-    // Fetch popular TV series
-    const response = await fetch(
-      `${BASE_URL}/tv/popular?api_key=${TMDB_API_KEY}&language=en-US&page=${page}`,
-      {
-        next: { revalidate: 3600 }, // Cache for 1 hour
-      },
-    );
+      try {
+        // Fetch popular TV series
+        const response = await fetch(
+          `${BASE_URL}/tv/popular?api_key=${TMDB_API_KEY}&language=en-US&page=${page}`,
+          {
+            next: { revalidate: 3600 }, // Cache for 1 hour
+          },
+        );
 
-    if (!response.ok) {
-      throw new Error(`TMDB API error: ${response.status}`);
-    }
+        if (!response.ok) {
+          throw new Error(`TMDB API error: ${response.status}`);
+        }
 
-    const data = await response.json();
+        const data = await response.json();
 
-    // Fetch genre map once (not in the loop!)
-    const genreMap = await getGenreMap();
+        // Fetch genre map once (not in the loop!)
+        const genreMap = await getGenreMap();
 
-    // Map genres to names
-    const series = (data.results || []).slice(0, limit).map((show: any) => {
-      const genreNames = (show.genre_ids || []).map(
-        (id: number) => genreMap.get(id) || id.toString(),
-      );
+        // Map genres to names
+        const series = (data.results || []).slice(0, limit).map((show: any) => {
+          const genreNames = (show.genre_ids || []).map(
+            (id: number) => genreMap.get(id) || id.toString(),
+          );
 
-      return {
-        id: show.id.toString(),
-        name: show.name,
-        totalSeasons: show.number_of_seasons || 0,
-        overview: show.overview || "",
-        posterPath: show.poster_path,
-        backdropPath: show.backdrop_path,
-        firstAirDate: show.first_air_date || "",
-        voteAverage: show.vote_average || 0,
-        voteCount: show.vote_count || 0,
-        genres: genreNames,
-        originalLanguage: show.original_language,
-        popularity: show.popularity || 0,
-        genreIds: show.genre_ids || [],
-      };
-    });
+          return {
+            id: show.id.toString(),
+            name: show.name,
+            totalSeasons: show.number_of_seasons || 0,
+            overview: show.overview || "",
+            posterPath: show.poster_path,
+            backdropPath: show.backdrop_path,
+            firstAirDate: show.first_air_date || "",
+            voteAverage: show.vote_average || 0,
+            voteCount: show.vote_count || 0,
+            genres: genreNames,
+            originalLanguage: show.original_language,
+            popularity: show.popularity || 0,
+            genreIds: show.genre_ids || [],
+          };
+        });
 
-    return NextResponse.json({
-      series,
-      totalResults: data.total_results || 0,
-      totalPages: data.total_pages || 0,
-      currentPage: page,
-    });
-  } catch (error) {
-    console.error("TMDB popular error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch popular series" },
-      { status: 500 },
-    );
-  }
+        return NextResponse.json({
+          series,
+          totalResults: data.total_results || 0,
+          totalPages: data.total_pages || 0,
+          currentPage: page,
+        });
+      } catch (error) {
+        console.error("TMDB popular error:", error);
+        return NextResponse.json(
+          { error: "Failed to fetch popular series" },
+          { status: 500 },
+        );
+      }
+    },
+    { maxRequests: 30, windowMs: 60 * 1000 }, // 30 requests per minute
+  );
 }
