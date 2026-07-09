@@ -6,6 +6,7 @@ import { auth } from "@/app/lib/auth";
 import { sql } from "@/app/lib/db";
 import { revalidatePath } from "next/cache";
 import { v4 as uuidv4 } from "uuid";
+import { cache } from "react";
 
 /* =========================
    TYPES
@@ -45,17 +46,27 @@ export interface Series {
 }
 
 /* =========================
-   HELPERS (V5 SECURE CORE)
+   HELPERS
 ========================= */
 
-async function requireUserId(): Promise<string> {
-  const session = await auth();
+const getSession = cache(async () => {
+  return await auth();
+});
 
-  if (!session?.user?.id) {
+async function requireUserId(): Promise<string> {
+  try {
+    // Use cached session to avoid multiple header reads
+    const session = await getSession();
+
+    if (!session?.user?.id) {
+      throw new Error("UNAUTHORIZED");
+    }
+
+    return session.user.id;
+  } catch (error) {
+    console.error("Auth error:", error);
     throw new Error("UNAUTHORIZED");
   }
-
-  return session.user.id;
 }
 
 /* =========================
@@ -63,9 +74,9 @@ async function requireUserId(): Promise<string> {
 ========================= */
 
 export async function getUserSeries(): Promise<Series[]> {
-  const userId = await requireUserId();
-
   try {
+    const userId = await requireUserId();
+
     const series = await sql`
       SELECT 
         series_id as id,
@@ -118,11 +129,10 @@ export async function getUserSeries(): Promise<Series[]> {
 ========================= */
 
 export async function getSeriesCount(userId?: string): Promise<number> {
-  const id = userId || (await auth())?.user?.id;
-
-  if (!id) return 0;
-
   try {
+    const id = userId || (await auth())?.user?.id;
+    if (!id) return 0;
+
     const result = await sql`
       SELECT COUNT(*)::int as count
       FROM user_series
@@ -163,9 +173,9 @@ export async function addSeries(
   totalEpisodes?: number,
   seasons?: any[],
 ) {
-  const userId = await requireUserId();
-
   try {
+    const userId = await requireUserId();
+
     const existing = await sql`
       SELECT 1 FROM user_series
       WHERE user_id = ${userId}::uuid
@@ -181,7 +191,6 @@ export async function addSeries(
       };
     }
 
-    // ✅ FIXED: Use uuidv4() instead of Date.now()
     const seriesId = uuidv4();
     const watchedSeasons = Array.from({ length: totalSeasons }, () => false);
 
@@ -316,7 +325,6 @@ export async function updateWatchProgress(
 ) {
   const userId = await requireUserId();
 
-  // ✅ FIXED: Guard against division by zero
   if (!watchedSeasons || watchedSeasons.length === 0) {
     return { success: true, watchProgress: 0 };
   }

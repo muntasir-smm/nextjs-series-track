@@ -330,43 +330,6 @@ function SeriesContent() {
 
   return (
     <div className="space-y-6">
-      {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-3xl border border-gray-200 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 shadow-sm dark:border-gray-700">
-        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-purple-500/20 blur-3xl" />
-
-        <div className="relative px-6 py-8 sm:px-8">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-            {/* Left */}
-            <div className="flex items-start gap-4 text-white">
-              <div className="rounded-2xl bg-white/10 p-3 backdrop-blur-sm">
-                <TvIcon className="h-7 w-7" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                  My TV Series Collection
-                </h1>
-                <p className="mt-1 text-sm text-blue-100">
-                  Manage and track everything you watch in one place
-                </p>
-              </div>
-            </div>
-
-            {/* Right */}
-            <div className="flex items-center gap-6 sm:text-right">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-blue-100">
-                  {filterLabel[filterBy]}
-                </p>
-                <p className="text-3xl font-bold text-white">
-                  {filteredSeries.length}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Error Message */}
       <AnimatePresence>
         {error && (

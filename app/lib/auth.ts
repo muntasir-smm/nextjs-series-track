@@ -5,6 +5,7 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { sql } from "./db";
+import { cache } from "react";
 
 // Extend the session type
 declare module "next-auth" {
@@ -34,6 +35,11 @@ const credentialsSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+// Cache the auth call to avoid multiple header reads
+const cachedAuth = cache(async () => {
+  return await auth();
+});
+
 // NextAuth configuration
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -57,7 +63,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const { email, password } = validated.data;
 
         try {
-          // Query user from Neon database including role, is_banned, is_active, is_approved
           const users = await sql`
             SELECT id, email, name, password, COALESCE(role, 'user') as role, 
                    COALESCE(is_banned, false) as is_banned, 
@@ -74,29 +79,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             throw new Error("Invalid email or password");
           }
 
-          // Check if user is banned
           if (user.is_banned) {
             throw new Error("banned");
           }
 
-          // Check if user is approved (pending approval)
           if (!user.is_approved) {
             throw new Error("not_approved");
           }
 
-          // Check if user is active
-          // FIXED: Use proper boolean check
           if (user.is_active === false) {
             throw new Error("inactive");
           }
 
-          // Verify password
           const isValid = await bcrypt.compare(password, user.password);
           if (!isValid) {
             throw new Error("Invalid email or password");
           }
 
-          // Update last login timestamp
           await sql`
             UPDATE users 
             SET last_login = NOW() 
@@ -157,9 +156,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
 });
 
-// Helper functions
+// Helper functions with cached auth
 export async function getCurrentUser() {
-  const session = await auth();
+  const session = await cachedAuth();
   if (!session?.user?.email) return null;
 
   try {
@@ -177,11 +176,11 @@ export async function getCurrentUser() {
 }
 
 export async function isAuthenticated() {
-  const session = await auth();
+  const session = await cachedAuth();
   return !!session;
 }
 
 export async function isAdmin() {
-  const session = await auth();
+  const session = await cachedAuth();
   return session?.user?.role === "admin";
 }

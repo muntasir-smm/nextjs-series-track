@@ -18,8 +18,8 @@ import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import { authenticate } from "@/app/lib/actions";
 import Image from "next/image";
 
-// ✅ Import useFormState and useFormStatus from react-dom for React 18
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 
 /** Shared exit-transition helper: animate out, then navigate */
 export function useExitTransition() {
@@ -42,8 +42,7 @@ export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // ✅ Use useFormState from react-dom (React 18 compatible)
-  const [errorMessage, dispatch] = useFormState(authenticate, undefined);
+  const [errorMessage, dispatch] = useActionState(authenticate, undefined);
 
   const [showPassword, setShowPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
