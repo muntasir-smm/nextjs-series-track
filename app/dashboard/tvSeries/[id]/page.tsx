@@ -143,6 +143,12 @@ export default function SeriesDetailPage() {
   const [showFullOverview, setShowFullOverview] = useState(false);
   const [updatingSeason, setUpdatingSeason] = useState<number | null>(null);
 
+  // ✅ Safely get the series ID
+  const seriesId = useMemo(() => {
+    if (!params?.id) return undefined;
+    return Array.isArray(params.id) ? params.id[0] : params.id;
+  }, [params]);
+
   // Detect dark mode
   useEffect(() => {
     const checkDarkMode = () => {
@@ -156,10 +162,6 @@ export default function SeriesDetailPage() {
     });
     return () => observer.disconnect();
   }, []);
-
-  const seriesId = useMemo(() => {
-    return Array.isArray(params.id) ? params.id[0] : params.id;
-  }, [params.id]);
 
   useEffect(() => {
     return () => {
@@ -228,6 +230,12 @@ export default function SeriesDetailPage() {
   }, []);
 
   const loadSeries = useCallback(async () => {
+    // ✅ Check if seriesId exists before loading
+    if (!seriesId) {
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const allSeries = await getUserSeries();
       const found = allSeries.find((s) => s.id === seriesId);
@@ -320,6 +328,12 @@ export default function SeriesDetailPage() {
   );
 
   const handleDeleteSeries = useCallback(async () => {
+    // ✅ Check if seriesId exists before deleting
+    if (!seriesId) {
+      console.error("No series ID found");
+      return;
+    }
+
     if (!confirm("Delete this series?")) return;
 
     setIsDeleting(true);
@@ -355,6 +369,32 @@ export default function SeriesDetailPage() {
     if (series.upcomingSeasons.length === 0) return "Series Ended";
     return `${series.upcomingSeasons[0].replace("Season", "S")} coming soon`;
   };
+
+  // ✅ If no seriesId, show error
+  if (!seriesId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+        <div className="text-center max-w-md mx-auto px-6">
+          <div className="w-24 h-24 mx-auto rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center mb-6">
+            <TvIcon className="h-12 w-12 text-gray-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            Series ID not found
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            The series ID is missing from the URL.
+          </p>
+          <Link
+            href="/dashboard/tvSeries"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-all shadow-lg"
+          >
+            <ArrowLeftIcon className="h-4 w-4" />
+            Back to TV Series
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -616,7 +656,7 @@ export default function SeriesDetailPage() {
                     </div>
                   )}
 
-                  {/* Progress Bar - Only one progress indicator */}
+                  {/* Progress Bar */}
                   <div className="max-w-md">
                     <div className="flex justify-between text-sm text-gray-700 dark:text-gray-300 mb-2">
                       <span>Watch Progress</span>

@@ -1,8 +1,11 @@
+// app/lib/series.ts
+
 "use server";
 
 import { auth } from "@/app/lib/auth";
 import { sql } from "@/app/lib/db";
 import { revalidatePath } from "next/cache";
+import { v4 as uuidv4 } from "uuid";
 
 /* =========================
    TYPES
@@ -178,7 +181,8 @@ export async function addSeries(
       };
     }
 
-    const seriesId = `series-${Date.now()}`;
+    // ✅ FIXED: Use uuidv4() instead of Date.now()
+    const seriesId = uuidv4();
     const watchedSeasons = Array.from({ length: totalSeasons }, () => false);
 
     await sql`
@@ -311,6 +315,11 @@ export async function updateWatchProgress(
   watchedSeasons: boolean[],
 ) {
   const userId = await requireUserId();
+
+  // ✅ FIXED: Guard against division by zero
+  if (!watchedSeasons || watchedSeasons.length === 0) {
+    return { success: true, watchProgress: 0 };
+  }
 
   const progress = Math.round(
     (watchedSeasons.filter(Boolean).length / watchedSeasons.length) * 100,
