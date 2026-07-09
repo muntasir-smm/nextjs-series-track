@@ -15,9 +15,11 @@ import {
   ClockIcon,
 } from "@heroicons/react/24/outline";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
-import { useFormState, useFormStatus } from "react-dom";
 import { authenticate } from "@/app/lib/actions";
 import Image from "next/image";
+
+// ✅ Import useFormState and useFormStatus from react-dom for React 18
+import { useFormState, useFormStatus } from "react-dom";
 
 /** Shared exit-transition helper: animate out, then navigate */
 export function useExitTransition() {
@@ -28,7 +30,6 @@ export function useExitTransition() {
     (href: string) => {
       if (isExiting) return;
       setIsExiting(true);
-      // Match the duration in PageTransition (450 ms) with a small buffer
       setTimeout(() => router.push(href), 480);
     },
     [isExiting, router],
@@ -38,8 +39,12 @@ export function useExitTransition() {
 }
 
 export default function LoginForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+
+  // ✅ Use useFormState from react-dom (React 18 compatible)
   const [errorMessage, dispatch] = useFormState(authenticate, undefined);
+
   const [showPassword, setShowPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);

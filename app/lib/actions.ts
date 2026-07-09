@@ -8,7 +8,7 @@ import { AuthError } from "next-auth";
 export async function authenticate(
   prevState: string | undefined,
   formData: FormData,
-) {
+): Promise<string | undefined> {
   try {
     await signIn("credentials", {
       email: formData.get("email"),
@@ -18,12 +18,10 @@ export async function authenticate(
     return undefined;
   } catch (error) {
     if (error instanceof AuthError) {
-      // Handle specific error types
       if (error.type === "CredentialsSignin") {
         return "Invalid email or password";
       }
 
-      // Check for custom error messages from your authorize function
       if (error.cause?.err?.message === "banned") {
         return "Your account has been banned. Please contact support.";
       }
@@ -33,7 +31,6 @@ export async function authenticate(
       }
 
       if (error.cause?.err?.message === "not_approved") {
-        // Get email from formData to include in return
         const email = formData.get("email");
         return `not_approved:${email}`;
       }
