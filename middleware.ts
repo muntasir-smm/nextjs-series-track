@@ -1,72 +1,56 @@
 // middleware.ts
 
-import { auth } from "@/app/lib/auth";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { auth } from "@/app/lib/auth";
 
-export default auth((req) => {
-  const { nextUrl } = req;
-  const pathname = nextUrl.pathname;
+export async function middleware(request: NextRequest) {
+  const session = await auth();
+  const isLoggedIn = !!session?.user;
+  const pathname = request.nextUrl.pathname;
 
-  const user = req.auth?.user;
-  const isLoggedIn = !!user;
-
-  const role = user?.role ?? "user";
-  const isBanned = user?.is_banned === true;
-
-  // ==============================
-  // 🚫 1. BLOCK BANNED USERS (HIGHEST PRIORITY)
-  // ==============================
-  if (isLoggedIn && isBanned) {
-    const url = nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("error", "banned");
-
-    return NextResponse.redirect(url);
+  // Check if user is active (for dashboard routes)
+  if (isLoggedIn && pathname.startsWith("/dashboard")) {
+    // If user is deactivated or banned, redirect to login
+    if (
+      session?.user?.is_banned === true ||
+      session?.user?.is_active === false
+    ) {
+      const url = new URL("/login", request.url);
+      url.searchParams.set(
+        "error",
+        session?.user?.is_banned ? "banned" : "inactive",
+      );
+      return NextResponse.redirect(url);
+    }
   }
 
-  // ==============================
-  // 🔐 2. PUBLIC ROUTES
-  // ==============================
-  const publicRoutes = ["/", "/login", "/signup"];
-
-  const isPublicRoute = publicRoutes.includes(pathname);
-
-  // Redirect logged-in users away from auth pages
-  if (isLoggedIn && isPublicRoute) {
-    const url = nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
+  // Admin routes - extra protection
+  if (isLoggedIn && pathname.startsWith("/admin")) {
+    // Double-check: admin must have role === "admin" and be active
+    if (session?.user?.role !== "admin" || session?.user?.is_active === false) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
   }
 
-  // Allow public access for guests
-  if (isPublicRoute && !isLoggedIn) {
-    return NextResponse.next();
+  // Redirect authenticated users away from auth pages
+  if (isLoggedIn && (pathname === "/login" || pathname === "/signup")) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // ==============================
-  // 🔐 3. PROTECT ALL APP ROUTES
-  // ==============================
-  if (!isLoggedIn) {
-    const url = nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+  // Protect dashboard routes
+  if (!isLoggedIn && pathname.startsWith("/dashboard")) {
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // ==============================
-  // 🛡️ 4. ADMIN PROTECTION
-  // ==============================
-  if (pathname.startsWith("/admin") && role !== "admin") {
-    const url = nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
+  // Protect admin routes
+  if (!isLoggedIn && pathname.startsWith("/admin")) {
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // ==============================
-  // ✅ 5. ALLOW ACCESS
-  // ==============================
   return NextResponse.next();
-});
+}
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/dashboard/:path*", "/admin/:path*", "/login", "/signup"],
 };

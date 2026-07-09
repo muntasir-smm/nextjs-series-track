@@ -62,7 +62,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             SELECT id, email, name, password, COALESCE(role, 'user') as role, 
                    COALESCE(is_banned, false) as is_banned, 
                    COALESCE(is_active, true) as is_active,
-                   COALESCE(is_approved, false) as is_approved
+                   COALESCE(is_approved, true) as is_approved
             FROM users 
             WHERE email = ${email}
             LIMIT 1
@@ -74,18 +74,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             throw new Error("Invalid email or password");
           }
 
-          // Check if user is approved (pending approval)
-          if (!user.is_approved) {
-            throw new Error("not_approved");
-          }
-
           // Check if user is banned
           if (user.is_banned) {
             throw new Error("banned");
           }
 
+          // Check if user is approved (pending approval)
+          if (!user.is_approved) {
+            throw new Error("not_approved");
+          }
+
           // Check if user is active
-          if (!user.is_active) {
+          // FIXED: Use proper boolean check
+          if (user.is_active === false) {
             throw new Error("inactive");
           }
 
@@ -107,9 +108,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             email: user.email,
             name: user.name,
             role: user.role || "user",
-            is_banned: user.is_banned || false,
-            is_active: user.is_active || true,
-            is_approved: user.is_approved || false,
+            is_banned: user.is_banned === true,
+            is_active: user.is_active === true,
+            is_approved: user.is_approved === true,
           };
         } catch (error) {
           console.error("Authorization error:", error);
