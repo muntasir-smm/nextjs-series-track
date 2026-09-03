@@ -19,7 +19,6 @@
 │   │   │   └── UserTable.tsx
 │   │   ├── layout.tsx
 │   │   └── page.tsx
-│   │
 │   ├── api
 │   │   ├── admin
 │   │   │   ├── analytics
@@ -36,22 +35,20 @@
 │   │   │   │   └── route.ts
 │   │   │   └── users
 │   │   │       └── route.ts
-│   │   │
 │   │   ├── announcements
 │   │   │   └── active
 │   │   │       └── route.ts
-│   │   │
 │   │   ├── auth
+│   │   │   ├── csrf-token
+│   │   │   │   └── route.ts
 │   │   │   ├── session
 │   │   │   │   └── route.ts
 │   │   │   ├── signup
 │   │   │   │   └── route.ts
 │   │   │   └── verify-email
-│   │   │
 │   │   ├── public
 │   │   │   └── popular
 │   │   │       └── route.ts
-│   │   │
 │   │   ├── tmdb
 │   │   │   ├── popular
 │   │   │   │   └── route.ts
@@ -59,7 +56,7 @@
 │   │   │   │   └── route.ts
 │   │   │   └── tv
 │   │   │       └── [id]
-│   │   │
+│   │   │           └── route.ts
 │   │   └── user
 │   │       ├── avatar
 │   │       │   ├── temp
@@ -67,53 +64,51 @@
 │   │       │   └── route.ts
 │   │       └── profile
 │   │           └── route.ts
-│   │
 │   ├── dashboard
 │   │   ├── (overview)
 │   │   │   ├── components
 │   │   │   │   ├── empty-state.tsx
 │   │   │   │   ├── featured-section.tsx
-│   │   │   │   ├── hero-section.tsx
 │   │   │   │   ├── recently-added-section.tsx
 │   │   │   │   ├── stats-section.tsx
 │   │   │   │   └── trending-section.tsx
 │   │   │   ├── error.tsx
 │   │   │   ├── loading.tsx
 │   │   │   └── page.tsx
-│   │   │
 │   │   ├── discover
 │   │   │   └── page.tsx
-│   │   │
 │   │   ├── profile
 │   │   │   ├── components
 │   │   │   │   ├── edit-profile-form.tsx
+│   │   │   │   ├── PreferencesTab.tsx
 │   │   │   │   ├── profile-image-upload.tsx
 │   │   │   │   ├── profile-view.tsx
+│   │   │   │   ├── ProfileCard.tsx
+│   │   │   │   ├── ProfileTab.tsx
+│   │   │   │   ├── QuickActions.tsx
+│   │   │   │   ├── SecurityTab.tsx
 │   │   │   │   └── stats-cards.tsx
 │   │   │   └── page.tsx
-│   │   │
 │   │   ├── tvSeries
 │   │   │   ├── [id]
+│   │   │   │   └── page.tsx
 │   │   │   └── page.tsx
-│   │   │
 │   │   └── layout.tsx
-│   │
 │   ├── lib
 │   │   ├── actions.ts
 │   │   ├── auth.ts
+│   │   ├── csrf.ts
 │   │   ├── db.ts
 │   │   ├── definitions.ts
 │   │   ├── guards.ts
 │   │   ├── placeholder-data.js
+│   │   ├── rate-limit.ts
 │   │   ├── series.ts
 │   │   └── signout-action.ts
-│   │
 │   ├── login
 │   │   └── page.tsx
-│   │
 │   ├── signup
 │   │   └── page.tsx
-│   │
 │   ├── ui
 │   │   ├── dashboard
 │   │   │   ├── add-series-modal.tsx
@@ -121,14 +116,12 @@
 │   │   │   ├── nav-config.ts
 │   │   │   ├── nav-links.tsx
 │   │   │   └── topnav.tsx
-│   │   │
 │   │   ├── tvSeries
 │   │   │   ├── add-series-form.tsx
 │   │   │   ├── edit-series-form.tsx
 │   │   │   ├── progress-bar.tsx
 │   │   │   ├── series-controls.tsx
 │   │   │   └── series-list.tsx
-│   │   │
 │   │   ├── announcements.tsx
 │   │   ├── button.tsx
 │   │   ├── fonts.ts
@@ -140,11 +133,9 @@
 │   │   ├── series-card.tsx
 │   │   ├── signup-form.tsx
 │   │   └── skeletons.tsx
-│   │
 │   ├── layout.tsx
 │   ├── not-found.tsx
 │   └── page.tsx
-│
 ├── public
 │   ├── images
 │   │   ├── android-chrome-192x192.png
@@ -157,20 +148,24 @@
 │   │   ├── google.png
 │   │   └── logo.png
 │   └── site.webmanifest
-├── .env
 ├── .eslintrc.json
 ├── .gitignore
 ├── .nvmrc
 ├── auth.config.ts
 ├── middleware.ts
-├── next-env.d.ts
 ├── next.config.js
 ├── package-lock.json
 ├── package.json
 ├── pnpm-lock.yaml
+├── pnpm-workspace.yaml
 ├── postcss.config.js
 ├── postcss.config.mjs
 ├── README.md
 ├── structure.txt
 ├── tailwind.config.ts
 └── tsconfig.json
+
+::::::::::::::::::::::::
+📁 Folders : 47
+📄 Files   : 118
+⏰Generated: 03/09/2026, 8:27:21 pm

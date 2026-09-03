@@ -7,7 +7,9 @@
     "prettier": "prettier --write --ignore-unknown .",
     "prettier:check": "prettier --check --ignore-unknown .",
     "seed": "node -r dotenv/config ./scripts/seed.js",
-    "start": "next start"
+    "start": "next start",
+    "tree": "node scripts/tree.js",
+    "tree:watch": "node scripts/tree.js --watch"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -40,6 +42,7 @@
     "@types/react-dom": "18.3.1",
     "@types/uuid": "^11.0.0",
     "@vercel/style-guide": "^5.2.0",
+    "chokidar": "^5.0.0",
     "dotenv": "^16.6.1",
     "eslint": "^8.57.1",
     "eslint-config-next": "15.3.1",
