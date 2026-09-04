@@ -1,3 +1,5 @@
+// app/ui/dashboard/nav-links.tsx
+
 "use client";
 
 import { useMemo } from "react";
