@@ -5,7 +5,7 @@ import { auth } from "@/app/lib/auth";
 import { sql } from "@/app/lib/db";
 import bcrypt from "bcryptjs";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   const session = await auth();
   if (session?.user?.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -13,7 +13,19 @@ export async function GET(request: NextRequest) {
 
   try {
     const users = await sql`
-      SELECT id, name, email, role, created_at, last_login, is_banned, is_active, is_approved, approved_at, ban_reason
+      SELECT 
+        id, 
+        name, 
+        email, 
+        role, 
+        created_at, 
+        last_login, 
+        is_banned, 
+        is_active, 
+        is_approved, 
+        approved_at, 
+        ban_reason,
+        avatar_url
       FROM users
       ORDER BY created_at DESC
     `;
@@ -41,7 +53,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Approve User - new action for pending approvals
+    // Approve User
     if (action === "approve") {
       await sql`
         UPDATE users 

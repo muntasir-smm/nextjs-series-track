@@ -23,6 +23,7 @@ import FeaturedSeries from "./components/FeaturedSeries";
 import Announcements from "./components/Announcements";
 import BackupRestore from "./components/BackupRestore";
 import SystemHealth from "./components/SystemHealth";
+import clsx from "clsx";
 
 interface Analytics {
   totalUsers: number;
@@ -86,12 +87,11 @@ export default function AdminPanel() {
         if (response.ok) {
           await loadUsers();
           return { success: true, message: result.message };
-        } else {
-          return {
-            success: false,
-            message: result.error || "Operation failed",
-          };
         }
+        return {
+          success: false,
+          message: result.error || "Operation failed",
+        };
       } catch (error) {
         console.error("Error updating user:", error);
         return { success: false, message: "Network error. Please try again." };
@@ -101,25 +101,20 @@ export default function AdminPanel() {
   );
 
   const tabs = [
-    { id: "overview", label: "Overview", icon: HomeIcon, color: "blue" },
-    { id: "users", label: "Users", icon: UsersIcon, color: "green" },
-    { id: "featured", label: "Featured", icon: StarIcon, color: "yellow" },
-    {
-      id: "announcements",
-      label: "Announcements",
-      icon: MegaphoneIcon,
-      color: "purple",
-    },
-    { id: "health", label: "Health", icon: HeartIcon, color: "red" },
-    { id: "backup", label: "Backup", icon: ArrowDownTrayIcon, color: "gray" },
+    { id: "overview", label: "Overview", icon: HomeIcon },
+    { id: "users", label: "Users", icon: UsersIcon },
+    { id: "featured", label: "Featured", icon: StarIcon },
+    { id: "announcements", label: "Announcements", icon: MegaphoneIcon },
+    { id: "health", label: "Health", icon: HeartIcon },
+    { id: "backup", label: "Backup", icon: ArrowDownTrayIcon },
   ];
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
+      <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
+          <div className="mx-auto h-9 w-9 animate-spin rounded-full border-[3px] border-brand-500 border-t-transparent" />
+          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
             Loading admin panel...
           </p>
         </div>
@@ -129,40 +124,20 @@ export default function AdminPanel() {
 
   return (
     <div className="space-y-6">
-      {/* Tab Navigation */}
-      <div className="flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1 dark:bg-gray-800">
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
-          const colorClasses = {
-            blue: isActive
-              ? "bg-blue-500 text-white"
-              : "hover:bg-blue-50 hover:text-blue-600",
-            green: isActive
-              ? "bg-green-500 text-white"
-              : "hover:bg-green-50 hover:text-green-600",
-            yellow: isActive
-              ? "bg-yellow-500 text-white"
-              : "hover:bg-yellow-50 hover:text-yellow-600",
-            purple: isActive
-              ? "bg-purple-500 text-white"
-              : "hover:bg-purple-50 hover:text-purple-600",
-            red: isActive
-              ? "bg-red-500 text-white"
-              : "hover:bg-red-50 hover:text-red-600",
-            gray: isActive
-              ? "bg-gray-500 text-white"
-              : "hover:bg-gray-100 hover:text-gray-600",
-          };
-
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+              className={clsx(
+                "flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition",
                 isActive
-                  ? `${colorClasses[tab.color as keyof typeof colorClasses]} shadow-md`
-                  : `${colorClasses[tab.color as keyof typeof colorClasses]} text-gray-600 dark:text-gray-400`
-              }`}
+                  ? "bg-brand-600 text-white shadow-sm"
+                  : "text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800",
+              )}
             >
               <tab.icon className="h-4 w-4" />
               {tab.label}
@@ -171,13 +146,12 @@ export default function AdminPanel() {
         })}
       </div>
 
-      {/* Content Area */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        {/* Overview Tab */}
+      {/* Content */}
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        {/* Overview */}
         {activeTab === "overview" && analytics && (
           <div className="p-6">
-            {/* Stats Grid */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatCard
                 title="Total Users"
                 value={analytics.totalUsers}
@@ -204,13 +178,12 @@ export default function AdminPanel() {
               />
             </div>
 
-            {/* Charts Section */}
             <div className="mt-6 grid gap-6 lg:grid-cols-2">
-              {/* Most Tracked Series */}
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-                <div className="flex items-center gap-2 mb-3">
-                  <ArrowTrendingUpIcon className="h-5 w-5 text-blue-500" />
-                  <h2 className="font-semibold text-gray-900 dark:text-white">
+              {/* Most Tracked */}
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/50">
+                <div className="mb-3 flex items-center gap-2">
+                  <ArrowTrendingUpIcon className="h-5 w-5 text-brand-500" />
+                  <h2 className="font-semibold text-slate-900 dark:text-white">
                     Most Tracked Series
                   </h2>
                 </div>
@@ -220,27 +193,28 @@ export default function AdminPanel() {
                     .map((series, index) => (
                       <div
                         key={series.name}
-                        className="flex items-center justify-between rounded-md bg-white p-3 dark:bg-gray-900"
+                        className="flex items-center justify-between rounded-xl bg-white p-3 dark:bg-slate-900"
                       >
                         <div className="flex items-center gap-3">
                           <span
-                            className={`text-lg font-bold ${
+                            className={clsx(
+                              "text-sm font-bold",
                               index === 0
-                                ? "text-yellow-500"
+                                ? "text-amber-500"
                                 : index === 1
-                                  ? "text-gray-400"
+                                  ? "text-slate-400"
                                   : index === 2
                                     ? "text-orange-500"
-                                    : "text-gray-400"
-                            }`}
+                                    : "text-slate-400",
+                            )}
                           >
                             #{index + 1}
                           </span>
-                          <span className="font-medium text-gray-900 dark:text-white">
+                          <span className="font-medium text-slate-900 dark:text-white">
                             {series.name}
                           </span>
                         </div>
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-slate-500">
                           {series.count} users
                         </span>
                       </div>
@@ -248,11 +222,11 @@ export default function AdminPanel() {
                 </div>
               </div>
 
-              {/* Popular Genres */}
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-                <div className="flex items-center gap-2 mb-3">
-                  <StarIcon className="h-5 w-5 text-purple-500" />
-                  <h2 className="font-semibold text-gray-900 dark:text-white">
+              {/* Genres */}
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/50">
+                <div className="mb-3 flex items-center gap-2">
+                  <StarIcon className="h-5 w-5 text-violet-500" />
+                  <h2 className="font-semibold text-slate-900 dark:text-white">
                     Popular Genres
                   </h2>
                 </div>
@@ -260,7 +234,7 @@ export default function AdminPanel() {
                   {analytics.popularGenres.map((genre) => (
                     <span
                       key={genre.genre}
-                      className="rounded-full bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-1 text-sm font-medium text-white shadow-sm"
+                      className="rounded-full bg-gradient-to-r from-brand-500 to-violet-500 px-3 py-1 text-sm font-medium text-white shadow-sm"
                     >
                       {genre.genre} ({genre.count})
                     </span>
@@ -269,29 +243,31 @@ export default function AdminPanel() {
               </div>
             </div>
 
-            {/* Quick Stats Row */}
+            {/* Quick stats */}
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <div className="flex items-center gap-3 rounded-lg bg-gradient-to-r from-green-50 to-teal-50 p-4 dark:from-green-900/20 dark:to-teal-900/20">
-                <UserPlusIcon className="h-8 w-8 text-green-600" />
+              <div className="flex items-center gap-3 rounded-xl bg-emerald-50 p-4 dark:bg-emerald-950/30">
+                <UserPlusIcon className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
                     New This Month
                   </p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
                     {analytics.newUsersThisMonth}
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 rounded-lg bg-gradient-to-r from-purple-50 to-pink-50 p-4 dark:from-purple-900/20 dark:to-pink-900/20">
-                <CalendarIcon className="h-8 w-8 text-purple-600" />
+              <div className="flex items-center gap-3 rounded-xl bg-violet-50 p-4 dark:bg-violet-950/30">
+                <CalendarIcon className="h-8 w-8 text-violet-600 dark:text-violet-400" />
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
                     Active Rate
                   </p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {Math.round(
-                      (analytics.activeUsers / analytics.totalUsers) * 100,
-                    )}
+                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                    {analytics.totalUsers > 0
+                      ? Math.round(
+                          (analytics.activeUsers / analytics.totalUsers) * 100,
+                        )
+                      : 0}
                     %
                   </p>
                 </div>
@@ -300,7 +276,6 @@ export default function AdminPanel() {
           </div>
         )}
 
-        {/* Users Tab */}
         {activeTab === "users" && (
           <div className="p-6">
             <UserTable
@@ -311,28 +286,24 @@ export default function AdminPanel() {
           </div>
         )}
 
-        {/* Featured Tab */}
         {activeTab === "featured" && (
           <div className="p-6">
             <FeaturedSeries />
           </div>
         )}
 
-        {/* Announcements Tab */}
         {activeTab === "announcements" && (
           <div className="p-6">
             <Announcements />
           </div>
         )}
 
-        {/* System Health Tab */}
         {activeTab === "health" && (
           <div className="p-6">
             <SystemHealth />
           </div>
         )}
 
-        {/* Backup Tab */}
         {activeTab === "backup" && (
           <div className="p-6">
             <BackupRestore />

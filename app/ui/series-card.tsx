@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { PlusIcon, ArrowPathIcon, StarIcon } from "@heroicons/react/24/outline";
 import Image from "next/image";
+import clsx from "clsx";
 
 interface SeriesCardProps {
   id: string;
@@ -34,7 +35,6 @@ const formatYear = (dateString: string | null | undefined) => {
 };
 
 export default function SeriesCard({
-  id,
   name,
   totalSeasons,
   posterPath,
@@ -51,102 +51,95 @@ export default function SeriesCard({
   const isCompact = variant === "compact";
 
   return (
-    <div className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-300 hover:shadow-xl dark:border-gray-700 dark:bg-gray-800">
-      {/* Poster Container */}
-      <div className="relative aspect-[2/3] overflow-hidden bg-gray-100 dark:bg-gray-700">
+    <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-soft-lg dark:border-slate-700 dark:bg-slate-800">
+      {/* Poster */}
+      <div className="relative aspect-[2/3] overflow-hidden bg-slate-100 dark:bg-slate-700">
         {posterUrl ? (
           <Image
             src={posterUrl}
             alt={name}
             fill
-            className="object-cover transition-transform duration-500 group-hover:scale-110"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600">
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-brand-500 to-violet-600">
             <span className="text-4xl font-bold text-white">
               {name.charAt(0)}
             </span>
           </div>
         )}
 
-        {/* Add Button - Top Left */}
+        {/* Add button */}
         <button
           onClick={onAdd}
           disabled={isAdding}
-          className="absolute top-2 left-2 rounded-md bg-blue-600/90 px-2 py-1 text-xs font-medium text-white opacity-0 transition-all duration-300 hover:bg-blue-700 group-hover:opacity-100 disabled:opacity-50"
+          className={clsx(
+            "absolute left-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-xl bg-brand-600 text-white shadow-md transition-all",
+            "opacity-0 group-hover:opacity-100 hover:bg-brand-700 disabled:opacity-50",
+          )}
           title="Add to My Series"
         >
           {isAdding ? (
-            <ArrowPathIcon className="h-3 w-3 animate-spin" />
+            <ArrowPathIcon className="h-4 w-4 animate-spin" />
           ) : (
-            <PlusIcon className="h-3 w-3" />
+            <PlusIcon className="h-4 w-4" />
           )}
         </button>
 
-        {/* Rating Badge - Top Right */}
+        {/* Rating */}
         {voteAverage && voteAverage > 0 && (
-          <div className="absolute top-2 right-2 flex items-center gap-1 rounded-md bg-black/70 px-1.5 py-0.5 text-xs font-semibold text-yellow-400 backdrop-blur-sm">
-            <StarIcon className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
+          <div className="absolute right-2.5 top-2.5 flex items-center gap-1 rounded-lg bg-black/70 px-1.5 py-0.5 text-xs font-semibold text-amber-400 backdrop-blur-sm">
+            <StarIcon className="h-3 w-3 fill-amber-400 text-amber-400" />
             {voteAverage.toFixed(1)}
           </div>
         )}
       </div>
 
-      {/* Content Section */}
-      <div className="flex flex-1 flex-col p-2">
-        {/* Title */}
-        <div className={isCompact ? "min-h-[2rem]" : "min-h-[2.5rem]"}>
-          <h3
-            className={`font-semibold text-gray-900 dark:text-white line-clamp-2 ${isCompact ? "text-xs" : "text-sm"}`}
-          >
-            {name}
-          </h3>
-        </div>
+      {/* Content */}
+      <div className="flex flex-1 flex-col p-3">
+        <h3
+          className={clsx(
+            "font-semibold text-slate-900 dark:text-white line-clamp-2",
+            isCompact ? "text-xs" : "text-sm",
+          )}
+        >
+          {name}
+        </h3>
 
-        {/* Season & Year */}
-        <div className="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+        <div className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
           <span>{totalSeasons || "?"} seasons</span>
-          <span>•</span>
+          <span className="text-slate-300 dark:text-slate-600">•</span>
           <span>{formatYear(firstAirDate)}</span>
         </div>
 
-        {/* Genres - Only show in default mode */}
         {!isCompact && genres && genres.length > 0 && (
-          <div className="mt-1">
-            <div className="flex flex-wrap gap-1">
-              {genres.map((genre: string) => (
-                <span
-                  key={genre}
-                  className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                >
-                  {genre}
-                </span>
-              ))}
-            </div>
+          <div className="mt-2 flex flex-wrap gap-1">
+            {genres.slice(0, 3).map((genre) => (
+              <span
+                key={genre}
+                className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+              >
+                {genre}
+              </span>
+            ))}
           </div>
         )}
 
-        {!isCompact && !genres?.length && (
-          <div className="mt-1">
-            <span className="text-[10px] text-gray-400">No genres</span>
-          </div>
-        )}
-
-        {/* Overview - Only show in default mode */}
         {!isCompact && overview && (
-          <div className="relative mt-2">
+          <div className="mt-2">
             <p
-              className={`text-xs text-gray-600 dark:text-gray-400 transition-all duration-300 ${
-                showFullOverview ? "line-clamp-none" : "line-clamp-3"
-              }`}
+              className={clsx(
+                "text-xs text-slate-600 dark:text-slate-400",
+                showFullOverview ? "" : "line-clamp-3",
+              )}
             >
               {overview}
             </p>
             {overview.length > 150 && (
               <button
                 onClick={() => setShowFullOverview(!showFullOverview)}
-                className="mt-1 text-[10px] text-blue-500 hover:text-blue-600"
+                className="mt-1 text-[11px] font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
               >
                 {showFullOverview ? "Show less" : "Read more"}
               </button>

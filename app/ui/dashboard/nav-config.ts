@@ -1,14 +1,20 @@
 // app/ui/dashboard/nav-config.ts
+
 "use client";
 
 import {
   FilmIcon,
   SparklesIcon,
-  UserIcon,
+  HomeIcon,
   ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
 
 export const navLinks = [
+  {
+    name: "Overview",
+    href: "/dashboard",
+    icon: HomeIcon,
+  },
   {
     name: "TV Series",
     href: "/dashboard/tvSeries",
@@ -20,13 +26,8 @@ export const navLinks = [
     href: "/dashboard/discover",
     icon: SparklesIcon,
   },
-  //   {
-  //     name: "Profile",
-  //     href: "/dashboard/profile",
-  //     icon: UserIcon,
-  //   },
   {
-    name: "Admin Panel",
+    name: "Admin",
     href: "/admin",
     icon: ShieldCheckIcon,
     adminOnly: true,

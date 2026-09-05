@@ -11,57 +11,52 @@ export const metadata = {
 
 export default function SignupPage() {
   return (
-    <main className="relative flex min-h-screen items-center justify-center bg-gray-50 dark:bg-[#0a0e17] px-4 py-12 md:py-16 overflow-hidden">
-      {/* Background Effects */}
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-[10%] -left-[5%] w-[60vw] h-[60vh] bg-blue-400/10 dark:bg-blue-900/10 rounded-full blur-[140px] opacity-70" />
-        <div className="absolute -bottom-[15%] -right-[10%] w-[50vw] h-[50vh] bg-purple-400/10 dark:bg-purple-900/10 rounded-full blur-[140px] opacity-70" />
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 px-4 py-12 dark:bg-slate-950 md:py-16">
+      {/* Background */}
+      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+        <div className="absolute -left-[5%] -top-[10%] h-[50vh] w-[50vw] rounded-full bg-brand-400/10 blur-[120px] dark:bg-brand-900/20" />
+        <div className="absolute -bottom-[15%] -right-[10%] h-[45vh] w-[45vw] rounded-full bg-violet-400/10 blur-[120px] dark:bg-violet-900/20" />
       </div>
 
-      <div className="relative z-10 w-full max-w-[1100px]">
+      <div className="relative z-10 w-full max-w-5xl">
         <PageTransition direction="left">
-          <div className="grid md:grid-cols-2 gap-10 items-center">
-            {/* Left Side: Form */}
-            <div className="w-full max-w-[450px] mx-auto md:mr-0 lg:max-w-none lg:w-[450px] order-2 md:order-1">
+          <div className="grid items-center gap-10 md:grid-cols-2">
+            {/* Form side */}
+            <div className="order-2 mx-auto w-full max-w-[420px] md:order-1">
               <SignupForm />
             </div>
 
-            {/* Right Side: Brand - Left Aligned */}
-            <div className="flex flex-col items-center md:items-start text-center md:text-left space-y-4 order-1 md:order-2">
+            {/* Brand side */}
+            <div className="order-1 flex flex-col items-center space-y-5 text-center md:order-2 md:items-start md:text-left">
               <div className="flex items-center gap-3">
-                <div className="relative h-10 w-10 flex-shrink-0">
-                  <Image
-                    src="/images/logo.png"
-                    alt="Logo"
-                    width={40}
-                    height={40}
-                    className="object-contain"
-                    priority
-                  />
-                </div>
-                <span className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tighter">
+                <Image
+                  src="/images/logo.png"
+                  alt="Logo"
+                  width={40}
+                  height={40}
+                  className="object-contain"
+                  priority
+                />
+                <span className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
                   Series
-                  <span className="text-blue-600 dark:text-blue-500">
-                    Tracker
-                  </span>
+                  <span className="text-brand-600">Tracker</span>
                 </span>
               </div>
 
-              <div className="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white leading-[1.1] tracking-tighter">
+              <h1 className="text-4xl font-extrabold leading-[1.1] tracking-tight text-slate-900 dark:text-white md:text-5xl">
                 Your next favorite
                 <br />
-                <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-brand-600 via-violet-600 to-pink-500 bg-clip-text text-transparent dark:from-brand-400 dark:via-violet-400 dark:to-pink-400">
                   series awaits.
                 </span>
-              </div>
+              </h1>
 
-              <p className="text-base text-gray-600 dark:text-gray-400 max-w-md">
+              <p className="max-w-md text-base text-slate-600 dark:text-slate-400">
                 Never miss an episode. Keep track of what you&apos;ve watched
-                and discover new shows recommended just for you. Join the
-                community.
+                and discover new shows recommended just for you.
               </p>
 
-              <div className="hidden md:flex flex-wrap gap-2 pt-2">
+              <div className="hidden flex-wrap gap-2 pt-1 md:flex">
                 {[
                   "Track Shows",
                   "Set Reminders",
@@ -70,7 +65,7 @@ export default function SignupPage() {
                 ].map((tag) => (
                   <span
                     key={tag}
-                    className="px-3 py-1 rounded-full border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-900/50 text-xs font-medium text-gray-700 dark:text-gray-300"
+                    className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300"
                   >
                     {tag}
                   </span>
@@ -81,20 +76,19 @@ export default function SignupPage() {
         </PageTransition>
       </div>
 
-      {/* Mobile Footer */}
-      <footer className="absolute bottom-5 left-0 w-full text-center md:hidden px-4">
-        <p className="text-[11px] text-gray-500 dark:text-gray-600">
+      <footer className="absolute bottom-5 left-0 w-full px-4 text-center md:hidden">
+        <p className="text-[11px] text-slate-500 dark:text-slate-600">
           By joining, you agree to Series Tracker&apos;s{" "}
           <Link
             href="/terms"
-            className="text-blue-600 dark:text-blue-500 hover:underline font-medium"
+            className="font-medium text-brand-600 hover:underline dark:text-brand-400"
           >
             Terms
           </Link>{" "}
           and{" "}
           <Link
             href="/privacy"
-            className="text-blue-600 dark:text-blue-500 hover:underline font-medium"
+            className="font-medium text-brand-600 hover:underline dark:text-brand-400"
           >
             Privacy Policy
           </Link>

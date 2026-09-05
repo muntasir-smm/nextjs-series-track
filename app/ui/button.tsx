@@ -5,7 +5,8 @@ import { forwardRef } from "react";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
-  variant?: "primary" | "secondary" | "danger" | "success" | "gradient";
+  variant?:
+    "primary" | "secondary" | "danger" | "success" | "ghost" | "outline";
   size?: "sm" | "md" | "lg";
   isLoading?: boolean;
 }
@@ -25,21 +26,23 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ) => {
     const variants = {
       primary:
-        "bg-blue-500 hover:bg-blue-600 focus-visible:outline-blue-500 active:bg-blue-700 text-white",
+        "bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800 shadow-sm",
       secondary:
-        "bg-gray-500 hover:bg-gray-600 focus-visible:outline-gray-500 active:bg-gray-700 text-white",
+        "bg-slate-100 text-slate-900 hover:bg-slate-200 active:bg-slate-300 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700",
       danger:
-        "bg-red-500 hover:bg-red-600 focus-visible:outline-red-500 active:bg-red-700 text-white",
+        "bg-red-600 text-white hover:bg-red-700 active:bg-red-800 shadow-sm",
       success:
-        "bg-green-500 hover:bg-green-600 focus-visible:outline-green-500 active:bg-green-700 text-white",
-      gradient:
-        "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 hover:shadow-lg text-white",
+        "bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800 shadow-sm",
+      ghost:
+        "bg-transparent text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800",
+      outline:
+        "border border-slate-300 bg-transparent text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800",
     };
 
     const sizes = {
-      sm: "h-8 px-3 text-xs",
-      md: "h-10 px-4 text-sm",
-      lg: "h-12 px-6 text-base",
+      sm: "h-8 px-3 text-xs rounded-lg",
+      md: "h-10 px-4 text-sm rounded-xl",
+      lg: "h-12 px-6 text-base rounded-xl",
     };
 
     return (
@@ -48,19 +51,16 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || isLoading}
         {...rest}
         className={clsx(
-          "flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
+          "inline-flex items-center justify-center gap-2 font-medium transition-all duration-200",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950",
+          "disabled:pointer-events-none disabled:opacity-50",
           variants[variant],
           sizes[size],
           className,
         )}
       >
         {isLoading && (
-          <svg
-            className="h-4 w-4 animate-spin"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
+          <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
             <circle
               className="opacity-25"
               cx="12"
@@ -68,7 +68,6 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
               r="10"
               stroke="currentColor"
               strokeWidth="4"
-              fill="none"
             />
             <path
               className="opacity-75"

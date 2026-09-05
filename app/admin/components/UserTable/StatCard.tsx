@@ -10,13 +10,14 @@ import {
   ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
 import type { FilterType } from "./types";
+import clsx from "clsx";
 
 const iconMap = {
-  UserIcon: UserIcon,
-  ClockIcon: ClockIcon,
-  CheckCircleIcon: CheckCircleIcon,
-  NoSymbolIcon: NoSymbolIcon,
-  ShieldCheckIcon: ShieldCheckIcon,
+  UserIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  NoSymbolIcon,
+  ShieldCheckIcon,
 };
 
 interface StatCardProps {
@@ -44,32 +45,39 @@ export function StatCard({
   return (
     <button
       onClick={() => onFilterChange(filter)}
-      className={`relative overflow-hidden rounded-xl p-4 transition-all duration-200 ${
+      className={clsx(
+        "relative overflow-hidden rounded-2xl p-4 transition-all duration-200",
         isActive
-          ? `bg-gradient-to-br ${color} shadow-lg scale-[1.02]`
-          : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:shadow-md hover:scale-[1.01]"
-      }`}
+          ? `bg-gradient-to-br ${color} scale-[1.02] shadow-lg`
+          : "border border-slate-200 bg-white hover:shadow-soft dark:border-slate-700 dark:bg-slate-900",
+      )}
     >
       <div className="relative z-10">
         <div className="flex items-center justify-between">
           <Icon
-            className={`h-5 w-5 ${isActive ? "text-white/80" : "text-gray-400"}`}
+            className={clsx(
+              "h-5 w-5",
+              isActive ? "text-white/80" : "text-slate-400",
+            )}
           />
           <span
-            className={`text-2xl font-bold ${isActive ? "text-white" : "text-gray-900 dark:text-white"}`}
+            className={clsx(
+              "text-2xl font-bold tracking-tight",
+              isActive ? "text-white" : "text-slate-900 dark:text-white",
+            )}
           >
             {value}
           </span>
         </div>
         <p
-          className={`mt-2 text-xs font-medium ${isActive ? "text-white/70" : "text-gray-500"}`}
+          className={clsx(
+            "mt-2 text-xs font-medium",
+            isActive ? "text-white/70" : "text-slate-500 dark:text-slate-400",
+          )}
         >
           {label}
         </p>
       </div>
-      {isActive && (
-        <div className="absolute inset-0 bg-white/10 rounded-xl pointer-events-none" />
-      )}
     </button>
   );
 }

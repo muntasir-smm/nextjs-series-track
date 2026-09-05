@@ -9,10 +9,9 @@ import {
   StarIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
-import SeriesCard from "@/app/ui/series-card";
 import Image from "next/image";
 
-interface FeaturedSeries {
+interface FeaturedSeriesItem {
   id: number;
   series_id: string;
   series_name: string;
@@ -22,7 +21,9 @@ interface FeaturedSeries {
 }
 
 export default function FeaturedSeries() {
-  const [featuredSeries, setFeaturedSeries] = useState<FeaturedSeries[]>([]);
+  const [featuredSeries, setFeaturedSeries] = useState<FeaturedSeriesItem[]>(
+    [],
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -52,7 +53,6 @@ export default function FeaturedSeries() {
       setSearchResults([]);
       return;
     }
-
     setIsSearching(true);
     try {
       const response = await fetch(
@@ -69,7 +69,6 @@ export default function FeaturedSeries() {
 
   const addFeaturedSeries = async () => {
     if (!selectedSeries) return;
-
     try {
       const response = await fetch("/api/admin/featured", {
         method: "POST",
@@ -81,7 +80,6 @@ export default function FeaturedSeries() {
           reason: reason || "Featured pick",
         }),
       });
-
       if (response.ok) {
         await loadFeaturedSeries();
         setIsModalOpen(false);
@@ -96,15 +94,11 @@ export default function FeaturedSeries() {
 
   const removeFeaturedSeries = async (id: number) => {
     if (!confirm("Remove this series from featured?")) return;
-
     try {
       const response = await fetch(`/api/admin/featured?id=${id}`, {
         method: "DELETE",
       });
-
-      if (response.ok) {
-        await loadFeaturedSeries();
-      }
+      if (response.ok) await loadFeaturedSeries();
     } catch (error) {
       console.error("Error removing featured series:", error);
     }
@@ -116,36 +110,40 @@ export default function FeaturedSeries() {
   };
 
   if (isLoading) {
-    return <div className="text-center py-8">Loading featured series...</div>;
+    return (
+      <div className="flex justify-center py-12">
+        <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-brand-500 border-t-transparent" />
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
             Featured Series
           </h3>
-          <p className="text-sm text-gray-500">Series shown on homepage</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Series shown on homepage
+          </p>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 rounded-lg bg-blue-500 px-3 py-1.5 text-sm text-white hover:bg-blue-600"
+          className="flex items-center gap-2 rounded-xl bg-brand-600 px-3.5 py-2 text-sm font-medium text-white transition hover:bg-brand-700"
         >
           <PlusIcon className="h-4 w-4" />
           Add Featured
         </button>
       </div>
 
-      {/* Featured Series Grid */}
       {featuredSeries.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center dark:border-gray-600">
-          <StarIcon className="mx-auto h-12 w-12 text-gray-400" />
-          <p className="mt-2 text-gray-500">No featured series yet</p>
+        <div className="rounded-2xl border border-dashed border-slate-300 p-10 text-center dark:border-slate-600">
+          <StarIcon className="mx-auto h-10 w-10 text-slate-400" />
+          <p className="mt-3 text-sm text-slate-500">No featured series yet</p>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="mt-2 text-sm text-blue-500 hover:text-blue-600"
+            className="mt-2 text-sm font-medium text-brand-600 hover:underline dark:text-brand-400"
           >
             Add your first featured series
           </button>
@@ -155,27 +153,29 @@ export default function FeaturedSeries() {
           {featuredSeries.map((series) => (
             <div
               key={series.id}
-              className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800"
+              className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
             >
               {getPosterUrl(series.poster_path) && (
-                <div className="relative h-12 w-8 flex-shrink-0">
+                <div className="relative h-14 w-10 shrink-0 overflow-hidden rounded-lg">
                   <Image
                     src={getPosterUrl(series.poster_path)!}
                     alt={series.series_name}
                     fill
-                    className="rounded object-cover"
+                    className="object-cover"
                   />
                 </div>
               )}
-              <div className="flex-1">
-                <h4 className="font-medium text-gray-900 dark:text-white">
+              <div className="min-w-0 flex-1">
+                <h4 className="truncate font-medium text-slate-900 dark:text-white">
                   {series.series_name}
                 </h4>
-                <p className="text-xs text-gray-500">{series.reason}</p>
+                <p className="truncate text-xs text-slate-500">
+                  {series.reason}
+                </p>
               </div>
               <button
                 onClick={() => removeFeaturedSeries(series.id)}
-                className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                className="rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
               >
                 <TrashIcon className="h-4 w-4" />
               </button>
@@ -184,22 +184,20 @@ export default function FeaturedSeries() {
         </div>
       )}
 
-      {/* Add Featured Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl dark:bg-gray-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-soft-lg dark:border-slate-700 dark:bg-slate-900">
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute right-4 top-4 rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              className="absolute right-4 top-4 rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800"
             >
               <XMarkIcon className="h-5 w-5" />
             </button>
             <div className="p-6">
-              <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">
+              <h2 className="mb-4 text-xl font-bold text-slate-900 dark:text-white">
                 Add Featured Series
               </h2>
 
-              {/* Search */}
               <div className="relative mb-4">
                 <input
                   type="text"
@@ -209,18 +207,17 @@ export default function FeaturedSeries() {
                     searchTMDB(e.target.value);
                   }}
                   placeholder="Search for a series..."
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
                 />
                 {isSearching && (
                   <div className="absolute right-3 top-2.5">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></div>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
                   </div>
                 )}
               </div>
 
-              {/* Search Results */}
               {searchResults.length > 0 && !selectedSeries && (
-                <div className="mb-4 max-h-60 overflow-y-auto space-y-2 rounded-md border border-gray-200 p-2">
+                <div className="mb-4 max-h-60 space-y-1 overflow-y-auto rounded-xl border border-slate-200 p-2 dark:border-slate-700">
                   {searchResults.map((series: any) => (
                     <button
                       key={series.id}
@@ -229,21 +226,23 @@ export default function FeaturedSeries() {
                         setSearchResults([]);
                         setSearchQuery("");
                       }}
-                      className="flex w-full gap-2 rounded-md p-2 text-left hover:bg-gray-50"
+                      className="flex w-full gap-2 rounded-lg p-2 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800"
                     >
                       {series.posterPath && (
-                        <div className="relative h-12 w-8 flex-shrink-0">
+                        <div className="relative h-12 w-8 shrink-0 overflow-hidden rounded">
                           <Image
                             src={`https://image.tmdb.org/t/p/w92${series.posterPath}`}
                             alt={series.name}
                             fill
-                            className="rounded object-cover"
+                            className="object-cover"
                           />
                         </div>
                       )}
                       <div>
-                        <div className="font-medium">{series.name}</div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-sm font-medium text-slate-900 dark:text-white">
+                          {series.name}
+                        </div>
+                        <div className="text-xs text-slate-500">
                           {series.totalSeasons || "?"} seasons
                         </div>
                       </div>
@@ -252,25 +251,24 @@ export default function FeaturedSeries() {
                 </div>
               )}
 
-              {/* Selected Series Preview */}
               {selectedSeries && (
-                <div className="mb-4 rounded-md bg-blue-50 p-3 dark:bg-blue-900/20">
+                <div className="mb-4 rounded-xl bg-brand-50 p-3 dark:bg-brand-950/30">
                   <div className="flex gap-3">
                     {selectedSeries.posterPath && (
-                      <div className="relative h-12 w-8 flex-shrink-0">
+                      <div className="relative h-12 w-8 shrink-0 overflow-hidden rounded">
                         <Image
                           src={`https://image.tmdb.org/t/p/w92${selectedSeries.posterPath}`}
                           alt={selectedSeries.name}
                           fill
-                          className="rounded object-cover"
+                          className="object-cover"
                         />
                       </div>
                     )}
                     <div>
-                      <p className="font-medium text-gray-900 dark:text-white">
+                      <p className="font-medium text-slate-900 dark:text-white">
                         {selectedSeries.name}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-slate-500">
                         {selectedSeries.totalSeasons || "?"} seasons
                       </p>
                     </div>
@@ -278,26 +276,25 @@ export default function FeaturedSeries() {
                 </div>
               )}
 
-              {/* Reason */}
               <input
                 type="text"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Reason for featuring (optional)"
-                className="mb-4 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                className="mb-4 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
               />
 
               <div className="flex gap-3">
                 <button
                   onClick={addFeaturedSeries}
                   disabled={!selectedSeries}
-                  className="flex-1 rounded-md bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:opacity-50"
+                  className="flex-1 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700 disabled:opacity-50"
                 >
                   Add to Featured
                 </button>
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
+                  className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
                 >
                   Cancel
                 </button>

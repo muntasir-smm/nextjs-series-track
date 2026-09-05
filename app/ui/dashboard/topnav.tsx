@@ -6,12 +6,12 @@ import Link from "next/link";
 import Image from "next/image";
 import NavLinks from "@/app/ui/dashboard/nav-links";
 import {
-  PowerIcon,
   Bars3Icon,
   XMarkIcon,
   UserIcon,
   ShieldCheckIcon,
   PlusIcon,
+  ArrowRightOnRectangleIcon,
 } from "@heroicons/react/24/outline";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -20,10 +20,6 @@ import clsx from "clsx";
 import { signOutAction } from "@/app/lib/signout-action";
 import Avatar from "./avatar";
 import AddSeriesModal from "./add-series-modal";
-
-/* =========================
-   TYPES (FIX FOR TS ERROR)
-========================= */
 
 type SessionUser = {
   id: string;
@@ -44,12 +40,10 @@ export default function TopNav({ user, seriesCount }: TopNavProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-
   const [userRole, setUserRole] = useState("user");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [userName, setUserName] = useState("My Account");
   const [userEmail, setUserEmail] = useState("");
-
   const [isAddSeriesModalOpen, setIsAddSeriesModalOpen] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -58,9 +52,6 @@ export default function TopNav({ user, seriesCount }: TopNavProps) {
 
   const hideFAB = pathname === "/dashboard/discover";
 
-  /* =========================
-     INIT FROM SERVER USER (FIX)
-  ========================= */
   useEffect(() => {
     if (user) {
       setUserRole(user.role || "user");
@@ -69,9 +60,6 @@ export default function TopNav({ user, seriesCount }: TopNavProps) {
     }
   }, [user]);
 
-  /* =========================
-     SESSION LOAD (fallback)
-  ========================= */
   useEffect(() => {
     let mounted = true;
 
@@ -79,11 +67,8 @@ export default function TopNav({ user, seriesCount }: TopNavProps) {
       try {
         const res = await fetch("/api/auth/session", { cache: "no-store" });
         const session = await res.json();
-
         if (!mounted || !res.ok) return;
-
         const u = session?.user;
-
         setUserRole(u?.role || "user");
         setUserEmail(u?.email || "");
         setUserName(u?.name || "My Account");
@@ -97,9 +82,6 @@ export default function TopNav({ user, seriesCount }: TopNavProps) {
     };
   }, []);
 
-  /* =========================
-     PROFILE LOAD
-  ========================= */
   useEffect(() => {
     let mounted = true;
 
@@ -107,9 +89,7 @@ export default function TopNav({ user, seriesCount }: TopNavProps) {
       try {
         const res = await fetch("/api/user/profile");
         const data = await res.json();
-
         if (!mounted || !res.ok) return;
-
         setAvatarUrl(data.avatar_url || null);
         setUserName(data.name || "My Account");
       } catch {}
@@ -120,9 +100,6 @@ export default function TopNav({ user, seriesCount }: TopNavProps) {
     };
   }, []);
 
-  /* =========================
-     OUTSIDE CLICK CLOSE
-  ========================= */
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (
@@ -132,16 +109,15 @@ export default function TopNav({ user, seriesCount }: TopNavProps) {
         setIsProfileOpen(false);
       }
     };
-
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  useEffect(() => setIsProfileOpen(false), [pathname]);
+  useEffect(() => {
+    setIsProfileOpen(false);
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
 
-  /* =========================
-     ACTIONS
-  ========================= */
   const toggleMobileMenu = useCallback(
     () => setIsMobileMenuOpen((p) => !p),
     [],
@@ -152,7 +128,6 @@ export default function TopNav({ user, seriesCount }: TopNavProps) {
   const handleSignOut = async () => {
     if (isSigningOut) return;
     setIsSigningOut(true);
-
     try {
       await signOutAction();
     } finally {
@@ -164,119 +139,115 @@ export default function TopNav({ user, seriesCount }: TopNavProps) {
 
   return (
     <>
-      {/* MODAL */}
       <AddSeriesModal
         isOpen={isAddSeriesModalOpen}
         onClose={() => setIsAddSeriesModalOpen(false)}
         onSeriesAdded={handleSeriesAdded}
       />
 
-      {/* FLOATING ACTION BUTTON */}
+      {/* Floating Add Button */}
       {!hideFAB && (
-        <>
-          <button
-            onClick={() => setIsAddSeriesModalOpen(true)}
-            className="fixed bottom-6 right-6 z-40 hidden md:block rounded-full bg-blue-600 hover:bg-blue-700 p-4 text-white shadow-lg transition"
-          >
-            <PlusIcon className="h-6 w-6" />
-          </button>
-
-          <button
-            onClick={() => setIsAddSeriesModalOpen(true)}
-            className="fixed bottom-4 right-4 z-40 md:hidden rounded-full bg-blue-600 hover:bg-blue-700 p-3 text-white shadow-lg transition"
-          >
-            <PlusIcon className="h-5 w-5" />
-          </button>
-        </>
+        <button
+          onClick={() => setIsAddSeriesModalOpen(true)}
+          className={clsx(
+            "fixed z-40 flex items-center justify-center rounded-full bg-brand-600 text-white shadow-lg transition-all duration-200",
+            "hover:bg-brand-700 hover:shadow-glow active:scale-95",
+            "bottom-6 right-6 h-14 w-14 md:bottom-8 md:right-8",
+          )}
+          aria-label="Add series"
+        >
+          <PlusIcon className="h-6 w-6" />
+        </button>
       )}
 
-      {/* NAVBAR */}
-      <nav className="fixed top-0 z-50 w-full border-b border-gray-200 dark:border-gray-800 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md shadow-sm transition-colors">
-        <div className="mx-auto max-w-[1200px] px-4">
-          <div className="flex h-16 items-center justify-between">
-            {/* LOGO */}
+      {/* Navbar */}
+      <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/80 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/80">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between gap-4">
+            {/* Logo */}
             <Link
               href="/dashboard"
-              className="flex items-center gap-2 text-gray-900 dark:text-white"
+              className="flex items-center gap-2.5 shrink-0"
             >
-              <Image src="/images/logo.png" alt="logo" width={28} height={28} />
-              <span className="text-xl font-extrabold">
-                Series<span className="text-blue-600">Tracker</span>
+              <Image
+                src="/images/logo.png"
+                alt="Series Tracker"
+                width={28}
+                height={28}
+                className="rounded-lg"
+              />
+              <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+                Series
+                <span className="text-brand-600">Tracker</span>
               </span>
             </Link>
 
-            {/* DESKTOP NAV */}
-            <div className="hidden md:block">
+            {/* Desktop Nav */}
+            <div className="hidden md:flex md:flex-1 md:justify-center">
               <NavLinks userRole={userRole} seriesCount={seriesCount} />
             </div>
 
-            {/* PROFILE */}
-            <div className="hidden md:block" ref={dropdownRef}>
+            {/* Desktop Profile */}
+            <div className="hidden md:block relative" ref={dropdownRef}>
               <button
                 onClick={toggleProfile}
-                className="flex items-center gap-2 rounded-full p-1 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                className="flex items-center gap-2 rounded-full p-1 transition hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 <Avatar src={avatarUrl} name={userName} size="md" />
               </button>
 
               {isProfileOpen && (
-                <div className="absolute right-3 mt-3 w-64 rounded-2xl p-2 shadow-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 transition-colors">
-                  {/* HEADER */}
-                  <div className="flex items-center gap-3 p-3 border-b border-gray-200 dark:border-gray-800">
-                    <div className="w-full text-center space-y-0.5 min-w-0">
-                      <p className="font-semibold text-base text-gray-900 dark:text-white truncate">
-                        {userName}
-                      </p>
-
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {userEmail}
-                      </p>
-                    </div>
+                <div className="absolute right-0 mt-2 w-64 origin-top-right rounded-2xl border border-slate-200 bg-white p-2 shadow-soft-lg dark:border-slate-700 dark:bg-slate-900 animate-fade-in">
+                  <div className="border-b border-slate-100 px-3 py-3 dark:border-slate-800">
+                    <p className="truncate font-semibold text-slate-900 dark:text-white">
+                      {userName}
+                    </p>
+                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                      {userEmail}
+                    </p>
                   </div>
 
-                  {/* LINKS */}
-                  <Link
-                    href="/dashboard/profile"
-                    className="flex items-center gap-2 p-2 rounded-lg mt-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
-                  >
-                    <UserIcon className="h-4 w-4 text-blue-500" />
-                    Profile
-                  </Link>
-
-                  {userRole === "admin" && (
+                  <div className="mt-1 space-y-0.5">
                     <Link
-                      href="/admin"
-                      className="flex items-center gap-2 p-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                      href="/dashboard/profile"
+                      className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
                     >
-                      <ShieldCheckIcon className="h-4 w-4 text-purple-500" />
-                      Admin Panel
+                      <UserIcon className="h-4 w-4 text-brand-500" />
+                      Profile
                     </Link>
-                  )}
 
-                  {/* SIGN OUT */}
+                    {userRole === "admin" && (
+                      <Link
+                        href="/admin"
+                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                      >
+                        <ShieldCheckIcon className="h-4 w-4 text-violet-500" />
+                        Admin Panel
+                      </Link>
+                    )}
+                  </div>
+
                   <button
                     onClick={handleSignOut}
                     disabled={isSigningOut}
-                    className="w-full mt-3 py-2 rounded-lg font-semibold bg-red-600 hover:bg-red-700 text-white transition"
+                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-100 dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-950/60"
                   >
+                    <ArrowRightOnRectangleIcon className="h-4 w-4" />
                     {isSigningOut ? "Signing out..." : "Sign Out"}
                   </button>
                 </div>
               )}
             </div>
 
-            {/* MOBILE */}
-            <div className="md:hidden flex items-center gap-2">
-              <Link
-                href="/dashboard/profile"
-                className="flex items-center gap-2 p-2 rounded-lg mt-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
-              >
+            {/* Mobile controls */}
+            <div className="flex items-center gap-2 md:hidden">
+              <Link href="/dashboard/profile">
                 <Avatar src={avatarUrl} name={userName} size="sm" />
               </Link>
-
               <button
                 onClick={toggleMobileMenu}
-                className="text-gray-700 dark:text-gray-300"
+                className="rounded-xl p-2 text-slate-600 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                aria-label="Toggle menu"
               >
                 {isMobileMenuOpen ? (
                   <XMarkIcon className="h-6 w-6" />
@@ -288,22 +259,20 @@ export default function TopNav({ user, seriesCount }: TopNavProps) {
           </div>
         </div>
 
-        {/* MOBILE MENU */}
+        {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden px-4 pb-4 border-t border-gray-200 dark:border-gray-800">
+          <div className="border-t border-slate-200 bg-white px-4 pb-4 pt-3 dark:border-slate-800 dark:bg-slate-950 md:hidden animate-slide-up">
             <NavLinks isMobile userRole={userRole} seriesCount={seriesCount} />
-
             <button
               onClick={handleSignOut}
-              className="w-full mt-3 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg"
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-red-50 py-2.5 text-sm font-medium text-red-600 dark:bg-red-950/40 dark:text-red-400"
             >
+              <ArrowRightOnRectangleIcon className="h-4 w-4" />
               Sign Out
             </button>
           </div>
         )}
-      </nav>
-
-      <div className="h-16" />
+      </header>
     </>
   );
 }

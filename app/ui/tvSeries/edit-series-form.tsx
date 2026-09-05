@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useState } from "react";
+import clsx from "clsx";
 
 interface EditSeriesFormProps {
   series: {
@@ -20,6 +21,9 @@ interface EditSeriesFormProps {
   onCancel: () => void;
   isSubmitting?: boolean;
 }
+
+const inputBase =
+  "mt-1.5 block w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-800 dark:text-white";
 
 const EditSeriesForm: React.FC<EditSeriesFormProps> = ({
   series,
@@ -39,23 +43,13 @@ const EditSeriesForm: React.FC<EditSeriesFormProps> = ({
   }>({});
 
   const validateForm = (): boolean => {
-    const newErrors: {
-      name?: string;
-      totalSeasons?: string;
-      hasUpcoming?: string;
-    } = {};
+    const newErrors: typeof errors = {};
 
-    if (!name.trim()) {
-      newErrors.name = "Series name is required";
-    }
-
-    if (totalSeasons < 1) {
+    if (!name.trim()) newErrors.name = "Series name is required";
+    if (totalSeasons < 1)
       newErrors.totalSeasons = "Total seasons must be at least 1";
-    }
-
-    if (hasUpcoming === null) {
+    if (hasUpcoming === null)
       newErrors.hasUpcoming = "Please select Yes or No for upcoming season";
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -63,25 +57,21 @@ const EditSeriesForm: React.FC<EditSeriesFormProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     let upcomingSeasons: string[] = [];
-
     if (hasUpcoming === true) {
-      const nextSeasonNumber = totalSeasons + 1;
-      upcomingSeasons = [`Season ${nextSeasonNumber}`];
+      upcomingSeasons = [`Season ${totalSeasons + 1}`];
     }
 
     onSave(series.id, name, totalSeasons, upcomingSeasons);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Name */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
           Series Name <span className="text-red-500">*</span>
         </label>
         <input
@@ -89,20 +79,22 @@ const EditSeriesForm: React.FC<EditSeriesFormProps> = ({
           value={name}
           onChange={(e) => setName(e.target.value)}
           disabled={isSubmitting}
-          className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-1 disabled:opacity-50 disabled:cursor-not-allowed ${
-            errors.name
-              ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-              : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-          } dark:border-gray-600 dark:bg-gray-700 dark:text-white`}
           placeholder="Enter series name"
+          className={clsx(
+            inputBase,
+            errors.name
+              ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+              : "border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-600",
+          )}
         />
         {errors.name && (
-          <p className="mt-1 text-xs text-red-500">{errors.name}</p>
+          <p className="mt-1.5 text-xs text-red-500">{errors.name}</p>
         )}
       </div>
 
+      {/* Total Seasons */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
           Total Seasons <span className="text-red-500">*</span>
         </label>
         <input
@@ -111,24 +103,26 @@ const EditSeriesForm: React.FC<EditSeriesFormProps> = ({
           onChange={(e) => setTotalSeasons(parseInt(e.target.value) || 0)}
           disabled={isSubmitting}
           min={1}
-          className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-1 disabled:opacity-50 disabled:cursor-not-allowed ${
-            errors.totalSeasons
-              ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-              : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-          } dark:border-gray-600 dark:bg-gray-700 dark:text-white`}
           placeholder="Enter number of seasons"
+          className={clsx(
+            inputBase,
+            errors.totalSeasons
+              ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+              : "border-slate-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-600",
+          )}
         />
         {errors.totalSeasons && (
-          <p className="mt-1 text-xs text-red-500">{errors.totalSeasons}</p>
+          <p className="mt-1.5 text-xs text-red-500">{errors.totalSeasons}</p>
         )}
       </div>
 
+      {/* Upcoming */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
           Any Upcoming Season? <span className="text-red-500">*</span>
         </label>
-        <div className="flex gap-4">
-          <label className="inline-flex items-center gap-2 cursor-pointer">
+        <div className="flex gap-5">
+          <label className="inline-flex cursor-pointer items-center gap-2">
             <input
               type="radio"
               name="hasUpcoming"
@@ -136,13 +130,13 @@ const EditSeriesForm: React.FC<EditSeriesFormProps> = ({
               checked={hasUpcoming === true}
               onChange={() => setHasUpcoming(true)}
               disabled={isSubmitting}
-              className="h-4 w-4 border-gray-300 text-blue-500 focus:ring-blue-500"
+              className="h-4 w-4 border-slate-300 text-brand-600 focus:ring-brand-500"
             />
-            <span className="text-sm text-gray-700 dark:text-gray-300">
+            <span className="text-sm text-slate-700 dark:text-slate-300">
               Yes
             </span>
           </label>
-          <label className="inline-flex items-center gap-2 cursor-pointer">
+          <label className="inline-flex cursor-pointer items-center gap-2">
             <input
               type="radio"
               name="hasUpcoming"
@@ -150,31 +144,34 @@ const EditSeriesForm: React.FC<EditSeriesFormProps> = ({
               checked={hasUpcoming === false}
               onChange={() => setHasUpcoming(false)}
               disabled={isSubmitting}
-              className="h-4 w-4 border-gray-300 text-blue-500 focus:ring-blue-500"
+              className="h-4 w-4 border-slate-300 text-brand-600 focus:ring-brand-500"
             />
-            <span className="text-sm text-gray-700 dark:text-gray-300">No</span>
+            <span className="text-sm text-slate-700 dark:text-slate-300">
+              No
+            </span>
           </label>
         </div>
         {errors.hasUpcoming && (
-          <p className="mt-1 text-xs text-red-500">{errors.hasUpcoming}</p>
+          <p className="mt-1.5 text-xs text-red-500">{errors.hasUpcoming}</p>
         )}
         {hasUpcoming === true && !errors.hasUpcoming && (
-          <p className="mt-2 text-xs text-green-600 dark:text-green-400">
+          <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">
             Season {totalSeasons + 1} will be added as upcoming
           </p>
         )}
         {hasUpcoming === false && !errors.hasUpcoming && (
-          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
             Series will be marked as ended
           </p>
         )}
       </div>
 
-      <div className="flex gap-3 pt-2">
+      {/* Actions */}
+      <div className="flex gap-3 pt-1">
         <button
           type="submit"
           disabled={isSubmitting}
-          className="flex-1 rounded-md bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSubmitting ? "Saving..." : "Save Changes"}
         </button>
@@ -182,7 +179,7 @@ const EditSeriesForm: React.FC<EditSeriesFormProps> = ({
           type="button"
           onClick={onCancel}
           disabled={isSubmitting}
-          className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+          className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
         >
           Cancel
         </button>

@@ -5,6 +5,7 @@
 import { UserCircleIcon } from "@heroicons/react/24/outline";
 import Image from "next/image";
 import { useState, useEffect } from "react";
+import clsx from "clsx";
 
 interface AvatarProps {
   src?: string | null;
@@ -19,6 +20,13 @@ const sizes = {
   md: "h-10 w-10 text-sm",
   lg: "h-16 w-16 text-base",
   xl: "h-24 w-24 text-lg",
+};
+
+const pixelSizes = {
+  sm: 32,
+  md: 40,
+  lg: 64,
+  xl: 96,
 };
 
 const shapes = {
@@ -52,27 +60,27 @@ export default function Avatar({
       .slice(0, 2);
   };
 
-  // If image exists and no error, show image
   if (imageSrc && !imgError) {
     return (
       <Image
         src={imageSrc}
         alt={name || "Avatar"}
-        width={parseInt(sizes[size].split(" ")[0].replace("h-", "")) * 4}
-        height={parseInt(sizes[size].split(" ")[0].replace("h-", "")) * 4}
-        className={`${shapes[shape]} object-cover ${sizes[size]} ${className}`}
-        onError={() => {
-          console.error("Image failed to load:", imageSrc);
-          setImgError(true);
-        }}
+        width={pixelSizes[size]}
+        height={pixelSizes[size]}
+        className={clsx(shapes[shape], sizes[size], "object-cover", className)}
+        onError={() => setImgError(true)}
       />
     );
   }
 
-  // Fallback to initials or default icon
   return (
     <div
-      className={`flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600 text-white ${shapes[shape]} ${sizes[size]} ${className}`}
+      className={clsx(
+        "flex items-center justify-center bg-gradient-to-br from-brand-500 to-violet-600 text-white",
+        shapes[shape],
+        sizes[size],
+        className,
+      )}
     >
       {getInitials() !== "?" ? (
         <span className="font-medium">{getInitials()}</span>

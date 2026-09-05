@@ -6,7 +6,6 @@ import { useState, useEffect } from "react";
 import {
   PlusIcon,
   TrashIcon,
-  PencilIcon,
   XMarkIcon,
   MegaphoneIcon,
   CheckCircleIcon,
@@ -14,6 +13,7 @@ import {
   InformationCircleIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
+import clsx from "clsx";
 
 interface Announcement {
   id: number;
@@ -30,8 +30,6 @@ export default function Announcements() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingAnnouncement, setEditingAnnouncement] =
-    useState<Announcement | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     message: "",
@@ -59,14 +57,12 @@ export default function Announcements() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
     try {
       const response = await fetch("/api/admin/announcements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
-
       if (response.ok) {
         await loadAnnouncements();
         setIsModalOpen(false);
@@ -86,10 +82,7 @@ export default function Announcements() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, isActive: !isActive }),
       });
-
-      if (response.ok) {
-        await loadAnnouncements();
-      }
+      if (response.ok) await loadAnnouncements();
     } catch (error) {
       console.error("Error toggling announcement:", error);
     }
@@ -97,90 +90,86 @@ export default function Announcements() {
 
   const deleteAnnouncement = async (id: number) => {
     if (!confirm("Are you sure you want to delete this announcement?")) return;
-
     try {
       const response = await fetch(`/api/admin/announcements?id=${id}`, {
         method: "DELETE",
       });
-
-      if (response.ok) {
-        await loadAnnouncements();
-      }
+      if (response.ok) await loadAnnouncements();
     } catch (error) {
       console.error("Error deleting announcement:", error);
     }
   };
 
   const resetForm = () => {
-    setEditingAnnouncement(null);
-    setFormData({
-      title: "",
-      message: "",
-      type: "info",
-      expiresAt: "",
-    });
+    setFormData({ title: "", message: "", type: "info", expiresAt: "" });
   };
 
   const getTypeIcon = (type: string) => {
     switch (type) {
       case "success":
-        return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
+        return <CheckCircleIcon className="h-5 w-5 text-emerald-500" />;
       case "warning":
-        return <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />;
+        return <ExclamationTriangleIcon className="h-5 w-5 text-amber-500" />;
       case "error":
         return <XCircleIcon className="h-5 w-5 text-red-500" />;
       default:
-        return <InformationCircleIcon className="h-5 w-5 text-blue-500" />;
+        return <InformationCircleIcon className="h-5 w-5 text-brand-500" />;
     }
   };
 
   const getTypeStyles = (type: string) => {
     switch (type) {
       case "success":
-        return "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20";
+        return "border-emerald-200 bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/30";
       case "warning":
-        return "border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900/20";
+        return "border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30";
       case "error":
-        return "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20";
+        return "border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30";
       default:
-        return "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20";
+        return "border-brand-200 bg-brand-50 dark:border-brand-900/50 dark:bg-brand-950/30";
     }
   };
 
   if (isLoading) {
-    return <div className="text-center py-8">Loading announcements...</div>;
+    return (
+      <div className="flex justify-center py-12">
+        <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-brand-500 border-t-transparent" />
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
             Announcements
           </h3>
-          <p className="text-sm text-gray-500">Send messages to all users</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Send messages to all users
+          </p>
         </div>
         <button
           onClick={() => {
             resetForm();
             setIsModalOpen(true);
           }}
-          className="flex items-center gap-2 rounded-lg bg-blue-500 px-3 py-1.5 text-sm text-white hover:bg-blue-600"
+          className="flex items-center gap-2 rounded-xl bg-brand-600 px-3.5 py-2 text-sm font-medium text-white transition hover:bg-brand-700"
         >
           <PlusIcon className="h-4 w-4" />
           New Announcement
         </button>
       </div>
 
-      {/* Announcements List */}
+      {/* List */}
       {announcements.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center dark:border-gray-600">
-          <MegaphoneIcon className="mx-auto h-12 w-12 text-gray-400" />
-          <p className="mt-2 text-gray-500">No announcements yet</p>
+        <div className="rounded-2xl border border-dashed border-slate-300 p-10 text-center dark:border-slate-600">
+          <MegaphoneIcon className="mx-auto h-10 w-10 text-slate-400" />
+          <p className="mt-3 text-sm text-slate-500">No announcements yet</p>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="mt-2 text-sm text-blue-500 hover:text-blue-600"
+            className="mt-2 text-sm font-medium text-brand-600 hover:underline dark:text-brand-400"
           >
             Create your first announcement
           </button>
@@ -190,25 +179,28 @@ export default function Announcements() {
           {announcements.map((announcement) => (
             <div
               key={announcement.id}
-              className={`rounded-lg border p-4 transition-all ${getTypeStyles(announcement.type)}`}
+              className={clsx(
+                "rounded-2xl border p-4 transition",
+                getTypeStyles(announcement.type),
+              )}
             >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
                     {getTypeIcon(announcement.type)}
-                    <h4 className="font-semibold text-gray-900 dark:text-white">
+                    <h4 className="font-semibold text-slate-900 dark:text-white">
                       {announcement.title}
                     </h4>
                     {!announcement.is_active && (
-                      <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-400">
                         Inactive
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                     {announcement.message}
                   </p>
-                  <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                     <span>By: {announcement.creator_name}</span>
                     <span>•</span>
                     <span>
@@ -227,16 +219,17 @@ export default function Announcements() {
                     )}
                   </div>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex shrink-0 gap-1">
                   <button
                     onClick={() =>
                       toggleStatus(announcement.id, announcement.is_active)
                     }
-                    className={`rounded-lg p-1.5 transition-all ${
+                    className={clsx(
+                      "rounded-lg p-1.5 transition",
                       announcement.is_active
-                        ? "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                        : "text-green-500 hover:bg-green-50"
-                    }`}
+                        ? "text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+                        : "text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/30",
+                    )}
                     title={announcement.is_active ? "Deactivate" : "Activate"}
                   >
                     {announcement.is_active ? (
@@ -247,7 +240,7 @@ export default function Announcements() {
                   </button>
                   <button
                     onClick={() => deleteAnnouncement(announcement.id)}
-                    className="rounded-lg p-1.5 text-red-500 hover:bg-red-50"
+                    className="rounded-lg p-1.5 text-red-500 transition hover:bg-red-50 dark:hover:bg-red-950/30"
                     title="Delete"
                   >
                     <TrashIcon className="h-4 w-4" />
@@ -259,23 +252,23 @@ export default function Announcements() {
         </div>
       )}
 
-      {/* Create/Edit Modal */}
+      {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl dark:bg-gray-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-soft-lg dark:border-slate-700 dark:bg-slate-900">
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute right-4 top-4 rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              className="absolute right-4 top-4 rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800"
             >
               <XMarkIcon className="h-5 w-5" />
             </button>
             <div className="p-6">
-              <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">
-                {editingAnnouncement ? "Edit Announcement" : "New Announcement"}
+              <h2 className="mb-4 text-xl font-bold text-slate-900 dark:text-white">
+                New Announcement
               </h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                     Title
                   </label>
                   <input
@@ -285,13 +278,13 @@ export default function Announcements() {
                       setFormData({ ...formData, title: e.target.value })
                     }
                     required
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
                     placeholder="Announcement title"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                     Message
                   </label>
                   <textarea
@@ -301,13 +294,13 @@ export default function Announcements() {
                     }
                     required
                     rows={4}
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
                     placeholder="Your announcement message..."
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                     Type
                   </label>
                   <select
@@ -315,7 +308,7 @@ export default function Announcements() {
                     onChange={(e) =>
                       setFormData({ ...formData, type: e.target.value })
                     }
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
                   >
                     <option value="info">Info</option>
                     <option value="success">Success</option>
@@ -325,7 +318,7 @@ export default function Announcements() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                     Expires At (Optional)
                   </label>
                   <input
@@ -334,22 +327,22 @@ export default function Announcements() {
                     onChange={(e) =>
                       setFormData({ ...formData, expiresAt: e.target.value })
                     }
-                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
                   />
                 </div>
 
-                <div className="flex gap-3 pt-2">
+                <div className="flex gap-3 pt-1">
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex-1 rounded-md bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:opacity-50"
+                    className="flex-1 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700 disabled:opacity-50"
                   >
                     {isSubmitting ? "Creating..." : "Create Announcement"}
                   </button>
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
+                    className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
                   >
                     Cancel
                   </button>

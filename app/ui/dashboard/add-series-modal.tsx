@@ -99,33 +99,41 @@ export default function AddSeriesModal({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            onClick={onClose}
+          />
+
+          {/* Modal */}
           <motion.div
             ref={modalRef}
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ opacity: 0, scale: 0.95, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl dark:bg-gray-900"
+            exit={{ opacity: 0, scale: 0.95, y: 16 }}
+            transition={{ type: "spring", damping: 28, stiffness: 320 }}
+            className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft-lg dark:border-slate-700 dark:bg-slate-900"
           >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-gray-200 p-5 dark:border-gray-700">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
               <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">
                   Add Series
                 </h2>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  Search and select a series to add
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                  Search and select a series to track
                 </p>
               </div>
               <button
                 onClick={onClose}
-                className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+                className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
               >
                 <XMarkIcon className="h-5 w-5" />
               </button>
@@ -134,13 +142,11 @@ export default function AddSeriesModal({
             {/* Body */}
             <div className="p-5">
               {duplicateError && (
-                <div className="mb-4 rounded-lg bg-red-50 p-3 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                  <div className="flex items-center gap-2">
-                    <ExclamationTriangleIcon className="h-4 w-4 text-red-500 flex-shrink-0" />
-                    <p className="text-sm text-red-600 dark:text-red-400">
-                      {duplicateError}
-                    </p>
-                  </div>
+                <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 dark:border-red-900/50 dark:bg-red-950/30">
+                  <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    {duplicateError}
+                  </p>
                 </div>
               )}
 

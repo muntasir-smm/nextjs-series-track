@@ -10,15 +10,14 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <TopNav />
 
       {/* Admin Header */}
-      <div className=" border-b border-white/20 bg-gradient-to-r from-purple-600 via-pink-500 to-red-500 shadow-lg">
+      <div className="border-b border-white/10 bg-gradient-to-r from-brand-600 via-violet-600 to-pink-500 shadow-lg">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-4">
-            {/* Left side - Logo and Title */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3.5">
               <div className="rounded-xl bg-white/20 p-2.5 backdrop-blur-sm">
                 <ShieldCheckIcon className="h-6 w-6 text-white" />
               </div>
@@ -32,10 +31,9 @@ export default function AdminLayout({
               </div>
             </div>
 
-            {/* Right side - Exit Button */}
             <Link
               href="/dashboard"
-              className="flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-white/20"
+              className="flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/25"
             >
               <ArrowLeftIcon className="h-4 w-4" />
               Back to Dashboard

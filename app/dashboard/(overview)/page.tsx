@@ -3,7 +3,6 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   getUserSeries,
   addSeries as addSeriesAction,
@@ -12,18 +11,16 @@ import {
   updateSeries as updateSeriesAction,
 } from "@/app/lib/series";
 import EditSeriesForm from "@/app/ui/tvSeries/edit-series-form";
-import { ViewToggle } from "@/app/ui/tvSeries/series-controls";
 import type { ViewMode } from "@/app/ui/tvSeries/series-controls";
 import type { Series } from "@/app/lib/series";
+import type { SuggestedSeries } from "@/app/lib/definitions";
 
 import { StatsSection } from "./components/stats-section";
 import { RecentlyAddedSection } from "./components/recently-added-section";
 import { TrendingSection } from "./components/trending-section";
 import { EmptyState } from "./components/empty-state";
-import type { SuggestedSeries } from "@/app/lib/definitions";
 import { FeaturedSection } from "./components/featured-section";
 
-// Simple array comparison
 const arraysEqual = (a: boolean[], b: boolean[]): boolean => {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
@@ -33,7 +30,6 @@ const arraysEqual = (a: boolean[], b: boolean[]): boolean => {
 };
 
 export default function Page() {
-  // State
   const [seriesData, setSeriesData] = useState<Series[]>([]);
   const [suggestedSeries, setSuggestedSeries] = useState<SuggestedSeries[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,36 +37,29 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const [greeting, setGreeting] = useState("");
   const [userName, setUserName] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingSeries, setEditingSeries] = useState<Series | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
 
-  // Refs
   const isMounted = useRef(true);
   const seriesMapRef = useRef<Map<string, Series>>(new Map());
   const popularAbortControllerRef = useRef<AbortController | null>(null);
   const loadCounterRef = useRef(0);
 
-  // Cleanup on unmount
   useEffect(() => {
     isMounted.current = true;
     return () => {
       isMounted.current = false;
-      if (popularAbortControllerRef.current) {
-        popularAbortControllerRef.current.abort();
-      }
+      popularAbortControllerRef.current?.abort();
     };
   }, []);
 
-  // Update map when series data changes
   useEffect(() => {
     seriesMapRef.current = new Map(seriesData.map((s) => [s.id, s]));
   }, [seriesData]);
 
-  // Greeting
   useEffect(() => {
     const hour = new Date().getHours();
     if (hour < 12) setGreeting("Good morning");
@@ -78,35 +67,27 @@ export default function Page() {
     else setGreeting("Good evening");
   }, []);
 
-  // Load user profile
   useEffect(() => {
     let isActive = true;
-
     fetch("/api/user/profile")
       .then((res) => res.json())
       .then((data) => {
         if (isActive && isMounted.current) {
           setUserName(data.name || "User");
-          setAvatarUrl(data.avatar_url);
         }
       })
       .catch((err) => console.error("Error loading user:", err));
-
     return () => {
       isActive = false;
     };
   }, []);
 
-  // Load series
   const loadSeries = useCallback(async () => {
     const currentLoadId = ++loadCounterRef.current;
-
     setIsLoading(true);
 
     try {
       const series = await getUserSeries();
-
-      // Only update if this is still the latest request and component is mounted
       if (currentLoadId === loadCounterRef.current && isMounted.current) {
         setSeriesData(series);
         setError(null);
@@ -117,20 +98,16 @@ export default function Page() {
         setError("Failed to load your series. Please refresh the page.");
       }
     } finally {
-      // Only set loading false if this is the latest request
       if (currentLoadId === loadCounterRef.current && isMounted.current) {
         setIsLoading(false);
       }
     }
   }, []);
 
-  // Load popular series with AbortController
   const loadPopularSeries = useCallback(async () => {
-    // Cancel previous request
     if (popularAbortControllerRef.current) {
       popularAbortControllerRef.current.abort();
     }
-
     const controller = new AbortController();
     popularAbortControllerRef.current = controller;
 
@@ -139,7 +116,6 @@ export default function Page() {
         signal: controller.signal,
       });
       const data = await res.json();
-
       if (isMounted.current && !controller.signal.aborted) {
         setSuggestedSeries(data.series || []);
       }
@@ -154,13 +130,11 @@ export default function Page() {
     }
   }, []);
 
-  // Initial load
   useEffect(() => {
     loadSeries();
     loadPopularSeries();
   }, [loadSeries, loadPopularSeries]);
 
-  // Handle series added event - background refresh
   useEffect(() => {
     const handleSeriesAdded = () => {
       loadSeries();
@@ -170,7 +144,6 @@ export default function Page() {
     return () => window.removeEventListener("series-added", handleSeriesAdded);
   }, [loadSeries, loadPopularSeries]);
 
-  // Get existing series TMDB IDs for duplicate checking
   const existingSeriesTmdbIds = useMemo(() => {
     return new Set(
       seriesData
@@ -179,10 +152,8 @@ export default function Page() {
     );
   }, [seriesData]);
 
-  // Add suggested series with duplicate check by TMDB ID
   const handleAddSuggestedSeries = useCallback(
     async (series: SuggestedSeries) => {
-      // Check if series already exists by TMDB ID
       const alreadyExists = series.tmdbId
         ? existingSeriesTmdbIds.has(series.tmdbId)
         : false;
@@ -197,9 +168,8 @@ export default function Page() {
       setDuplicateError(null);
 
       try {
-        // Pass tmdbId as first parameter (number)
         const result = await addSeriesAction(
-          series.tmdbId, // TMDB ID as number
+          series.tmdbId,
           series.name,
           series.totalSeasons,
           [],
@@ -208,7 +178,6 @@ export default function Page() {
           series.overview,
         );
 
-        // Check for duplicate response from server
         if (result.duplicate) {
           setDuplicateError(
             result.error || `"${series.name}" is already in your collection`,
@@ -230,7 +199,6 @@ export default function Page() {
     [loadSeries, loadPopularSeries, existingSeriesTmdbIds],
   );
 
-  // Update series with proper merge
   const updateSeries = useCallback(
     async (updatedSeries: Series[]) => {
       const updatedMap = new Map(updatedSeries.map((s) => [s.id, s]));
@@ -268,7 +236,6 @@ export default function Page() {
     [loadSeries],
   );
 
-  // Delete series
   const deleteSeries = useCallback(
     async (id: string) => {
       if (!confirm("Delete this series?")) return;
@@ -295,7 +262,6 @@ export default function Page() {
     [seriesData],
   );
 
-  // Edit modal handlers
   const openEditModal = useCallback((series: Series) => {
     setEditingSeries(series);
     setIsEditModalOpen(true);
@@ -350,7 +316,6 @@ export default function Page() {
     [loadSeries],
   );
 
-  // View mode persistence
   useEffect(() => {
     const saved = localStorage.getItem("dashboardViewMode");
     if (saved === "grid" || saved === "list") setViewMode(saved);
@@ -361,7 +326,6 @@ export default function Page() {
     localStorage.setItem("dashboardViewMode", mode);
   }, []);
 
-  // Calculate stats
   const stats = useMemo(() => {
     let totalSeasons = 0;
     let watchedSeasons = 0;
@@ -388,15 +352,14 @@ export default function Page() {
     return {
       totalSeries: seriesData.length,
       totalSeasons,
-      watchedSeasons,
+      totalWatchedSeasons: watchedSeasons,
       remainingSeasons: totalSeasons - watchedSeasons,
-      progress,
+      overallProgress: progress,
       recentlyAdded,
-      completed,
+      completedSeries: completed,
     };
   }, [seriesData]);
 
-  // Filter undiscovered series using TMDB ID
   const userSeriesTmdbIds = useMemo(
     () =>
       new Set(
@@ -411,94 +374,95 @@ export default function Page() {
     (s) => !userSeriesTmdbIds.has(s.tmdbId),
   );
 
-  // Show loading only when loading and no data
   if (isLoading && seriesData.length === 0 && !error) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-32 rounded-2xl bg-gray-200 dark:bg-gray-700" />
-        <div className="h-64 rounded-2xl bg-gray-200 dark:bg-gray-700" />
-        <div className="h-96 rounded-2xl bg-gray-200 dark:bg-gray-700" />
+      <div className="space-y-8 animate-pulse">
+        <div className="h-10 w-64 rounded-xl bg-slate-200 dark:bg-slate-800" />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={i}
+              className="h-24 rounded-2xl bg-slate-200 dark:bg-slate-800"
+            />
+          ))}
+        </div>
+        <div className="h-48 rounded-2xl bg-slate-200 dark:bg-slate-800" />
+        <div className="h-64 rounded-2xl bg-slate-200 dark:bg-slate-800" />
       </div>
     );
   }
 
-  const hasSeries = stats.totalSeries > 0;
-
   return (
-    <main className="space-y-8">
-      {/* Duplicate Error Alert */}
-      {duplicateError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
-          <p className="text-sm text-red-600 dark:text-red-400">
-            {duplicateError}
-          </p>
+    <div className="space-y-8">
+      {/* Greeting */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+          {greeting}
+          {userName ? `, ${userName}` : ""}
+        </h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Here&apos;s what&apos;s happening with your series
+        </p>
+      </div>
+
+      {/* Error / Duplicate toast */}
+      {(error || duplicateError) && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
+          {error || duplicateError}
         </div>
       )}
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-        </div>
-      )}
 
-      {hasSeries && (
-        <>
-          <StatsSection
-            stats={{
-              totalSeries: stats.totalSeries,
-              completedSeries: stats.completed,
-              totalSeasons: stats.totalSeasons,
-              totalWatchedSeasons: stats.watchedSeasons,
-              remainingSeasons: stats.remainingSeasons,
-              overallProgress: stats.progress,
-            }}
-            userName={userName || "User"}
-          />
+      {/* Stats */}
+      <StatsSection stats={stats} userName={userName || "Your"} />
 
-          <RecentlyAddedSection
-            series={stats.recentlyAdded}
-            viewMode={viewMode}
-            onViewModeChange={handleViewModeChange}
-            onUpdateSeries={updateSeries}
-            onDeleteSeries={deleteSeries}
-            onEditSeries={openEditModal}
-          />
-        </>
-      )}
+      {/* Featured */}
+      <FeaturedSection />
 
-      {undiscoveredSeries.length > 0 && (
-        <TrendingSection
-          series={undiscoveredSeries}
-          onAdd={handleAddSuggestedSeries}
-          addingId={addingSeriesId}
+      {/* Empty or Recently Added */}
+      {seriesData.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <RecentlyAddedSection
+          series={stats.recentlyAdded}
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+          onUpdateSeries={updateSeries}
+          onDeleteSeries={deleteSeries}
+          onEditSeries={openEditModal}
         />
       )}
-      {!hasSeries && <EmptyState />}
-      <AnimatePresence>
-        {isEditModalOpen && editingSeries && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-            onClick={() => setIsEditModalOpen(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-gray-800"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <EditSeriesForm
-                series={editingSeries}
-                onSave={handleEditSeries}
-                onCancel={() => setIsEditModalOpen(false)}
-                isSubmitting={isEditing}
-              />
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </main>
+
+      {/* Trending */}
+      <TrendingSection
+        series={undiscoveredSeries}
+        onAdd={handleAddSuggestedSeries}
+        addingId={addingSeriesId}
+      />
+
+      {/* Edit Modal */}
+      {isEditModalOpen && editingSeries && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-soft-lg dark:border-slate-700 dark:bg-slate-900">
+            <div className="mb-4">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                Edit Series
+              </h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Update series details
+              </p>
+            </div>
+            <EditSeriesForm
+              series={editingSeries}
+              onSave={handleEditSeries}
+              onCancel={() => {
+                setIsEditModalOpen(false);
+                setEditingSeries(null);
+              }}
+              isSubmitting={isEditing}
+            />
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

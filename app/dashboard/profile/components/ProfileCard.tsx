@@ -4,6 +4,7 @@
 
 import { ShieldCheckIcon, CheckIcon } from "@heroicons/react/24/outline";
 import Avatar from "@/app/ui/dashboard/avatar";
+import clsx from "clsx";
 
 interface UserProfile {
   id: string;
@@ -28,11 +29,12 @@ export function ProfileCard({
   getMemberDuration,
 }: ProfileCardProps) {
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-800">
-      <div className="relative h-20 sm:h-24 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500">
-        <div className="absolute -bottom-10 sm:-bottom-12 left-1/2 transform -translate-x-1/2">
-          <div className="relative group">
-            <div className="rounded-xl sm:rounded-2xl bg-white dark:bg-gray-900 p-1 shadow-xl">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      {/* Banner */}
+      <div className="relative h-20 bg-gradient-to-r from-brand-500 via-violet-500 to-pink-500 sm:h-24">
+        <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 sm:-bottom-12">
+          <div className="relative">
+            <div className="rounded-2xl bg-white p-1 shadow-lg dark:bg-slate-900">
               <Avatar
                 src={avatarUrl}
                 name={profile.name}
@@ -41,51 +43,55 @@ export function ProfileCard({
               />
             </div>
             {profile.role === "admin" && (
-              <div className="absolute -top-1 -right-1 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full p-1 shadow-lg">
-                <ShieldCheckIcon className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
+              <div className="absolute -right-1 -top-1 rounded-full bg-gradient-to-r from-amber-500 to-yellow-500 p-1 shadow">
+                <ShieldCheckIcon className="h-3.5 w-3.5 text-white" />
               </div>
             )}
           </div>
         </div>
       </div>
 
-      <div className="pt-12 sm:pt-16 pb-4 sm:pb-6 px-4 sm:px-6 text-center">
-        <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white">
+      {/* Info */}
+      <div className="px-4 pb-5 pt-14 text-center sm:px-6 sm:pt-16">
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">
           {profile.name}
         </h3>
-        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1 break-all">
+        <p className="mt-1 break-all text-sm text-slate-500 dark:text-slate-400">
           {profile.email}
         </p>
-        <div className="flex items-center justify-center gap-2 mt-2 sm:mt-3">
+
+        <div className="mt-3 flex items-center justify-center gap-2">
           <span
-            className={`inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium ${
+            className={clsx(
+              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
               profile.role === "admin"
-                ? "bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-700 dark:from-amber-900/30 dark:to-yellow-900/30 dark:text-amber-400"
-                : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-            }`}
+                ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
+                : "bg-brand-100 text-brand-700 dark:bg-brand-950/40 dark:text-brand-400",
+            )}
           >
-            <ShieldCheckIcon className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+            <ShieldCheckIcon className="h-3 w-3" />
             {profile.role === "admin" ? "Admin" : "Member"}
           </span>
-          <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-            <CheckIcon className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+            <CheckIcon className="h-3 w-3" />
             Active
           </span>
         </div>
       </div>
 
-      <div className="border-t border-gray-200 dark:border-gray-800 p-3 sm:p-4 space-y-2 sm:space-y-3">
-        <div className="flex items-center justify-between text-xs sm:text-sm">
-          <span className="text-gray-600 dark:text-gray-400">Member since</span>
-          <span className="font-medium text-gray-900 dark:text-white text-right">
+      {/* Meta */}
+      <div className="space-y-2.5 border-t border-slate-100 p-4 dark:border-slate-800">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-slate-500 dark:text-slate-400">
+            Member since
+          </span>
+          <span className="font-medium text-slate-900 dark:text-white">
             {formatDate(profile.created_at)}
           </span>
         </div>
-        <div className="flex items-center justify-between text-xs sm:text-sm">
-          <span className="text-gray-600 dark:text-gray-400">
-            Member duration
-          </span>
-          <span className="font-medium text-gray-900 dark:text-white">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-slate-500 dark:text-slate-400">Duration</span>
+          <span className="font-medium text-slate-900 dark:text-white">
             {getMemberDuration()}
           </span>
         </div>

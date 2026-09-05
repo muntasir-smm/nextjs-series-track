@@ -32,7 +32,6 @@ export function ProfileTabContent({
   profile,
   isEditing,
   isSaving,
-  avatarUrl,
   tempAvatarUrl,
   onEdit,
   onCancel,
@@ -42,23 +41,19 @@ export function ProfileTabContent({
   getMemberDuration,
 }: ProfileTabContentProps) {
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl sm:rounded-2xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-800">
-      <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-800">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
-              Profile Information
-            </h2>
-            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
-              {isEditing
-                ? "Update your personal details"
-                : "View your personal details"}
-            </p>
-          </div>
-        </div>
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <div className="border-b border-slate-100 p-5 dark:border-slate-800 sm:p-6">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+          Profile Information
+        </h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          {isEditing
+            ? "Update your personal details"
+            : "View your personal details"}
+        </p>
       </div>
 
-      <div className="p-4 sm:p-6">
+      <div className="p-5 sm:p-6">
         {isEditing ? (
           <EditProfileForm
             profile={profile}

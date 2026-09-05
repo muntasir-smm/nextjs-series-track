@@ -27,16 +27,19 @@ export default function NavLinks({
   );
 
   return (
-    <div
+    <nav
       className={clsx("flex gap-1", {
         "flex-col w-full": isMobile,
-        "flex-row": !isMobile,
+        "flex-row items-center": !isMobile,
       })}
     >
       {links.map((link) => {
-        const active = pathname === link.href;
-        const Icon = link.icon;
+        const isActive =
+          link.href === "/dashboard"
+            ? pathname === "/dashboard"
+            : pathname.startsWith(link.href);
 
+        const Icon = link.icon;
         const showBadge =
           link.showCount && link.name === "TV Series" && seriesCount > 0;
 
@@ -45,37 +48,31 @@ export default function NavLinks({
             key={link.name}
             href={link.href}
             className={clsx(
-              "relative flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200",
-              !active &&
-                "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800",
-
-              active &&
-                "bg-blue-600 text-white dark:bg-blue-500 dark:text-white shadow-md",
+              "relative flex items-center gap-2.5 rounded-xl px-3.5 py-2 text-sm font-medium transition-all duration-200",
+              isMobile && "w-full",
+              isActive
+                ? "bg-brand-600 text-white shadow-sm"
+                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100",
             )}
           >
-            <Icon className="h-5 w-5" />
-
+            <Icon className="h-5 w-5 shrink-0" />
             <span className="flex-1">{link.name}</span>
 
-            {/* BADGE */}
             {showBadge && (
               <span
                 className={clsx(
-                  "ml-auto text-xs px-2 py-0.5 rounded-full font-semibold",
-                  "bg-white/20 text-white dark:bg-white/10",
+                  "ml-auto rounded-full px-2 py-0.5 text-xs font-semibold",
+                  isActive
+                    ? "bg-white/20 text-white"
+                    : "bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300",
                 )}
               >
                 {seriesCount}
               </span>
             )}
-
-            {/* ACTIVE INDICATOR */}
-            {/* {active && !isMobile && (
-              <span className="absolute bottom-0 left-0 h-0.5 w-full bg-white/80 rounded-full" />
-            )} */}
           </Link>
         );
       })}
-    </div>
+    </nav>
   );
 }

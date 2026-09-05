@@ -4,6 +4,7 @@
 
 import { useState } from "react";
 import { XMarkIcon, KeyIcon } from "@heroicons/react/24/outline";
+import Avatar from "@/app/ui/dashboard/avatar";
 import type { User } from "./types";
 
 interface ResetPasswordModalProps {
@@ -42,11 +43,7 @@ export function ResetPasswordModal({
     if (!passwordToSet) {
       passwordToSet = generateRandomPassword();
     }
-
-    if (passwordToSet.length < 6) {
-      // Show error through parent
-      return;
-    }
+    if (passwordToSet.length < 6) return;
 
     setLoading(true);
     await onResetPassword("resetPassword", user.id, {
@@ -63,34 +60,45 @@ export function ResetPasswordModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl dark:bg-gray-800 animate-in zoom-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-soft-lg dark:border-slate-700 dark:bg-slate-900">
         <button
           onClick={handleClose}
-          className="absolute right-4 top-4 rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
+          className="absolute right-4 top-4 rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
         >
           <XMarkIcon className="h-5 w-5" />
         </button>
+
         <div className="p-6">
-          <div className="mb-4 text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
-              <KeyIcon className="h-6 w-6 text-amber-600" />
+          <div className="mb-5 text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-950/40">
+              <KeyIcon className="h-6 w-6 text-amber-600 dark:text-amber-400" />
             </div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
               Reset Password
             </h2>
-            <p className="mt-1 text-sm text-gray-500">For {user.name}</p>
+            <div className="mt-3 flex items-center justify-center gap-2">
+              <Avatar
+                src={user.avatar_url}
+                name={user.name}
+                size="sm"
+                shape="circle"
+              />
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                For {user.name}
+              </p>
+            </div>
           </div>
 
           {generatedPassword ? (
-            <div className="mb-4 rounded-lg bg-green-50 p-3 text-center dark:bg-green-900/20">
-              <p className="text-sm text-green-600 dark:text-green-400">
+            <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center dark:border-emerald-900/50 dark:bg-emerald-950/30">
+              <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
                 New password created!
               </p>
-              <code className="mt-2 block rounded bg-white px-3 py-2 text-sm font-mono text-gray-800 dark:bg-gray-900 dark:text-gray-200">
+              <code className="mt-2 block rounded-lg bg-white px-3 py-2 font-mono text-sm text-slate-800 dark:bg-slate-900 dark:text-slate-200">
                 {generatedPassword}
               </code>
-              <p className="mt-2 text-xs text-gray-500">
+              <p className="mt-2 text-xs text-slate-500">
                 Share this password with the user
               </p>
             </div>
@@ -101,9 +109,9 @@ export function ResetPasswordModal({
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="Enter new password"
-                className="mb-3 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                className="mb-2 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
               />
-              <p className="mb-4 text-xs text-gray-500">
+              <p className="mb-4 text-xs text-slate-500">
                 Leave empty to generate a random password
               </p>
             </>
@@ -115,13 +123,13 @@ export function ResetPasswordModal({
                 <button
                   onClick={handleReset}
                   disabled={loading}
-                  className="flex-1 rounded-lg bg-amber-500 px-4 py-2 text-white transition-all hover:bg-amber-600 disabled:opacity-50"
+                  className="flex-1 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-amber-600 disabled:opacity-50"
                 >
                   {loading ? "Resetting..." : "Reset Password"}
                 </button>
                 <button
                   onClick={handleClose}
-                  className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                  className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                 >
                   Cancel
                 </button>
@@ -129,7 +137,7 @@ export function ResetPasswordModal({
             ) : (
               <button
                 onClick={handleClose}
-                className="w-full rounded-lg bg-blue-500 px-4 py-2 text-white transition-all hover:bg-blue-600"
+                className="w-full rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700"
               >
                 Done
               </button>

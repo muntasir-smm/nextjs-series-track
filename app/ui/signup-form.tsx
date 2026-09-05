@@ -1,8 +1,9 @@
+// app/ui/signup-form.tsx
+
 "use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import Image from "next/image";
 import {
   AtSymbolIcon,
@@ -20,6 +21,9 @@ interface PasswordRequirement {
   test: (password: string) => boolean;
 }
 
+const inputClass =
+  "w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500";
+
 export default function SignupForm() {
   const router = useRouter();
   const [formData, setFormData] = useState({
@@ -35,19 +39,16 @@ export default function SignupForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [csrfToken, setCsrfToken] = useState("");
 
-  // CSRF Token state
-  const [csrfToken, setCsrfToken] = useState<string>("");
-
-  // Fetch CSRF token on component mount
   useEffect(() => {
     const fetchCSRFToken = async () => {
       try {
         const response = await fetch("/api/auth/csrf-token");
         const data = await response.json();
         setCsrfToken(data.token);
-      } catch (error) {
-        console.error("Error fetching CSRF token:", error);
+      } catch (err) {
+        console.error("Error fetching CSRF token:", err);
       }
     };
     fetchCSRFToken();
@@ -102,7 +103,7 @@ export default function SignupForm() {
           name: formData.name,
           email: formData.email,
           password: formData.password,
-          _csrf: csrfToken, // Add CSRF token to request
+          _csrf: csrfToken,
         }),
       });
 
@@ -130,70 +131,65 @@ export default function SignupForm() {
   const handleLoginRedirect = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsTransitioning(true);
-    setTimeout(() => {
-      router.push("/login");
-    }, 500);
+    setTimeout(() => router.push("/login"), 480);
   };
 
   const passwordRequirements: PasswordRequirement[] = [
-    { label: "8+ characters", test: (p: string) => p.length >= 8 },
-    { label: "Uppercase letter", test: (p: string) => /[A-Z]/.test(p) },
-    { label: "Lowercase letter", test: (p: string) => /[a-z]/.test(p) },
-    { label: "At least one number", test: (p: string) => /[0-9]/.test(p) },
+    { label: "8+ characters", test: (p) => p.length >= 8 },
+    { label: "Uppercase letter", test: (p) => /[A-Z]/.test(p) },
+    { label: "Lowercase letter", test: (p) => /[a-z]/.test(p) },
+    { label: "At least one number", test: (p) => /[0-9]/.test(p) },
     {
       label: "Special character",
-      test: (p: string) => /[!@#$%^&*(),.?":{}|<>]/.test(p),
+      test: (p) => /[!@#$%^&*(),.?":{}|<>]/.test(p),
     },
   ];
 
   return (
     <form onSubmit={handleSubmit} className="w-full">
       <div
-        className={`bg-white dark:bg-gray-950 p-5 md:p-7 rounded-3xl shadow-xl shadow-gray-200/50 dark:shadow-black/50 border-t-2 border-l-2 border-gradient-from-blue-500-to-purple-600 dark:border-gray-800 space-y-4 transition-all duration-500 ease-in-out ${
+        className={`space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-soft-lg transition-all duration-500 dark:border-slate-800 dark:bg-slate-900 md:p-7 ${
           isTransitioning
-            ? "opacity-0 -translate-x-12 scale-95"
-            : "opacity-100 translate-x-0 scale-100"
+            ? "scale-95 -translate-x-8 opacity-0"
+            : "scale-100 translate-x-0 opacity-100"
         }`}
       >
-        {/* Hidden CSRF token input (for debugging, optional) */}
         <input type="hidden" name="_csrf" value={csrfToken} />
 
         {/* Header */}
-        <div className="flex items-center gap-2.5">
-          <div className="relative h-8 w-8 flex-shrink-0">
-            <Image
-              src="/images/logo.png"
-              alt="Series Tracker Logo"
-              width={32}
-              height={32}
-              className="object-contain"
-            />
-          </div>
+        <div className="flex items-center gap-3">
+          <Image
+            src="/images/logo.png"
+            alt="Series Tracker Logo"
+            width={32}
+            height={32}
+            className="object-contain"
+          />
           <div>
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
               Create Account
             </h2>
-            <p className="text-xs text-gray-600 dark:text-gray-400">
-              Complete the form to start tracking.
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Complete the form to start tracking
             </p>
           </div>
         </div>
 
-        {/* Success Message */}
+        {/* Success */}
         {successMessage && (
-          <div className="rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-3.5 flex gap-2.5 animate-in slide-in-from-top duration-300">
-            <CheckCircleIcon className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
-            <div className="flex-1 space-y-0.5">
-              <p className="text-sm font-semibold text-green-800 dark:text-green-300">
+          <div className="flex gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+            <CheckCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
                 You&apos;re almost in!
               </p>
-              <p className="text-xs text-green-700 dark:text-green-400">
+              <p className="text-xs text-emerald-700 dark:text-emerald-400">
                 {successMessage}
               </p>
               <button
                 type="button"
                 onClick={() => router.push("/login")}
-                className="mt-0.5 text-xs font-semibold text-green-700 dark:text-green-300 hover:text-green-800 dark:hover:text-green-200 transition-colors"
+                className="text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-300"
               >
                 Continue to Login →
               </button>
@@ -201,20 +197,18 @@ export default function SignupForm() {
           </div>
         )}
 
-        {/* Form Fields */}
-        <div className="space-y-3.5">
+        {/* Fields */}
+        <div className="space-y-4">
           {/* Name */}
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <label
               htmlFor="name"
-              className="block text-xs font-semibold text-gray-800 dark:text-gray-300"
+              className="block text-xs font-semibold text-slate-700 dark:text-slate-300"
             >
               Full Name
             </label>
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400 dark:text-gray-600 group-focus-within:text-blue-600 dark:group-focus-within:text-blue-500">
-                <UserIcon className="h-4 w-4" />
-              </div>
+            <div className="relative">
+              <UserIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 id="name"
                 name="name"
@@ -226,23 +220,21 @@ export default function SignupForm() {
                 placeholder="e.g., Jane Smith"
                 required
                 disabled={!!successMessage}
-                className="w-full pl-10 pr-3 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40 outline-none transition-all duration-200 disabled:opacity-60"
+                className={inputClass}
               />
             </div>
           </div>
 
           {/* Email */}
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <label
               htmlFor="email"
-              className="block text-xs font-semibold text-gray-800 dark:text-gray-300"
+              className="block text-xs font-semibold text-slate-700 dark:text-slate-300"
             >
               Email Address
             </label>
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400 dark:text-gray-600 group-focus-within:text-blue-600 dark:group-focus-within:text-blue-500">
-                <AtSymbolIcon className="h-4 w-4" />
-              </div>
+            <div className="relative">
+              <AtSymbolIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 id="email"
                 name="email"
@@ -254,23 +246,21 @@ export default function SignupForm() {
                 placeholder="you@email.com"
                 required
                 disabled={!!successMessage}
-                className="w-full pl-10 pr-3 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40 outline-none transition-all duration-200 disabled:opacity-60"
+                className={inputClass}
               />
             </div>
           </div>
 
           {/* Password */}
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <label
               htmlFor="password"
-              className="block text-xs font-semibold text-gray-800 dark:text-gray-300"
+              className="block text-xs font-semibold text-slate-700 dark:text-slate-300"
             >
               Password
             </label>
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400 dark:text-gray-600 group-focus-within:text-blue-600 dark:group-focus-within:text-blue-500">
-                <KeyIcon className="h-4 w-4" />
-              </div>
+            <div className="relative">
+              <KeyIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 id="password"
                 name="password"
@@ -284,14 +274,14 @@ export default function SignupForm() {
                 disabled={!!successMessage}
                 onFocus={() => setPasswordFocused(true)}
                 onBlur={() => setPasswordFocused(false)}
-                className="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40 outline-none transition-all duration-200 disabled:opacity-60"
+                className={`${inputClass} pr-10`}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 tabIndex={-1}
                 disabled={!!successMessage}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-60 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 disabled:opacity-60 dark:hover:text-slate-300"
               >
                 {showPassword ? (
                   <EyeSlashIcon className="h-4 w-4" />
@@ -300,9 +290,9 @@ export default function SignupForm() {
                 )}
               </button>
             </div>
-            {/* Password Validation */}
+
             {(passwordFocused || formData.password) && (
-              <div className="mt-2 p-2.5 rounded-lg border border-gray-100 dark:border-gray-800/50 bg-gray-50/50 dark:bg-gray-900/30 space-y-1">
+              <div className="mt-2 space-y-1 rounded-xl border border-slate-100 bg-slate-50/80 p-2.5 dark:border-slate-800 dark:bg-slate-900/40">
                 {passwordRequirements.map((req) => {
                   const isValid = req.test(formData.password);
                   const StatusIcon = isValid ? CheckCircleIcon : XCircleIcon;
@@ -311,8 +301,8 @@ export default function SignupForm() {
                       key={req.label}
                       className={`flex items-center gap-1.5 text-xs ${
                         isValid
-                          ? "text-green-600 dark:text-green-400"
-                          : "text-gray-500 dark:text-gray-600"
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-slate-500 dark:text-slate-500"
                       }`}
                     >
                       <StatusIcon className="h-3.5 w-3.5" />
@@ -325,17 +315,15 @@ export default function SignupForm() {
           </div>
 
           {/* Confirm Password */}
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <label
               htmlFor="confirmPassword"
-              className="block text-xs font-semibold text-gray-800 dark:text-gray-300"
+              className="block text-xs font-semibold text-slate-700 dark:text-slate-300"
             >
               Confirm Password
             </label>
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400 dark:text-gray-600 group-focus-within:text-blue-600 dark:group-focus-within:text-blue-500">
-                <KeyIcon className="h-4 w-4" />
-              </div>
+            <div className="relative">
+              <KeyIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 id="confirmPassword"
                 name="confirmPassword"
@@ -344,17 +332,17 @@ export default function SignupForm() {
                 onChange={(e) =>
                   setFormData({ ...formData, confirmPassword: e.target.value })
                 }
-                placeholder="Re-enter your password"
+                placeholder="Confirm your password"
                 required
                 disabled={!!successMessage}
-                className="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40 outline-none transition-all duration-200 disabled:opacity-60"
+                className={`${inputClass} pr-10`}
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 tabIndex={-1}
                 disabled={!!successMessage}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-60 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 disabled:opacity-60 dark:hover:text-slate-300"
               >
                 {showConfirmPassword ? (
                   <EyeSlashIcon className="h-4 w-4" />
@@ -363,86 +351,61 @@ export default function SignupForm() {
                 )}
               </button>
             </div>
-            {formData.confirmPassword && (
-              <div
-                className={`mt-1.5 flex items-center gap-1.5 text-xs ${
-                  formData.password === formData.confirmPassword
-                    ? "text-green-600 dark:text-green-400"
-                    : "text-red-600 dark:text-red-400"
-                }`}
-              >
-                {formData.password === formData.confirmPassword ? (
-                  <CheckCircleIcon className="h-3.5 w-3.5" />
-                ) : (
-                  <XCircleIcon className="h-3.5 w-3.5" />
-                )}
-                <span>
-                  {formData.password === formData.confirmPassword
-                    ? "Passwords match"
-                    : "Passwords must match"}
-                </span>
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Error Message */}
+        {/* Error */}
         {error && (
-          <div className="rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/80 p-2.5 flex items-center gap-2 text-red-700 dark:text-red-400">
-            <ExclamationCircleIcon className="h-4 w-4 flex-shrink-0" />
+          <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
+            <ExclamationCircleIcon className="h-4 w-4 shrink-0" />
             <p className="text-xs font-medium">{error}</p>
           </div>
         )}
 
-        {/* Submit Button */}
-        {!successMessage && (
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full mt-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl transition duration-200 disabled:opacity-70 flex items-center justify-center gap-2.5 text-sm shadow-md shadow-blue-500/20 dark:shadow-blue-500/10 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 focus:ring-offset-2 dark:focus:ring-offset-gray-950"
-          >
-            {isLoading ? (
-              <>
-                <svg
-                  className="animate-spin h-4 w-4 text-white/70"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-                Creating account...
-              </>
-            ) : (
-              "Complete Sign Up"
-            )}
-          </button>
-        )}
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={isLoading || !!successMessage}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 disabled:opacity-70"
+        >
+          {isLoading ? (
+            <>
+              <svg
+                className="h-4 w-4 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
+              </svg>
+              Creating account...
+            </>
+          ) : (
+            "Create Account"
+          )}
+        </button>
 
-        {/* Footer */}
-        <div className="text-center pt-1">
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Already have an account?{" "}
-            <button
-              type="button"
-              onClick={handleLoginRedirect}
-              className="text-blue-600 dark:text-blue-500 font-semibold hover:underline transition-colors"
-            >
-              Sign in instead
-            </button>
-          </p>
-        </div>
+        <p className="pt-1 text-center text-xs text-slate-500 dark:text-slate-400">
+          Already have an account?{" "}
+          <button
+            type="button"
+            onClick={handleLoginRedirect}
+            className="font-semibold text-brand-600 hover:underline dark:text-brand-400"
+          >
+            Sign in
+          </button>
+        </p>
       </div>
     </form>
   );

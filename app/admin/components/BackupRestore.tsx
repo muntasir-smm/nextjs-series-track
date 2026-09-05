@@ -10,6 +10,7 @@ import {
   ExclamationTriangleIcon,
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
+import clsx from "clsx";
 
 export default function BackupRestore() {
   const [isBackingUp, setIsBackingUp] = useState(false);
@@ -22,12 +23,9 @@ export default function BackupRestore() {
   const handleBackup = async () => {
     setIsBackingUp(true);
     setMessage(null);
-
     try {
       const response = await fetch("/api/admin/backup");
       const backup = await response.json();
-
-      // Create download link
       const blob = new Blob([JSON.stringify(backup, null, 2)], {
         type: "application/json",
       });
@@ -39,7 +37,6 @@ export default function BackupRestore() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-
       setMessage({
         type: "success",
         text: "Backup created and downloaded successfully!",
@@ -55,7 +52,6 @@ export default function BackupRestore() {
   const handleRestore = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     if (
       !confirm(
         "WARNING: Restoring will overwrite existing data! Are you absolutely sure?",
@@ -64,22 +60,17 @@ export default function BackupRestore() {
       event.target.value = "";
       return;
     }
-
     setIsRestoring(true);
     setMessage(null);
-
     try {
       const text = await file.text();
       const backup = JSON.parse(text);
-
       const response = await fetch("/api/admin/backup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(backup),
       });
-
       const result = await response.json();
-
       if (response.ok) {
         setMessage({
           type: "success",
@@ -98,87 +89,85 @@ export default function BackupRestore() {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Message */}
+    <div className="space-y-5">
       {message && (
         <div
-          className={`rounded-lg p-3 ${
+          className={clsx(
+            "flex items-center gap-2 rounded-xl border px-4 py-3 text-sm",
             message.type === "success"
-              ? "bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400"
-              : "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400"
-          }`}
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-400"
+              : "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400",
+          )}
         >
-          <div className="flex items-center gap-2">
-            {message.type === "success" ? (
-              <CheckCircleIcon className="h-5 w-5" />
-            ) : (
-              <ExclamationTriangleIcon className="h-5 w-5" />
-            )}
-            {message.text}
-          </div>
+          {message.type === "success" ? (
+            <CheckCircleIcon className="h-5 w-5 shrink-0" />
+          ) : (
+            <ExclamationTriangleIcon className="h-5 w-5 shrink-0" />
+          )}
+          {message.text}
         </div>
       )}
 
-      {/* Backup Section */}
-      <div className="rounded-lg border border-gray-200 p-6 dark:border-gray-700">
-        <div className="flex items-center gap-3">
-          <div className="rounded-full bg-blue-100 p-2 dark:bg-blue-900/30">
-            <ArrowDownTrayIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+      {/* Export */}
+      <div className="rounded-2xl border border-slate-200 p-5 dark:border-slate-700">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-100 dark:bg-brand-950/40">
+            <ArrowDownTrayIcon className="h-5 w-5 text-brand-600 dark:text-brand-400" />
           </div>
           <div className="flex-1">
-            <h3 className="font-semibold text-gray-900 dark:text-white">
+            <h3 className="font-semibold text-slate-900 dark:text-white">
               Export Backup
             </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               Download a complete backup of all user data, series, and settings
             </p>
           </div>
           <button
             onClick={handleBackup}
             disabled={isBackingUp}
-            className="rounded-lg bg-blue-500 px-4 py-2 text-white transition-all hover:bg-blue-600 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700 disabled:opacity-50"
           >
             {isBackingUp ? (
-              <div className="flex items-center gap-2">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                 Creating...
-              </div>
+              </>
             ) : (
-              <div className="flex items-center gap-2">
+              <>
                 <DocumentArrowDownIcon className="h-4 w-4" />
                 Export Backup
-              </div>
+              </>
             )}
           </button>
         </div>
       </div>
 
-      {/* Restore Section */}
-      <div className="rounded-lg border border-gray-200 p-6 dark:border-gray-700">
-        <div className="flex items-center gap-3">
-          <div className="rounded-full bg-yellow-100 p-2 dark:bg-yellow-900/30">
-            <ArrowUpTrayIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+      {/* Import */}
+      <div className="rounded-2xl border border-slate-200 p-5 dark:border-slate-700">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-950/40">
+            <ArrowUpTrayIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" />
           </div>
           <div className="flex-1">
-            <h3 className="font-semibold text-gray-900 dark:text-white">
+            <h3 className="font-semibold text-slate-900 dark:text-white">
               Import Backup
             </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               Restore data from a backup file (this will overwrite existing
               data)
             </p>
           </div>
-          <label className="cursor-pointer rounded-lg bg-yellow-500 px-4 py-2 text-white transition-all hover:bg-yellow-600 disabled:opacity-50">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-amber-600">
             {isRestoring ? (
-              <div className="flex items-center gap-2">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                 Restoring...
-              </div>
+              </>
             ) : (
-              <div className="flex items-center gap-2">
+              <>
                 <ArrowUpTrayIcon className="h-4 w-4" />
                 Import Backup
-              </div>
+              </>
             )}
             <input
               type="file"
@@ -189,19 +178,19 @@ export default function BackupRestore() {
             />
           </label>
         </div>
-        <div className="mt-3 rounded-md bg-yellow-50 p-3 text-xs text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400">
-          <ExclamationTriangleIcon className="inline h-3 w-3 mr-1" />
+        <div className="mt-4 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-400">
+          <ExclamationTriangleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           Warning: Restoring will overwrite all existing data. This action
           cannot be undone.
         </div>
       </div>
 
-      {/* Backup Info */}
-      <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
-        <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-          What&apos;s included in backup:
+      {/* Info */}
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+        <h4 className="text-sm font-medium text-slate-900 dark:text-white">
+          What&apos;s included in backup
         </h4>
-        <ul className="mt-2 space-y-1 text-xs text-gray-600 dark:text-gray-400">
+        <ul className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-400">
           <li>• All user accounts (names, emails, roles, status)</li>
           <li>• All user series data (watch progress, seasons, posters)</li>
           <li>• Featured series configuration</li>

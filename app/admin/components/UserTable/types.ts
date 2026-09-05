@@ -12,6 +12,7 @@ export interface User {
   is_approved?: boolean;
   approved_at?: string;
   ban_reason?: string;
+  avatar_url?: string | null;
 }
 
 export type FilterType = "all" | "pending" | "active" | "banned" | "admins";

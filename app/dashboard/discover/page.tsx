@@ -11,7 +11,6 @@ import {
   ArrowUpIcon,
 } from "@heroicons/react/24/outline";
 import { addSeries as addSeriesAction, getUserSeries } from "@/app/lib/series";
-import Link from "next/link";
 import { useDebouncedCallback } from "use-debounce";
 import SeriesCard from "@/app/ui/series-card";
 
@@ -33,7 +32,7 @@ export default function DiscoverPage() {
   const [allSeries, setAllSeries] = useState<Series[]>([]);
   const [userSeriesTmdbIds, setUserSeriesTmdbIds] = useState<Set<number>>(
     new Set(),
-  ); // CHANGE to Set of numbers
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -47,27 +46,20 @@ export default function DiscoverPage() {
 
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  // Scroll to top function
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Show/hide scroll to top button based on scroll position
   useEffect(() => {
-    const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 500);
-    };
-
+    const handleScroll = () => setShowScrollTop(window.scrollY > 500);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Search function that uses TMDB API directly
   const searchTMDB = useCallback(
     async (query: string, page: number = 1, append: boolean = false) => {
       try {
         if (!query.trim()) {
-          // Load popular series if no search query
           const res = await fetch(`/api/tmdb/popular?page=${page}`);
           const data = await res.json();
           const newSeries = Array.isArray(data.series) ? data.series : [];
@@ -106,7 +98,6 @@ export default function DiscoverPage() {
     [],
   );
 
-  // Debounced search
   const debouncedSearch = useDebouncedCallback(async (query: string) => {
     setIsSearching(true);
     setCurrentPage(1);
@@ -114,10 +105,8 @@ export default function DiscoverPage() {
     setIsSearching(false);
   }, 500);
 
-  // Load more series
   const loadMore = useCallback(async () => {
     if (isLoadingMore || !hasMore) return;
-
     setIsLoadingMore(true);
     const nextPage = currentPage + 1;
     await searchTMDB(searchQuery, nextPage, true);
@@ -125,7 +114,6 @@ export default function DiscoverPage() {
     setIsLoadingMore(false);
   }, [isLoadingMore, hasMore, currentPage, searchQuery, searchTMDB]);
 
-  // Load initial popular series
   useEffect(() => {
     const loadInitial = async () => {
       setIsLoading(true);
@@ -135,7 +123,6 @@ export default function DiscoverPage() {
     loadInitial();
   }, [searchTMDB]);
 
-  // Load user's series - get TMDB IDs instead of string IDs
   useEffect(() => {
     const loadUserSeries = async () => {
       try {
@@ -153,7 +140,6 @@ export default function DiscoverPage() {
     loadUserSeries();
   }, []);
 
-  // Intersection Observer for infinite scroll
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -169,19 +155,15 @@ export default function DiscoverPage() {
       { threshold: 0.1 },
     );
 
-    if (loadMoreRef.current) {
-      observer.observe(loadMoreRef.current);
-    }
-
+    if (loadMoreRef.current) observer.observe(loadMoreRef.current);
     return () => observer.disconnect();
   }, [hasMore, isLoadingMore, isSearching, loadMore]);
 
   const handleAddSeries = async (seriesItem: Series) => {
     setAddingSeriesId(seriesItem.id);
     try {
-      // FIXED: Pass tmdbId as first parameter (number)
       const result = await addSeriesAction(
-        seriesItem.tmdbId, // TMDB ID as number
+        seriesItem.tmdbId,
         seriesItem.name,
         seriesItem.totalSeasons,
         [],
@@ -189,22 +171,12 @@ export default function DiscoverPage() {
         seriesItem.backdropPath,
         seriesItem.overview,
         seriesItem.voteAverage,
-        0, // voteCount (optional)
+        0,
         seriesItem.firstAirDate,
-        null, // lastAirDate
+        null,
         seriesItem.genres,
-        undefined, // status
-        undefined, // tagline
-        undefined, // originalName
-        undefined, // originalLanguage
-        undefined, // popularity
-        undefined, // inProduction
-        undefined, // networks
-        undefined, // totalEpisodes
-        undefined, // seasons
       );
       if (result.success) {
-        // Add TMDB ID to the set
         setUserSeriesTmdbIds((prev) => new Set([...prev, seriesItem.tmdbId]));
       }
     } catch (error) {
@@ -226,17 +198,16 @@ export default function DiscoverPage() {
     searchTMDB("", 1, false);
   };
 
-  // Filter out series already in user's collection using TMDB ID
   const availableSeries = Array.isArray(allSeries)
     ? allSeries.filter((s) => !userSeriesTmdbIds.has(s.tmdbId))
     : [];
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
+      <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
+          <div className="mx-auto h-9 w-9 animate-spin rounded-full border-[3px] border-brand-500 border-t-transparent" />
+          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
             Loading amazing series...
           </p>
         </div>
@@ -246,128 +217,124 @@ export default function DiscoverPage() {
 
   return (
     <div className="space-y-6">
-      {/* Go to Top Button */}
+      {/* Scroll to top */}
       {showScrollTop && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-6 right-6 z-50 rounded-full bg-blue-500 p-3 text-white shadow-lg transition-all hover:bg-blue-600 hover:scale-110"
+          className="fixed bottom-24 right-6 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg transition hover:bg-brand-700 hover:scale-105 md:bottom-8"
           aria-label="Go to top"
         >
-          <ArrowUpIcon className="h-6 w-6" />
+          <ArrowUpIcon className="h-5 w-5" />
         </button>
       )}
 
       {/* Header */}
-      <div className="border-b border-gray-200 pb-4 dark:border-gray-700">
-        <div className="flex items-center gap-2">
-          <SparklesIcon className="h-7 w-7 text-purple-500" />
+      <div>
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-950/40">
+            <SparklesIcon className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+          </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white md:text-3xl">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
               Discover Series
             </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               Explore {totalResults.toLocaleString()}+ TV series from TMDB
             </p>
           </div>
         </div>
       </div>
 
-      {/* Search Bar */}
+      {/* Search */}
       <div className="relative">
-        <MagnifyingGlassIcon className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+        <MagnifyingGlassIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
         <input
           type="text"
           value={searchQuery}
           onChange={handleSearchChange}
-          placeholder="Search for any TV series (e.g., Breaking Bad, Stranger Things)..."
-          className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3.5 pl-12 pr-12 text-sm outline-none transition-all focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+          placeholder="Search for any TV series..."
+          className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-12 pr-12 text-sm outline-none transition focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
         />
         {searchQuery && (
           <button
             onClick={clearSearch}
-            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-600"
+            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700"
           >
             <XMarkIcon className="h-4 w-4" />
           </button>
         )}
       </div>
 
-      {/* Search Status */}
+      {/* Search status */}
       {isSearching && (
-        <div className="flex items-center justify-center py-4">
-          <ArrowPathIcon className="h-5 w-5 animate-spin text-blue-500" />
-          <span className="ml-2 text-sm text-gray-500">Searching...</span>
+        <div className="flex items-center justify-center gap-2 py-3">
+          <ArrowPathIcon className="h-4 w-4 animate-spin text-brand-500" />
+          <span className="text-sm text-slate-500">Searching...</span>
         </div>
       )}
 
-      {/* Results Info */}
+      {/* Results info */}
       {!isSearching && (
-        <div className="text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-sm text-slate-500 dark:text-slate-400">
           {searchQuery ? (
             <>
               Found{" "}
-              <span className="font-semibold text-gray-900 dark:text-white">
+              <span className="font-semibold text-slate-900 dark:text-white">
                 {totalResults.toLocaleString()}
               </span>{" "}
-              results for &ldquo;
-              <span className="font-medium">{searchQuery}</span>&rdquo;
+              results for &ldquo;{searchQuery}&rdquo;
             </>
           ) : (
             <>
               Showing{" "}
-              <span className="font-semibold text-gray-900 dark:text-white">
+              <span className="font-semibold text-slate-900 dark:text-white">
                 {availableSeries.length}
               </span>{" "}
               of {totalResults.toLocaleString()} popular series
             </>
           )}
-        </div>
+        </p>
       )}
 
-      {/* Series Grid */}
+      {/* Grid */}
       {availableSeries.length > 0 ? (
         <>
-          <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
-            {availableSeries.map((seriesItem) => {
-              const isAdding = addingSeriesId === seriesItem.id;
-
-              return (
-                <SeriesCard
-                  key={seriesItem.id}
-                  id={seriesItem.id}
-                  name={seriesItem.name}
-                  totalSeasons={seriesItem.totalSeasons}
-                  posterPath={seriesItem.posterPath}
-                  voteAverage={seriesItem.voteAverage}
-                  firstAirDate={seriesItem.firstAirDate}
-                  overview={seriesItem.overview}
-                  genres={seriesItem.genres}
-                  isAdding={isAdding}
-                  onAdd={() => handleAddSeries(seriesItem)}
-                />
-              );
-            })}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            {availableSeries.map((seriesItem) => (
+              <SeriesCard
+                key={seriesItem.id}
+                id={seriesItem.id}
+                name={seriesItem.name}
+                totalSeasons={seriesItem.totalSeasons}
+                posterPath={seriesItem.posterPath}
+                voteAverage={seriesItem.voteAverage}
+                firstAirDate={seriesItem.firstAirDate}
+                overview={seriesItem.overview}
+                genres={seriesItem.genres}
+                isAdding={addingSeriesId === seriesItem.id}
+                onAdd={() => handleAddSeries(seriesItem)}
+              />
+            ))}
           </div>
 
-          {/* Load More Trigger */}
           <div ref={loadMoreRef} className="py-8 text-center">
             {isLoadingMore && (
               <div className="flex items-center justify-center gap-2">
-                <ArrowPathIcon className="h-5 w-5 animate-spin text-blue-500" />
-                <span className="text-sm text-gray-500">
+                <ArrowPathIcon className="h-5 w-5 animate-spin text-brand-500" />
+                <span className="text-sm text-slate-500">
                   Loading more series...
                 </span>
               </div>
             )}
             {!hasMore && !isSearching && availableSeries.length > 0 && (
-              <p className="text-sm text-gray-400">
-                🎉 You have explored all {totalResults.toLocaleString()} series!
+              <p className="text-sm text-slate-400">
+                You&apos;ve explored all {totalResults.toLocaleString()} series
               </p>
             )}
             {hasMore && !isLoadingMore && !isSearching && (
               <button
                 onClick={loadMore}
-                className="rounded-lg bg-blue-500 px-6 py-2 text-sm font-medium text-white transition-all hover:bg-blue-600"
+                className="rounded-xl bg-brand-600 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700"
               >
                 Load More
               </button>
@@ -375,23 +342,22 @@ export default function DiscoverPage() {
           </div>
         </>
       ) : (
-        // Empty State
-        <div className="rounded-xl bg-white p-12 text-center shadow-sm dark:bg-gray-800">
-          <div className="mx-auto h-20 w-20 rounded-full bg-gray-100 flex items-center justify-center dark:bg-gray-700">
-            <SparklesIcon className="h-10 w-10 text-gray-400" />
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white py-16 text-center dark:border-slate-700 dark:bg-slate-900">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800">
+            <SparklesIcon className="h-8 w-8 text-slate-400" />
           </div>
-          <h3 className="mt-4 text-xl font-semibold text-gray-900 dark:text-white">
-            {searchQuery ? "No series found" : "No series to discover"}
+          <h3 className="mt-4 text-lg font-semibold text-slate-900 dark:text-white">
+            No series found
           </h3>
-          <p className="mt-2 text-gray-500 dark:text-gray-400">
+          <p className="mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">
             {searchQuery
-              ? `No TV series match "${searchQuery}". Try a different search term.`
-              : "Check back later for new series!"}
+              ? `No results for "${searchQuery}". Try a different search.`
+              : "All popular series are already in your collection."}
           </p>
           {searchQuery && (
             <button
               onClick={clearSearch}
-              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-white transition-all hover:bg-blue-600"
+              className="mt-5 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700"
             >
               Clear Search
             </button>
