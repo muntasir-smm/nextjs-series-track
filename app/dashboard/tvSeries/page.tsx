@@ -11,6 +11,9 @@ import React, {
 } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { FilmIcon, TvIcon } from "@heroicons/react/24/outline";
+import clsx from "clsx";
+import type { MediaType } from "@/app/lib/series";
 
 import EditSeriesForm from "@/app/ui/tvSeries/edit-series-form";
 import SeriesList from "@/app/ui/tvSeries/series-list";
@@ -22,8 +25,6 @@ import type {
   PageSizeOption,
   ViewMode,
 } from "@/app/ui/tvSeries/series-controls";
-
-import { TvIcon } from "@heroicons/react/24/outline";
 
 import {
   getUserSeries,
@@ -62,6 +63,7 @@ function SeriesContent() {
   const [itemsPerPage, setItemsPerPage] = useState<PageSizeOption>(10);
   const [sortBy, setSortBy] = useState<SortOption>("recent");
   const [filterBy, setFilterBy] = useState<FilterOption>("all");
+  const [mediaFilter, setMediaFilter] = useState<"all" | MediaType>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -91,7 +93,7 @@ function SeriesContent() {
         setError(null);
       } catch (err) {
         console.error("Error loading series:", err);
-        setError("Failed to load your series. Please refresh the page.");
+        setError("Failed to load your library. Please refresh the page.");
       } finally {
         setIsLoading(false);
       }
@@ -128,7 +130,7 @@ function SeriesContent() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, itemsPerPage, sortBy, filterBy]);
+  }, [searchQuery, itemsPerPage, sortBy, filterBy, mediaFilter]);
 
   useEffect(() => {
     setSearchInputValue(searchQuery);
@@ -137,6 +139,12 @@ function SeriesContent() {
   const filteredSeries = React.useMemo(() => {
     let filtered = [...series];
 
+    if (mediaFilter === "movie") {
+      filtered = filtered.filter((s) => (s.mediaType || "tv") === "movie");
+    } else if (mediaFilter === "tv") {
+      filtered = filtered.filter((s) => (s.mediaType || "tv") === "tv");
+    }
+
     if (searchQuery) {
       filtered = filtered.filter((s) =>
         s.name.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -144,15 +152,29 @@ function SeriesContent() {
     }
 
     if (filterBy === "upcoming") {
-      filtered = filtered.filter((s) => s.upcomingSeasons.length > 0);
-    }
-    if (filterBy === "completed") {
       filtered = filtered.filter(
-        (s) => s.watchedSeasons.filter(Boolean).length === s.totalSeasons,
+        (s) =>
+          (s.mediaType || "tv") === "tv" &&
+          (s.upcomingSeasons?.length || 0) > 0,
       );
     }
+    if (filterBy === "completed") {
+      filtered = filtered.filter((s) => {
+        if ((s.mediaType || "tv") === "movie") {
+          return Boolean(s.watched) || s.watchProgress >= 100;
+        }
+        const total = s.totalSeasons || 0;
+        if (!total) return s.watchProgress >= 100;
+        return (s.watchedSeasons || []).filter(Boolean).length === total;
+      });
+    }
     if (filterBy === "watching") {
-      filtered = filtered.filter((s) => s.watchedSeasons.some(Boolean));
+      filtered = filtered.filter((s) => {
+        if ((s.mediaType || "tv") === "movie") {
+          return !s.watched && (s.watchProgress || 0) === 0;
+        }
+        return (s.watchedSeasons || []).some(Boolean) && s.watchProgress < 100;
+      });
     }
 
     switch (sortBy) {
@@ -166,17 +188,17 @@ function SeriesContent() {
         filtered.sort((a, b) => b.name.localeCompare(a.name));
         break;
       case "largest":
-        filtered.sort((a, b) => b.totalSeasons - a.totalSeasons);
+        filtered.sort((a, b) => (b.totalSeasons || 0) - (a.totalSeasons || 0));
         break;
       case "smallest":
-        filtered.sort((a, b) => a.totalSeasons - b.totalSeasons);
+        filtered.sort((a, b) => (a.totalSeasons || 0) - (b.totalSeasons || 0));
         break;
       default:
         break;
     }
 
     return filtered;
-  }, [series, searchQuery, sortBy, filterBy]);
+  }, [series, searchQuery, sortBy, filterBy, mediaFilter]);
 
   const paginatedSeries = React.useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -189,13 +211,16 @@ function SeriesContent() {
     setFilterBy("all");
     setSortBy("recent");
     setSearchInputValue("");
+    setMediaFilter("all");
   };
 
   const updateSeries = useCallback(async (updatedSeries: Series[]) => {
     setSeries(updatedSeries);
     try {
       for (const seriesItem of updatedSeries) {
-        await updateSeriesAction(seriesItem);
+        if ((seriesItem.mediaType || "tv") === "tv") {
+          await updateSeriesAction(seriesItem);
+        }
       }
     } catch (err) {
       console.error("Error updating series:", err);
@@ -245,25 +270,26 @@ function SeriesContent() {
   );
 
   const openEditModal = (seriesItem: Series) => {
+    if ((seriesItem.mediaType || "tv") === "movie") return;
     setEditingSeries(seriesItem);
     setIsEditModalOpen(true);
   };
 
   const deleteSeries = useCallback(async (id: string) => {
-    if (!confirm("Are you sure you want to delete this series?")) return;
+    if (!confirm("Remove this from your library?")) return;
 
     setSeries((prev) => prev.filter((s) => s.id !== id));
 
     try {
       const result = await deleteSeriesAction(id);
       if (!result.success) {
-        setError(result.error || "Failed to delete series");
+        setError(result.error || "Failed to delete");
         const userSeries = await getUserSeries();
         setSeries(userSeries);
       }
     } catch (err) {
-      console.error("Error deleting series:", err);
-      setError("Failed to delete series. Please try again.");
+      console.error("Error deleting:", err);
+      setError("Failed to delete. Please try again.");
     }
   }, []);
 
@@ -271,14 +297,51 @@ function SeriesContent() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
-          My TV Series
-        </h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          {series.length} series in your collection
-        </p>
+      {/* Header + media tabs */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+            My Library
+          </h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            {series.length} item{series.length === 1 ? "" : "s"} in your
+            collection
+            {mediaFilter !== "all" && (
+              <>
+                {" "}
+                · showing {filteredSeries.length}{" "}
+                {mediaFilter === "movie" ? "movies" : "TV series"}
+              </>
+            )}
+          </p>
+        </div>
+
+        <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1 dark:border-slate-700 dark:bg-slate-800">
+          {(
+            [
+              { id: "all" as const, label: "All" },
+              { id: "tv" as const, label: "TV", icon: TvIcon },
+              { id: "movie" as const, label: "Movies", icon: FilmIcon },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setMediaFilter(tab.id)}
+              className={clsx(
+                "inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-medium transition",
+                mediaFilter === tab.id
+                  ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white"
+                  : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200",
+              )}
+            >
+              {"icon" in tab && tab.icon ? (
+                <tab.icon className="h-4 w-4" />
+              ) : null}
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Error */}
@@ -312,7 +375,10 @@ function SeriesContent() {
         onViewModeChange={handleViewModeChange}
         onClearFilters={clearAllFilters}
         hasActiveFilters={
-          filterBy !== "all" || sortBy !== "recent" || searchInputValue !== ""
+          filterBy !== "all" ||
+          sortBy !== "recent" ||
+          searchInputValue !== "" ||
+          mediaFilter !== "all"
         }
       />
 
@@ -325,19 +391,26 @@ function SeriesContent() {
                 <TvIcon className="h-8 w-8 text-brand-600 dark:text-brand-400" />
               </div>
               <h3 className="mt-5 text-lg font-semibold text-slate-900 dark:text-white">
-                No Series Found
+                Nothing found
               </h3>
               <p className="mt-2 max-w-sm text-sm text-slate-500 dark:text-slate-400">
                 {searchInputValue
                   ? `No results for "${searchInputValue}". Try another search.`
-                  : "You haven't added any TV series yet."}
+                  : mediaFilter === "movie"
+                    ? "No movies in your library yet."
+                    : mediaFilter === "tv"
+                      ? "No TV series in your library yet."
+                      : "You haven't added anything yet."}
               </p>
-              {(filterBy !== "all" || searchInputValue) && (
+              {(filterBy !== "all" ||
+                searchInputValue ||
+                mediaFilter !== "all") && (
                 <button
+                  type="button"
                   onClick={clearAllFilters}
                   className="mt-5 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700"
                 >
-                  Reset Filters
+                  Reset filters
                 </button>
               )}
             </div>
@@ -374,7 +447,7 @@ function SeriesContent() {
             >
               <div className="mb-4">
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                  Edit Series
+                  Edit series
                 </h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   Update series details

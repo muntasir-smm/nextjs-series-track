@@ -1,4 +1,4 @@
-// app/api/tmdb/tv/[id]/route.ts
+// app/api/tmdb/movie/[id]/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
 import { withRateLimit } from "@/app/lib/rate-limit";
@@ -28,14 +28,14 @@ export async function GET(
 
       try {
         const response = await fetch(
-          `${BASE_URL}/tv/${id}?api_key=${TMDB_API_KEY}&language=en-US&append_to_response=credits,videos`,
+          `${BASE_URL}/movie/${id}?api_key=${TMDB_API_KEY}&language=en-US&append_to_response=credits,videos`,
           { next: { revalidate: 86400 } },
         );
 
         if (!response.ok) {
           if (response.status === 404) {
             return NextResponse.json(
-              { error: "TV series not found" },
+              { error: "Movie not found" },
               { status: 404 },
             );
           }
@@ -44,23 +44,23 @@ export async function GET(
 
         const data = await response.json();
 
-        const seasons = (data.seasons || [])
-          .filter((s: any) => s.season_number > 0)
-          .map((s: any) => ({
-            seasonNumber: s.season_number,
-            name: s.name,
-            episodeCount: s.episode_count || 0,
-            airDate: s.air_date || null,
-            overview: s.overview || null,
-            posterPath: s.poster_path || null,
-          }));
-
         const cast = (data.credits?.cast || []).slice(0, 12).map((c: any) => ({
           id: c.id,
           name: c.name,
           character: c.character,
           profilePath: c.profile_path,
         }));
+
+        const crew = (data.credits?.crew || [])
+          .filter((c: any) =>
+            ["Director", "Writer", "Screenplay"].includes(c.job),
+          )
+          .slice(0, 8)
+          .map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            job: c.job,
+          }));
 
         const trailers = (data.videos?.results || [])
           .filter(
@@ -76,44 +76,37 @@ export async function GET(
           }));
 
         return NextResponse.json({
-          mediaType: "tv",
+          mediaType: "movie",
           id: data.id,
-          name: data.name,
-          originalName: data.original_name,
+          name: data.title,
+          originalName: data.original_title,
           overview: data.overview || "",
           posterPath: data.poster_path,
           backdropPath: data.backdrop_path,
-          firstAirDate: data.first_air_date || null,
-          lastAirDate: data.last_air_date || null,
-          totalSeasons: data.number_of_seasons || 0,
-          totalEpisodes: data.number_of_episodes || 0,
-          inProduction: data.in_production ?? null,
-          status: data.status || null,
-          tagline: data.tagline || null,
+          releaseDate: data.release_date || null,
+          runtime: data.runtime || null,
           voteAverage: data.vote_average || 0,
           voteCount: data.vote_count || 0,
           popularity: data.popularity || 0,
+          status: data.status || null,
+          tagline: data.tagline || null,
           originalLanguage: data.original_language || null,
           genres: (data.genres || []).map((g: any) => g.name),
-          networks: (data.networks || []).map((n: any) => n.name),
-          episodeRunTime: data.episode_run_time || [],
+          budget: data.budget || 0,
+          revenue: data.revenue || 0,
           homepage: data.homepage || null,
-          seasons,
-          nextEpisodeToAir: data.next_episode_to_air
-            ? {
-                name: data.next_episode_to_air.name,
-                airDate: data.next_episode_to_air.air_date,
-                seasonNumber: data.next_episode_to_air.season_number,
-                episodeNumber: data.next_episode_to_air.episode_number,
-              }
-            : null,
+          imdbId: data.imdb_id || null,
+          productionCompanies: (data.production_companies || []).map(
+            (c: any) => c.name,
+          ),
           cast,
+          crew,
           trailers,
         });
       } catch (error) {
-        console.error("TMDB TV details error:", error);
+        console.error("TMDB movie details error:", error);
         return NextResponse.json(
-          { error: "Failed to fetch TV details" },
+          { error: "Failed to fetch movie details" },
           { status: 500 },
         );
       }

@@ -9,34 +9,50 @@ import {
   MagnifyingGlassIcon,
   XMarkIcon,
   ArrowUpIcon,
+  FilmIcon,
+  TvIcon,
+  CheckIcon,
+  PlusIcon,
 } from "@heroicons/react/24/outline";
-import { addSeries as addSeriesAction, getUserSeries } from "@/app/lib/series";
+import {
+  addSeries as addSeriesAction,
+  addMovie as addMovieAction,
+  getUserSeries,
+} from "@/app/lib/series";
 import { useDebouncedCallback } from "use-debounce";
-import SeriesCard from "@/app/ui/series-card";
+import Image from "next/image";
+import clsx from "clsx";
 
-interface Series {
+type MediaTypeFilter = "tv" | "movie";
+
+interface DiscoverItem {
   id: string;
   tmdbId: number;
+  mediaType: MediaTypeFilter;
   name: string;
-  totalSeasons: number;
-  upcomingSeasons: string[];
+  overview?: string;
   posterPath?: string | null;
   backdropPath?: string | null;
   voteAverage?: number;
   firstAirDate?: string | null;
-  overview?: string | null;
+  releaseDate?: string | null;
+  totalSeasons?: number;
   genres?: string[];
 }
 
+function libraryKey(mediaType: string, tmdbId: number) {
+  return `${mediaType}:${tmdbId}`;
+}
+
 export default function DiscoverPage() {
-  const [allSeries, setAllSeries] = useState<Series[]>([]);
-  const [userSeriesTmdbIds, setUserSeriesTmdbIds] = useState<Set<number>>(
-    new Set(),
-  );
+  const [mediaType, setMediaType] = useState<MediaTypeFilter>("tv");
+  const [items, setItems] = useState<DiscoverItem[]>([]);
+  const [inLibrary, setInLibrary] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [addingSeriesId, setAddingSeriesId] = useState<string | null>(null);
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -46,99 +62,124 @@ export default function DiscoverPage() {
 
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
   useEffect(() => {
-    const handleScroll = () => setShowScrollTop(window.scrollY > 500);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    const onScroll = () => setShowScrollTop(window.scrollY > 500);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const searchTMDB = useCallback(
-    async (query: string, page: number = 1, append: boolean = false) => {
-      try {
-        if (!query.trim()) {
-          const res = await fetch(`/api/tmdb/popular?page=${page}`);
-          const data = await res.json();
-          const newSeries = Array.isArray(data.series) ? data.series : [];
+  const loadLibraryKeys = useCallback(async () => {
+    try {
+      const lib = await getUserSeries();
+      const keys = new Set(
+        lib
+          .filter((s) => s.tmdbId != null)
+          .map((s) => libraryKey(s.mediaType || "tv", s.tmdbId as number)),
+      );
+      setInLibrary(keys);
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
 
-          if (append) {
-            setAllSeries((prev) => [...prev, ...newSeries]);
-          } else {
-            setAllSeries(newSeries);
-          }
-          setTotalPages(data.totalPages || 1);
-          setTotalResults(data.totalResults || 0);
-          setHasMore(page < (data.totalPages || 1));
-          return data;
-        }
+  useEffect(() => {
+    loadLibraryKeys();
+  }, [loadLibraryKeys]);
 
-        const res = await fetch(
-          `/api/tmdb/search?query=${encodeURIComponent(query)}&page=${page}`,
-        );
-        const data = await res.json();
-        const newSeries = Array.isArray(data.series) ? data.series : [];
+  const normalizeResults = (
+    data: any,
+    type: MediaTypeFilter,
+  ): DiscoverItem[] => {
+    const raw =
+      data.results || data.series || (Array.isArray(data) ? data : []);
 
-        if (append) {
-          setAllSeries((prev) => [...prev, ...newSeries]);
-        } else {
-          setAllSeries(newSeries);
-        }
-        setTotalPages(data.totalPages || 1);
-        setTotalResults(data.totalResults || 0);
-        setHasMore(page < (data.totalPages || 1));
-        return data;
-      } catch (error) {
-        console.error("Search error:", error);
-        return { series: [] };
+    return raw.map((item: any) => {
+      const mt = item.mediaType || item.media_type || type;
+      const tmdbId = Number(item.tmdbId ?? item.id);
+      return {
+        id: String(tmdbId),
+        tmdbId,
+        mediaType: mt === "movie" ? "movie" : "tv",
+        name: item.name || item.title,
+        overview: item.overview || "",
+        posterPath: item.posterPath ?? item.poster_path,
+        backdropPath: item.backdropPath ?? item.backdrop_path,
+        voteAverage: item.voteAverage ?? item.vote_average ?? 0,
+        firstAirDate: item.firstAirDate ?? item.first_air_date ?? null,
+        releaseDate: item.releaseDate ?? item.release_date ?? null,
+        totalSeasons: item.totalSeasons ?? item.number_of_seasons ?? 0,
+        genres: item.genres || [],
+      };
+    });
+  };
+
+  const fetchPage = useCallback(
+    async (
+      query: string,
+      page: number,
+      type: MediaTypeFilter,
+      append: boolean,
+    ) => {
+      let url: string;
+      if (query.trim()) {
+        url = `/api/tmdb/search?query=${encodeURIComponent(query)}&page=${page}&type=${type}`;
+      } else if (type === "movie") {
+        url = `/api/tmdb/movie/popular?page=${page}`;
+      } else {
+        url = `/api/tmdb/popular?page=${page}`;
       }
+
+      const res = await fetch(url);
+      const data = await res.json();
+      const next = normalizeResults(data, type);
+
+      setItems((prev) => (append ? [...prev, ...next] : next));
+      setTotalPages(data.totalPages || data.total_pages || 1);
+      setTotalResults(data.totalResults || data.total_results || 0);
+      setHasMore(page < (data.totalPages || data.total_pages || 1));
     },
     [],
   );
 
-  const debouncedSearch = useDebouncedCallback(async (query: string) => {
-    setIsSearching(true);
-    setCurrentPage(1);
-    await searchTMDB(query, 1, false);
-    setIsSearching(false);
-  }, 500);
+  const debouncedSearch = useDebouncedCallback(
+    async (query: string, type: MediaTypeFilter) => {
+      setIsSearching(true);
+      setCurrentPage(1);
+      try {
+        await fetchPage(query, 1, type, false);
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    500,
+  );
+
+  // Initial + tab change
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setIsLoading(true);
+      setCurrentPage(1);
+      setSearchQuery("");
+      try {
+        if (!cancelled) await fetchPage("", 1, mediaType, false);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mediaType, fetchPage]);
 
   const loadMore = useCallback(async () => {
     if (isLoadingMore || !hasMore) return;
     setIsLoadingMore(true);
     const nextPage = currentPage + 1;
-    await searchTMDB(searchQuery, nextPage, true);
+    await fetchPage(searchQuery, nextPage, mediaType, true);
     setCurrentPage(nextPage);
     setIsLoadingMore(false);
-  }, [isLoadingMore, hasMore, currentPage, searchQuery, searchTMDB]);
-
-  useEffect(() => {
-    const loadInitial = async () => {
-      setIsLoading(true);
-      await searchTMDB("", 1, false);
-      setIsLoading(false);
-    };
-    loadInitial();
-  }, [searchTMDB]);
-
-  useEffect(() => {
-    const loadUserSeries = async () => {
-      try {
-        const userSeries = await getUserSeries();
-        const tmdbIds = new Set(
-          userSeries
-            .map((s) => s.tmdbId)
-            .filter((id): id is number => id !== undefined && id !== null),
-        );
-        setUserSeriesTmdbIds(tmdbIds);
-      } catch (error) {
-        console.error("Error loading user series:", error);
-      }
-    };
-    loadUserSeries();
-  }, []);
+  }, [isLoadingMore, hasMore, currentPage, searchQuery, mediaType, fetchPage]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -154,214 +195,301 @@ export default function DiscoverPage() {
       },
       { threshold: 0.1 },
     );
-
     if (loadMoreRef.current) observer.observe(loadMoreRef.current);
     return () => observer.disconnect();
   }, [hasMore, isLoadingMore, isSearching, loadMore]);
 
-  const handleAddSeries = async (seriesItem: Series) => {
-    setAddingSeriesId(seriesItem.id);
+  /** Fetch full details then add — never trust search-only payload */
+  const handleAdd = async (item: DiscoverItem) => {
+    const key = libraryKey(item.mediaType, item.tmdbId);
+    if (inLibrary.has(key)) {
+      setMessage("Already in your library");
+      return;
+    }
+
+    setAddingId(item.id);
+    setMessage(null);
+
     try {
-      const result = await addSeriesAction(
-        seriesItem.tmdbId,
-        seriesItem.name,
-        seriesItem.totalSeasons,
-        [],
-        seriesItem.posterPath,
-        seriesItem.backdropPath,
-        seriesItem.overview,
-        seriesItem.voteAverage,
-        0,
-        seriesItem.firstAirDate,
-        null,
-        seriesItem.genres,
-      );
-      if (result.success) {
-        setUserSeriesTmdbIds((prev) => new Set([...prev, seriesItem.tmdbId]));
+      if (item.mediaType === "movie") {
+        const res = await fetch(`/api/tmdb/movie/${item.tmdbId}`);
+        if (!res.ok) throw new Error("Failed to load movie details");
+        const d = await res.json();
+
+        const result = await addMovieAction({
+          tmdbId: d.id,
+          name: d.name,
+          overview: d.overview,
+          posterPath: d.posterPath,
+          backdropPath: d.backdropPath,
+          voteAverage: d.voteAverage,
+          voteCount: d.voteCount,
+          releaseDate: d.releaseDate,
+          runtime: d.runtime,
+          genres: d.genres,
+          status: d.status,
+          tagline: d.tagline,
+          originalName: d.originalName,
+          originalLanguage: d.originalLanguage,
+          popularity: d.popularity,
+        });
+
+        if (result.duplicate) {
+          setMessage(result.error || "Already in your library");
+          setInLibrary((prev) => new Set(prev).add(key));
+        } else if (result.success) {
+          setInLibrary((prev) => new Set(prev).add(key));
+          setMessage(`Added “${d.name}”`);
+        } else {
+          setMessage(result.error || "Failed to add");
+        }
+      } else {
+        const res = await fetch(`/api/tmdb/tv/${item.tmdbId}`);
+        if (!res.ok) throw new Error("Failed to load TV details");
+        const d = await res.json();
+
+        const result = await addSeriesAction(
+          d.id,
+          d.name,
+          d.totalSeasons || 0,
+          [],
+          d.posterPath,
+          d.backdropPath,
+          d.overview,
+          d.voteAverage,
+          d.voteCount,
+          d.firstAirDate,
+          d.lastAirDate,
+          d.genres,
+          d.status,
+          d.tagline,
+          d.originalName,
+          d.originalLanguage,
+          d.popularity,
+          d.inProduction,
+          d.networks,
+          d.totalEpisodes,
+          d.seasons,
+        );
+
+        if (result.duplicate) {
+          setMessage(result.error || "Already in your library");
+          setInLibrary((prev) => new Set(prev).add(key));
+        } else if (result.success) {
+          setInLibrary((prev) => new Set(prev).add(key));
+          setMessage(`Added “${d.name}”`);
+        } else {
+          setMessage(result.error || "Failed to add");
+        }
       }
-    } catch (error) {
-      console.error("Error adding series:", error);
+    } catch (e) {
+      console.error(e);
+      setMessage("Failed to add. Please try again.");
     } finally {
-      setAddingSeriesId(null);
+      setAddingId(null);
     }
   };
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchQuery(value);
-    debouncedSearch(value);
-  };
-
-  const clearSearch = () => {
-    setSearchQuery("");
-    setCurrentPage(1);
-    searchTMDB("", 1, false);
-  };
-
-  const availableSeries = Array.isArray(allSeries)
-    ? allSeries.filter((s) => !userSeriesTmdbIds.has(s.tmdbId))
-    : [];
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto h-9 w-9 animate-spin rounded-full border-[3px] border-brand-500 border-t-transparent" />
-          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-            Loading amazing series...
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const visible = items.filter(
+    (i) => !inLibrary.has(libraryKey(i.mediaType, i.tmdbId)),
+  );
 
   return (
     <div className="space-y-6">
-      {/* Scroll to top */}
       {showScrollTop && (
         <button
-          onClick={scrollToTop}
-          className="fixed bottom-24 right-6 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg transition hover:bg-brand-700 hover:scale-105 md:bottom-8"
-          aria-label="Go to top"
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="fixed bottom-24 right-6 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg md:bottom-8"
         >
           <ArrowUpIcon className="h-5 w-5" />
         </button>
       )}
 
-      {/* Header */}
-      <div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2.5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-950/40">
-            <SparklesIcon className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+            <SparklesIcon className="h-5 w-5 text-violet-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
-              Discover Series
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              Discover
             </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Explore {totalResults.toLocaleString()}+ TV series from TMDB
+            <p className="text-sm text-slate-500">
+              Browse and add movies &amp; TV series
             </p>
           </div>
         </div>
+
+        {/* Media type tabs */}
+        <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1 dark:border-slate-700 dark:bg-slate-800">
+          <button
+            type="button"
+            onClick={() => setMediaType("tv")}
+            className={clsx(
+              "inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-medium transition",
+              mediaType === "tv"
+                ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white"
+                : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200",
+            )}
+          >
+            <TvIcon className="h-4 w-4" />
+            TV
+          </button>
+          <button
+            type="button"
+            onClick={() => setMediaType("movie")}
+            className={clsx(
+              "inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-medium transition",
+              mediaType === "movie"
+                ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white"
+                : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200",
+            )}
+          >
+            <FilmIcon className="h-4 w-4" />
+            Movies
+          </button>
+        </div>
       </div>
 
-      {/* Search */}
+      {message && (
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+          {message}
+          <button
+            type="button"
+            className="ml-3 text-brand-600 hover:underline"
+            onClick={() => setMessage(null)}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       <div className="relative">
         <MagnifyingGlassIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
         <input
           type="text"
           value={searchQuery}
-          onChange={handleSearchChange}
-          placeholder="Search for any TV series..."
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            debouncedSearch(e.target.value, mediaType);
+          }}
+          placeholder={
+            mediaType === "movie" ? "Search movies..." : "Search TV series..."
+          }
           className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-12 pr-12 text-sm outline-none transition focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
         />
         {searchQuery && (
           <button
-            onClick={clearSearch}
-            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700"
+            type="button"
+            onClick={() => {
+              setSearchQuery("");
+              setCurrentPage(1);
+              fetchPage("", 1, mediaType, false);
+            }}
+            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
           >
             <XMarkIcon className="h-4 w-4" />
           </button>
         )}
       </div>
 
-      {/* Search status */}
       {isSearching && (
-        <div className="flex items-center justify-center gap-2 py-3">
+        <div className="flex items-center justify-center gap-2 py-2 text-sm text-slate-500">
           <ArrowPathIcon className="h-4 w-4 animate-spin text-brand-500" />
-          <span className="text-sm text-slate-500">Searching...</span>
+          Searching...
         </div>
       )}
 
-      {/* Results info */}
-      {!isSearching && (
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          {searchQuery ? (
-            <>
-              Found{" "}
-              <span className="font-semibold text-slate-900 dark:text-white">
-                {totalResults.toLocaleString()}
-              </span>{" "}
-              results for &ldquo;{searchQuery}&rdquo;
-            </>
-          ) : (
-            <>
-              Showing{" "}
-              <span className="font-semibold text-slate-900 dark:text-white">
-                {availableSeries.length}
-              </span>{" "}
-              of {totalResults.toLocaleString()} popular series
-            </>
-          )}
-        </p>
-      )}
-
-      {/* Grid */}
-      {availableSeries.length > 0 ? (
+      {isLoading ? (
+        <div className="flex min-h-[240px] items-center justify-center">
+          <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-brand-500 border-t-transparent" />
+        </div>
+      ) : visible.length > 0 ? (
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-            {availableSeries.map((seriesItem) => (
-              <SeriesCard
-                key={seriesItem.id}
-                id={seriesItem.id}
-                name={seriesItem.name}
-                totalSeasons={seriesItem.totalSeasons}
-                posterPath={seriesItem.posterPath}
-                voteAverage={seriesItem.voteAverage}
-                firstAirDate={seriesItem.firstAirDate}
-                overview={seriesItem.overview}
-                genres={seriesItem.genres}
-                isAdding={addingSeriesId === seriesItem.id}
-                onAdd={() => handleAddSeries(seriesItem)}
-              />
-            ))}
+            {visible.map((item) => {
+              const poster = item.posterPath
+                ? `https://image.tmdb.org/t/p/w342${item.posterPath}`
+                : null;
+              const year = item.releaseDate || item.firstAirDate;
+              const yearLabel = year ? new Date(year).getFullYear() : null;
+              const isAdding = addingId === item.id;
+
+              return (
+                <div
+                  key={`${item.mediaType}-${item.tmdbId}`}
+                  className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900"
+                >
+                  <div className="relative aspect-[2/3] bg-slate-100 dark:bg-slate-800">
+                    {poster ? (
+                      <Image
+                        src={poster}
+                        alt={item.name}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width:768px) 50vw, 16vw"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-2xl font-bold text-slate-400">
+                        {item.name.charAt(0)}
+                      </div>
+                    )}
+                    {item.voteAverage != null && item.voteAverage > 0 && (
+                      <span className="absolute right-2 top-2 rounded-lg bg-black/70 px-1.5 py-0.5 text-xs font-semibold text-amber-400">
+                        ★ {item.voteAverage.toFixed(1)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="p-2.5">
+                    <h3 className="line-clamp-1 text-sm font-semibold text-slate-900 dark:text-white">
+                      {item.name}
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      {yearLabel ||
+                        (item.mediaType === "movie" ? "Movie" : "TV")}
+                    </p>
+                    <button
+                      type="button"
+                      disabled={isAdding}
+                      onClick={() => handleAdd(item)}
+                      className="mt-2 flex w-full items-center justify-center gap-1 rounded-lg bg-brand-600 py-1.5 text-xs font-medium text-white transition hover:bg-brand-700 disabled:opacity-50"
+                    >
+                      {isAdding ? (
+                        <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <PlusIcon className="h-3.5 w-3.5" />
+                      )}
+                      Add
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           <div ref={loadMoreRef} className="py-8 text-center">
             {isLoadingMore && (
-              <div className="flex items-center justify-center gap-2">
-                <ArrowPathIcon className="h-5 w-5 animate-spin text-brand-500" />
-                <span className="text-sm text-slate-500">
-                  Loading more series...
-                </span>
-              </div>
+              <ArrowPathIcon className="mx-auto h-5 w-5 animate-spin text-brand-500" />
             )}
-            {!hasMore && !isSearching && availableSeries.length > 0 && (
-              <p className="text-sm text-slate-400">
-                You&apos;ve explored all {totalResults.toLocaleString()} series
-              </p>
-            )}
-            {hasMore && !isLoadingMore && !isSearching && (
+            {hasMore && !isLoadingMore && (
               <button
+                type="button"
                 onClick={loadMore}
-                className="rounded-xl bg-brand-600 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700"
+                className="rounded-xl bg-brand-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
               >
-                Load More
+                Load more
               </button>
             )}
           </div>
         </>
       ) : (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white py-16 text-center dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800">
-            <SparklesIcon className="h-8 w-8 text-slate-400" />
-          </div>
-          <h3 className="mt-4 text-lg font-semibold text-slate-900 dark:text-white">
-            No series found
-          </h3>
-          <p className="mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">
+        <div className="rounded-2xl border border-dashed border-slate-300 py-16 text-center dark:border-slate-700">
+          <p className="text-slate-500">
             {searchQuery
-              ? `No results for "${searchQuery}". Try a different search.`
-              : "All popular series are already in your collection."}
+              ? "No results. Try another search."
+              : "Everything here is already in your library."}
           </p>
-          {searchQuery && (
-            <button
-              onClick={clearSearch}
-              className="mt-5 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700"
-            >
-              Clear Search
-            </button>
-          )}
         </div>
       )}
     </div>

@@ -6,6 +6,8 @@ import { withRateLimit } from "@/app/lib/rate-limit";
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const BASE_URL = "https://api.themoviedb.org/3";
 
+type SearchType = "tv" | "movie" | "multi";
+
 export async function GET(request: NextRequest) {
   return withRateLimit(
     request,
@@ -13,8 +15,9 @@ export async function GET(request: NextRequest) {
       const searchParams = request.nextUrl.searchParams;
       const query = searchParams.get("query");
       const page = parseInt(searchParams.get("page") || "1");
+      const type = (searchParams.get("type") || "tv") as SearchType;
 
-      if (!query) {
+      if (!query?.trim()) {
         return NextResponse.json(
           { error: "Query parameter required" },
           { status: 400 },
@@ -28,14 +31,19 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      const endpoint =
+        type === "movie"
+          ? "search/movie"
+          : type === "multi"
+            ? "search/multi"
+            : "search/tv";
+
       try {
         const response = await fetch(
-          `${BASE_URL}/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(
+          `${BASE_URL}/${endpoint}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(
             query,
-          )}&language=en-US&page=${page}`,
-          {
-            next: { revalidate: 3600 }, // Cache search results for 1 hour
-          },
+          )}&language=en-US&page=${page}&include_adult=false`,
+          { next: { revalidate: 3600 } },
         );
 
         if (!response.ok) {
@@ -43,64 +51,59 @@ export async function GET(request: NextRequest) {
         }
 
         const data = await response.json();
+        const results = (data.results || [])
+          .filter((item: any) => {
+            if (type !== "multi") return true;
+            return item.media_type === "movie" || item.media_type === "tv";
+          })
+          .slice(0, 24)
+          .map((item: any) => {
+            const mediaType =
+              type === "multi"
+                ? item.media_type
+                : type === "movie"
+                  ? "movie"
+                  : "tv";
 
-        // Fetch season counts efficiently with Promise.all (limited to first 24 results)
-        const seriesWithSeasons = await Promise.all(
-          data.results.slice(0, 24).map(async (show: any) => {
-            // If number_of_seasons is already in search result, use it
-            if (show.number_of_seasons && show.number_of_seasons > 0) {
+            if (mediaType === "movie") {
               return {
-                id: show.id,
-                name: show.name,
-                totalSeasons: show.number_of_seasons,
-                overview: show.overview || "",
-                posterPath: show.poster_path,
-                backdropPath: show.backdrop_path,
-                firstAirDate: show.first_air_date || "",
-                voteAverage: show.vote_average || 0,
+                id: item.id,
+                mediaType: "movie" as const,
+                name: item.title || item.name,
+                overview: item.overview || "",
+                posterPath: item.poster_path,
+                backdropPath: item.backdrop_path,
+                releaseDate: item.release_date || null,
+                voteAverage: item.vote_average || 0,
+                voteCount: item.vote_count || 0,
+                popularity: item.popularity || 0,
+                originalLanguage: item.original_language,
               };
             }
 
-            // Otherwise fetch details (but only for shows missing season data)
-            try {
-              const detailsResponse = await fetch(
-                `${BASE_URL}/tv/${show.id}?api_key=${TMDB_API_KEY}&language=en-US`,
-                {
-                  next: { revalidate: 86400 }, // Cache details for 24 hours
-                },
-              );
-              const details = await detailsResponse.json();
-
-              return {
-                id: show.id,
-                name: show.name,
-                totalSeasons: details.number_of_seasons || 0,
-                overview: show.overview || "",
-                posterPath: show.poster_path,
-                backdropPath: show.backdrop_path || details.backdrop_path,
-                firstAirDate: show.first_air_date || "",
-                voteAverage: show.vote_average || 0,
-              };
-            } catch {
-              // Fallback if details fetch fails
-              return {
-                id: show.id,
-                name: show.name,
-                totalSeasons: 0,
-                overview: show.overview || "",
-                posterPath: show.poster_path,
-                backdropPath: show.backdrop_path,
-                firstAirDate: show.first_air_date || "",
-                voteAverage: show.vote_average || 0,
-              };
-            }
-          }),
-        );
+            return {
+              id: item.id,
+              mediaType: "tv" as const,
+              name: item.name || item.title,
+              overview: item.overview || "",
+              posterPath: item.poster_path,
+              backdropPath: item.backdrop_path,
+              firstAirDate: item.first_air_date || null,
+              voteAverage: item.vote_average || 0,
+              voteCount: item.vote_count || 0,
+              popularity: item.popularity || 0,
+              originalLanguage: item.original_language,
+              // Season count not on search — fetch details on add
+              totalSeasons: item.number_of_seasons || 0,
+            };
+          });
 
         return NextResponse.json({
-          series: seriesWithSeasons,
-          totalResults: data.total_results,
-          totalPages: data.total_pages,
+          results,
+          // Legacy key for existing TV UI
+          series: results.filter((r: any) => r.mediaType === "tv"),
+          totalResults: data.total_results || 0,
+          totalPages: data.total_pages || 0,
           currentPage: page,
         });
       } catch (error) {
@@ -111,6 +114,6 @@ export async function GET(request: NextRequest) {
         );
       }
     },
-    { maxRequests: 30, windowMs: 60 * 1000 }, // 30 requests per minute
+    { maxRequests: 30, windowMs: 60 * 1000 },
   );
 }
