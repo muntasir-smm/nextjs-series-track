@@ -188,12 +188,16 @@ export default function MovieDetailPage() {
           )}
 
           <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
-            {movie.voteAverage != null && movie.voteAverage > 0 && (
-              <span className="inline-flex items-center gap-1 font-medium text-amber-600">
-                <StarSolidIcon className="h-4 w-4" />
-                {movie.voteAverage.toFixed(1)}
-              </span>
-            )}
+            {(() => {
+              const rating = Number(movie.voteAverage);
+              if (!Number.isFinite(rating) || rating <= 0) return null;
+              return (
+                <span className="inline-flex items-center gap-1 font-medium text-amber-600">
+                  <StarSolidIcon className="h-4 w-4" />
+                  {rating.toFixed(1)}
+                </span>
+              );
+            })()}
             {movie.releaseDate && (
               <span>{new Date(movie.releaseDate).getFullYear()}</span>
             )}

@@ -16,7 +16,7 @@ export const navLinks = [
     icon: HomeIcon,
   },
   {
-    name: "TV Series",
+    name: "My Library",
     href: "/dashboard/tvSeries",
     icon: FilmIcon,
     showCount: true,
