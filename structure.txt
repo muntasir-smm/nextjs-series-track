@@ -43,19 +43,28 @@
 │   │   │   │   └── route.ts
 │   │   │   ├── session
 │   │   │   │   └── route.ts
-│   │   │   ├── signup
-│   │   │   │   └── route.ts
-│   │   │   └── verify-email
+│   │   │   └── signup
+│   │   │       └── route.ts
 │   │   ├── public
+│   │   │   ├── featured
+│   │   │   │   └── route.ts
 │   │   │   └── popular
 │   │   │       └── route.ts
 │   │   ├── tmdb
+│   │   │   ├── movie
+│   │   │   │   ├── [id]
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── popular
+│   │   │   │       └── route.ts
 │   │   │   ├── popular
 │   │   │   │   └── route.ts
 │   │   │   ├── search
 │   │   │   │   └── route.ts
 │   │   │   └── tv
 │   │   │       └── [id]
+│   │   │           ├── season
+│   │   │           │   └── [seasonNumber]
+│   │   │           │       └── route.ts
 │   │   │           └── route.ts
 │   │   └── user
 │   │       ├── avatar
@@ -77,6 +86,9 @@
 │   │   │   └── page.tsx
 │   │   ├── discover
 │   │   │   └── page.tsx
+│   │   ├── movie
+│   │   │   └── [id]
+│   │   │       └── page.tsx
 │   │   ├── profile
 │   │   │   ├── components
 │   │   │   │   ├── edit-profile-form.tsx
@@ -91,6 +103,12 @@
 │   │   │   └── page.tsx
 │   │   ├── tvSeries
 │   │   │   ├── [id]
+│   │   │   │   ├── components
+│   │   │   │   │   ├── series-edit-modal.tsx
+│   │   │   │   │   ├── series-hero.tsx
+│   │   │   │   │   ├── series-seasons-grid.tsx
+│   │   │   │   │   ├── series-sidebar.tsx
+│   │   │   │   │   └── series-synopsis.tsx
 │   │   │   │   └── page.tsx
 │   │   │   └── page.tsx
 │   │   └── layout.tsx
@@ -102,6 +120,7 @@
 │   │   ├── definitions.ts
 │   │   ├── guards.ts
 │   │   ├── placeholder-data.js
+│   │   ├── progress.ts
 │   │   ├── rate-limit.ts
 │   │   ├── series.ts
 │   │   └── signout-action.ts
@@ -119,6 +138,7 @@
 │   │   ├── tvSeries
 │   │   │   ├── add-series-form.tsx
 │   │   │   ├── edit-series-form.tsx
+│   │   │   ├── episode-tracker.tsx
 │   │   │   ├── progress-bar.tsx
 │   │   │   ├── series-controls.tsx
 │   │   │   └── series-list.tsx
@@ -166,6 +186,6 @@
 └── tsconfig.json
 
 ::::::::::::::::::::::::
-📁 Folders : 47
-📄 Files   : 118
-⏰Generated: 03/09/2026, 8:27:21 pm
+📁 Folders : 55
+📄 Files   : 130
+⏰Generated: 07/09/2026, 11:10:54 am
