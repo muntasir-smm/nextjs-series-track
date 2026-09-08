@@ -8,12 +8,15 @@ import {
   CalendarIcon,
   CheckCircleIcon,
   ChartBarIcon,
+  FilmIcon,
 } from "@heroicons/react/24/outline";
 import clsx from "clsx";
 
 interface StatsSectionProps {
   stats: {
     totalSeries: number;
+    totalMovies?: number;
+    totalTv?: number;
     completedSeries: number;
     totalSeasons: number;
     totalWatchedSeasons: number;
@@ -126,11 +129,11 @@ const StatCard = memo<{
           </div>
           <div
             className={clsx(
-              "flex h-9 w-9 items-center justify-center rounded-xl",
+              "flex h-6 w-6 items-center justify-center rounded-xl",
               style.bg,
             )}
           >
-            <Icon className={clsx("h-4.5 w-4.5", style.icon)} />
+            <Icon className={clsx("h-4 w-4", style.icon)} />
           </div>
         </div>
       </div>
@@ -146,23 +149,26 @@ export const StatsSection: React.FC<StatsSectionProps> = ({
 }) => {
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-            {userName}&apos;s Statistics
-          </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Overview of your tracking progress
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
         <StatCard
-          title="Total Series"
+          title="Library"
           value={stats.totalSeries}
           icon={TvIcon}
           color="blue"
+        />
+
+        <StatCard
+          title="Movies"
+          value={stats.totalMovies ?? 0}
+          icon={FilmIcon}
+          color="orange"
+        />
+
+        <StatCard
+          title="TV Shows"
+          value={stats.totalTv ?? 0}
+          icon={TvIcon}
+          color="violet"
         />
         <StatCard
           title="Completed"
@@ -177,7 +183,7 @@ export const StatsSection: React.FC<StatsSectionProps> = ({
           color="violet"
         />
         <StatCard
-          title="Watched"
+          title="Seasons Watched"
           value={stats.totalWatchedSeasons}
           icon={CheckCircleIcon}
           color="teal"

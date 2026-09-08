@@ -100,19 +100,32 @@ function mapRow(s: any): Series {
   const watchedEpisodes = parseWatchedEpisodes(s.watchedEpisodes);
   const seasons =
     typeof s.seasons === "string" ? JSON.parse(s.seasons) : s.seasons || [];
-  const totalEpisodes = s.totalEpisodes ? Number(s.totalEpisodes) : 0;
+  const totalEpisodes = s.totalEpisodes != null ? Number(s.totalEpisodes) : 0;
+  const totalSeasons = s.totalSeasons != null ? Number(s.totalSeasons) : 0;
 
-  // Prefer episode-level progress when any episodes are tracked
   const episodeWatchedCount = countWatchedEpisodes(watchedEpisodes);
   let watchProgress = Number(s.watchProgress) || 0;
   if (episodeWatchedCount > 0 && totalEpisodes > 0) {
     watchProgress = tvWatchProgress(watchedEpisodes, totalEpisodes);
   }
 
+  const voteAverage =
+    s.voteAverage != null && s.voteAverage !== ""
+      ? Number(s.voteAverage)
+      : undefined;
+
   return {
     ...s,
     mediaType: (s.mediaType as MediaType) || "tv",
+    tmdbId: s.tmdbId != null ? Number(s.tmdbId) : undefined,
+    totalSeasons,
     totalEpisodes,
+    voteAverage: Number.isFinite(voteAverage as number)
+      ? (voteAverage as number)
+      : undefined,
+    voteCount: s.voteCount != null ? Number(s.voteCount) : undefined,
+    popularity: s.popularity != null ? Number(s.popularity) : undefined,
+    runtime: s.runtime != null ? Number(s.runtime) : null,
     genres: s.genres || [],
     networks: s.networks || [],
     upcomingSeasons: s.upcomingSeasons || [],

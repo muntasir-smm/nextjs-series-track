@@ -21,7 +21,16 @@ export async function GET() {
     `;
 
     // Total series tracked
-    const totalSeries = await sql`SELECT COUNT(*) FROM user_series`;
+    const totalLibrary =
+      await sql`SELECT COUNT(*)::int as count FROM user_series`;
+    const byType = await sql`
+  SELECT media_type, COUNT(*)::int as count
+  FROM user_series
+  GROUP BY media_type
+`;
+    const movieCount =
+      byType.find((r: any) => r.media_type === "movie")?.count ?? 0;
+    const tvCount = byType.find((r: any) => r.media_type === "tv")?.count ?? 0;
 
     // Most tracked series
     const mostTracked = await sql`
@@ -62,7 +71,9 @@ export async function GET() {
     return NextResponse.json({
       totalUsers: parseInt(totalUsers[0].count),
       activeUsers: parseInt(activeUsers[0].count),
-      totalSeries: parseInt(totalSeries[0].count),
+      totalSeries: totalLibrary[0]?.count ?? 0,
+      totalMovies: movieCount,
+      totalTv: tvCount,
       mostTrackedSeries: mostTracked,
       popularGenres: popularGenres,
       averageProgress: Math.round(parseFloat(avgProgress[0].avg) || 0),

@@ -35,7 +35,7 @@ export default function Page() {
   const [isLoading, setIsLoading] = useState(true);
   const [addingSeriesId, setAddingSeriesId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [greeting, setGreeting] = useState("");
+
   const [userName, setUserName] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -59,13 +59,6 @@ export default function Page() {
   useEffect(() => {
     seriesMapRef.current = new Map(seriesData.map((s) => [s.id, s]));
   }, [seriesData]);
-
-  useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) setGreeting("Good morning");
-    else if (hour < 18) setGreeting("Good afternoon");
-    else setGreeting("Good evening");
-  }, []);
 
   useEffect(() => {
     let isActive = true;
@@ -144,21 +137,19 @@ export default function Page() {
     return () => window.removeEventListener("series-added", handleSeriesAdded);
   }, [loadSeries, loadPopularSeries]);
 
-  const existingSeriesTmdbIds = useMemo(() => {
+  // ::::::::::::::::::::::::::
+  const existingLibraryKeys = useMemo(() => {
     return new Set(
       seriesData
-        .map((s) => s.tmdbId)
-        .filter((id): id is number => id !== undefined),
+        .filter((s) => s.tmdbId != null)
+        .map((s) => `${s.mediaType || "tv"}:${s.tmdbId}`),
     );
   }, [seriesData]);
 
   const handleAddSuggestedSeries = useCallback(
     async (series: SuggestedSeries) => {
-      const alreadyExists = series.tmdbId
-        ? existingSeriesTmdbIds.has(series.tmdbId)
-        : false;
-
-      if (alreadyExists) {
+      const key = `tv:${series.tmdbId}`;
+      if (existingLibraryKeys.has(key)) {
         setDuplicateError(`"${series.name}" is already in your collection!`);
         setTimeout(() => setDuplicateError(null), 3000);
         return;
@@ -168,36 +159,111 @@ export default function Page() {
       setDuplicateError(null);
 
       try {
+        // Always load full TV details before insert
+        const res = await fetch(`/api/tmdb/tv/${series.tmdbId}`);
+        if (!res.ok) throw new Error("Failed to load details");
+        const d = await res.json();
+
         const result = await addSeriesAction(
-          series.tmdbId,
-          series.name,
-          series.totalSeasons,
+          d.id,
+          d.name,
+          d.totalSeasons || 0,
           [],
-          series.posterPath,
-          series.backdropPath,
-          series.overview,
+          d.posterPath,
+          d.backdropPath,
+          d.overview,
+          d.voteAverage,
+          d.voteCount,
+          d.firstAirDate,
+          d.lastAirDate,
+          d.genres,
+          d.status,
+          d.tagline,
+          d.originalName,
+          d.originalLanguage,
+          d.popularity,
+          d.inProduction,
+          d.networks,
+          d.totalEpisodes,
+          d.seasons,
         );
 
         if (result.duplicate) {
           setDuplicateError(
             result.error || `"${series.name}" is already in your collection`,
           );
-          setAddingSeriesId(null);
           return;
         }
 
         if (result.success && isMounted.current) {
+          window.dispatchEvent(new CustomEvent("series-added"));
           await loadSeries();
           await loadPopularSeries();
         }
       } catch (err) {
         console.error("Error adding series:", err);
+        setDuplicateError("Failed to add. Please try again.");
+        setTimeout(() => setDuplicateError(null), 3000);
       } finally {
         if (isMounted.current) setAddingSeriesId(null);
       }
     },
-    [loadSeries, loadPopularSeries, existingSeriesTmdbIds],
+    [loadSeries, loadPopularSeries, existingLibraryKeys],
   );
+
+  const stats = useMemo(() => {
+    let totalSeasons = 0;
+    let watchedSeasons = 0;
+    let completed = 0;
+    let movieCount = 0;
+    let tvCount = 0;
+    let moviesWatched = 0;
+
+    for (const s of seriesData) {
+      const isMovie = (s.mediaType || "tv") === "movie";
+      if (isMovie) {
+        movieCount++;
+        if (s.watched || Number(s.watchProgress) >= 100) {
+          moviesWatched++;
+          completed++;
+        }
+      } else {
+        tvCount++;
+        const seasons = Number(s.totalSeasons) || 0;
+        totalSeasons += seasons;
+        const watched = (s.watchedSeasons || []).filter(Boolean).length;
+        watchedSeasons += watched;
+        if (Number(s.watchProgress) >= 100) completed++;
+      }
+    }
+
+    const progress =
+      totalSeasons > 0
+        ? Math.round((watchedSeasons / totalSeasons) * 100)
+        : movieCount > 0
+          ? Math.round((moviesWatched / movieCount) * 100)
+          : 0;
+
+    // getUserSeries is ORDER BY created_at DESC — first items are newest
+    const recentlyAdded = seriesData.slice(0, 6);
+
+    return {
+      totalSeries: seriesData.length,
+      totalMovies: movieCount,
+      totalTv: tvCount,
+      totalSeasons,
+      totalWatchedSeasons: watchedSeasons,
+      remainingSeasons: Math.max(0, totalSeasons - watchedSeasons),
+      overallProgress: progress,
+      recentlyAdded,
+      completedSeries: completed,
+    };
+  }, [seriesData]);
+
+  const undiscoveredSeries = suggestedSeries.filter(
+    (s) => !existingLibraryKeys.has(`tv:${s.tmdbId}`),
+  );
+  // ::::::::::::::::::::::::::
 
   const updateSeries = useCallback(
     async (updatedSeries: Series[]) => {
@@ -208,10 +274,12 @@ export default function Page() {
       );
 
       const changedSeries = updatedSeries.filter((series) => {
+        if ((series.mediaType || "tv") === "movie") return false;
         const original = seriesMapRef.current.get(series.id);
-        return (
-          original &&
-          !arraysEqual(original.watchedSeasons, series.watchedSeasons)
+        if (!original) return false;
+        return !arraysEqual(
+          original.watchedSeasons || [],
+          series.watchedSeasons || [],
         );
       });
 
@@ -263,6 +331,7 @@ export default function Page() {
   );
 
   const openEditModal = useCallback((series: Series) => {
+    if ((series.mediaType || "tv") === "movie") return;
     setEditingSeries(series);
     setIsEditModalOpen(true);
   }, []);
@@ -326,54 +395,6 @@ export default function Page() {
     localStorage.setItem("dashboardViewMode", mode);
   }, []);
 
-  const stats = useMemo(() => {
-    let totalSeasons = 0;
-    let watchedSeasons = 0;
-    let completed = 0;
-
-    for (const s of seriesData) {
-      totalSeasons += s.totalSeasons;
-      const watched = s.watchedSeasons.filter(Boolean).length;
-      watchedSeasons += watched;
-      if (s.watchProgress === 100) completed++;
-    }
-
-    const progress =
-      totalSeasons > 0 ? Math.round((watchedSeasons / totalSeasons) * 100) : 0;
-
-    const recentlyAdded = [...seriesData]
-      .sort((a, b) => {
-        const aNum = parseInt(a.id.split("-").pop() || "0");
-        const bNum = parseInt(b.id.split("-").pop() || "0");
-        return bNum - aNum;
-      })
-      .slice(0, 6);
-
-    return {
-      totalSeries: seriesData.length,
-      totalSeasons,
-      totalWatchedSeasons: watchedSeasons,
-      remainingSeasons: totalSeasons - watchedSeasons,
-      overallProgress: progress,
-      recentlyAdded,
-      completedSeries: completed,
-    };
-  }, [seriesData]);
-
-  const userSeriesTmdbIds = useMemo(
-    () =>
-      new Set(
-        seriesData
-          .map((s) => s.tmdbId)
-          .filter((id): id is number => id !== undefined),
-      ),
-    [seriesData],
-  );
-
-  const undiscoveredSeries = suggestedSeries.filter(
-    (s) => !userSeriesTmdbIds.has(s.tmdbId),
-  );
-
   if (isLoading && seriesData.length === 0 && !error) {
     return (
       <div className="space-y-8 animate-pulse">
@@ -394,17 +415,6 @@ export default function Page() {
 
   return (
     <div className="space-y-8">
-      {/* Greeting */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
-          {greeting}
-          {userName ? `, ${userName}` : ""}
-        </h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Here&apos;s what&apos;s happening with your series
-        </p>
-      </div>
-
       {/* Error / Duplicate toast */}
       {(error || duplicateError) && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
