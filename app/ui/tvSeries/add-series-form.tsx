@@ -11,6 +11,7 @@ import {
   TvIcon,
   FilmIcon,
   CalendarIcon,
+  Squares2X2Icon,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import Image from "next/image";
@@ -23,6 +24,8 @@ import {
   type MediaType,
 } from "@/app/lib/series";
 import { formatRating } from "@/app/lib/format";
+
+type SearchFilter = "all" | MediaType;
 
 interface SearchResult {
   id: number;
@@ -53,7 +56,7 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
   onError,
   isSubmitting: externalSubmitting = false,
 }) => {
-  const [mediaType, setMediaType] = useState<MediaType>("tv");
+  const [filter, setFilter] = useState<SearchFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -96,7 +99,7 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
     setSearchResults([]);
     setShowResults(false);
     setDuplicateError(null);
-  }, [mediaType]);
+  }, [filter]);
 
   const getPosterUrl = (posterPath: string | null, size = "w92") => {
     if (!posterPath) return null;
@@ -124,8 +127,11 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
 
       try {
         setIsSearching(true);
+        const typeParam =
+          filter === "all" ? "multi" : filter === "movie" ? "movie" : "tv";
+
         const res = await fetch(
-          `/api/tmdb/search?query=${encodeURIComponent(q)}&type=${mediaType}`,
+          `/api/tmdb/search?query=${encodeURIComponent(q)}&type=${typeParam}`,
           { signal: controller.signal },
         );
         const data = await res.json();
@@ -134,29 +140,41 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
         const raw =
           data.results || data.series || (Array.isArray(data) ? data : []);
 
-        const results: SearchResult[] = raw.map((item: any) => {
-          const mt: MediaType =
-            item.mediaType === "movie" || item.media_type === "movie"
-              ? "movie"
-              : mediaType;
-          return {
-            id: Number(item.tmdbId ?? item.id),
-            mediaType: mt,
-            name: item.name || item.title || "Unknown",
-            overview: item.overview || "",
-            posterPath: item.posterPath ?? item.poster_path ?? null,
-            backdropPath: item.backdropPath ?? item.backdrop_path ?? null,
-            date:
-              item.releaseDate ||
-              item.release_date ||
-              item.firstAirDate ||
-              item.first_air_date ||
-              null,
-            voteAverage: Number(item.voteAverage ?? item.vote_average ?? 0),
-            totalSeasons:
-              item.totalSeasons ?? item.number_of_seasons ?? undefined,
-          };
-        });
+        const results: SearchResult[] = raw
+          .map((item: any) => {
+            const mt: MediaType =
+              item.mediaType === "movie" || item.media_type === "movie"
+                ? "movie"
+                : item.mediaType === "tv" || item.media_type === "tv"
+                  ? "tv"
+                  : filter === "movie"
+                    ? "movie"
+                    : "tv";
+
+            // Skip people if any slip through
+            if (item.media_type === "person" || item.mediaType === "person") {
+              return null;
+            }
+
+            return {
+              id: Number(item.tmdbId ?? item.id),
+              mediaType: mt,
+              name: item.name || item.title || "Unknown",
+              overview: item.overview || "",
+              posterPath: item.posterPath ?? item.poster_path ?? null,
+              backdropPath: item.backdropPath ?? item.backdrop_path ?? null,
+              date:
+                item.releaseDate ||
+                item.release_date ||
+                item.firstAirDate ||
+                item.first_air_date ||
+                null,
+              voteAverage: Number(item.voteAverage ?? item.vote_average ?? 0),
+              totalSeasons:
+                item.totalSeasons ?? item.number_of_seasons ?? undefined,
+            } as SearchResult;
+          })
+          .filter(Boolean) as SearchResult[];
 
         setSearchResults(results);
         setShowResults(true);
@@ -173,7 +191,7 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
       if (abortControllerRef.current) abortControllerRef.current.abort();
     };
-  }, [searchQuery, mediaType]);
+  }, [searchQuery, filter]);
 
   const selectItem = (item: SearchResult) => {
     if (isInLibrary(item)) return;
@@ -322,36 +340,39 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
 
   const ratingLabel = (v: number) => formatRating(v);
 
+  const placeholder =
+    filter === "all"
+      ? "Search movies & TV..."
+      : filter === "movie"
+        ? "Search movies..."
+        : "Search TV series...";
+
   return (
     <form onSubmit={handleSubmit} className="space-y-2">
-      {/* TV | Movies tabs */}
-      <div className="inline-flex w-full rounded-xl bg-slate-100 dark:bg-slate-800">
-        <button
-          type="button"
-          onClick={() => setMediaType("tv")}
-          className={clsx(
-            "flex flex-1 items-center justify-center gap-2 rounded-lg p-2 text-sm font-medium transition",
-            mediaType === "tv"
-              ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white"
-              : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200",
-          )}
-        >
-          <TvIcon className="h-4 w-4" />
-          TV
-        </button>
-        <button
-          type="button"
-          onClick={() => setMediaType("movie")}
-          className={clsx(
-            "flex flex-1 items-center justify-center gap-2 rounded-lg p-2 text-sm font-medium transition",
-            mediaType === "movie"
-              ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white"
-              : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200",
-          )}
-        >
-          <FilmIcon className="h-4 w-4" />
-          Movies
-        </button>
+      {/* All | TV | Movies */}
+      <div className="inline-flex w-full rounded-xl border border-slate-200 bg-slate-100 p-0.5 dark:border-slate-700 dark:bg-slate-800">
+        {(
+          [
+            { id: "all" as const, label: "All", icon: Squares2X2Icon },
+            { id: "tv" as const, label: "TV", icon: TvIcon },
+            { id: "movie" as const, label: "Movies", icon: FilmIcon },
+          ] as const
+        ).map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setFilter(tab.id)}
+            className={clsx(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-lg p-1 text-sm font-medium transition",
+              filter === tab.id
+                ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white"
+                : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200",
+            )}
+          >
+            <tab.icon className="h-4 w-4" />
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       <AnimatePresence>
@@ -381,17 +402,15 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
         </div>
       )}
 
-      {/* Search */}
+      {/* Search input */}
       <div className="relative">
         <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder={
-            mediaType === "movie" ? "Search movies..." : "Search TV series..."
-          }
-          className="w-full rounded-xl border-2 border-slate-200 bg-white py-3 pl-10 pr-10 text-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+          placeholder={placeholder}
+          className="w-full rounded-xl border-1 border-slate-200 bg-white py-1.5 px-10 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           autoFocus
         />
         {searchQuery && (
@@ -409,7 +428,6 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
         )}
       </div>
 
-      {/* Results — in-flow so modal can show 2–3 rows without clipping */}
       {isSearching && (
         <div className="rounded-xl border border-slate-200 bg-white p-6 text-center dark:border-slate-700 dark:bg-slate-800">
           <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
@@ -417,8 +435,9 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
         </div>
       )}
 
+      {/* In-flow results */}
       {showResults && !isSearching && searchResults.length > 0 && (
-        <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
           {searchResults.map((item) => {
             const exists = isInLibrary(item);
             const rating = ratingLabel(item.voteAverage);
@@ -433,6 +452,10 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
                   exists
                     ? "cursor-not-allowed bg-slate-50 opacity-60 dark:bg-slate-800/50"
                     : "hover:bg-slate-50 dark:hover:bg-slate-700",
+
+                  item.mediaType === "movie"
+                    ? "hover:bg-violet-100 dark:hover:bg-violet-950/40"
+                    : "hover:bg-sky-100 dark:hover:bg-sky-950/40",
                 )}
               >
                 {getPosterUrl(item.posterPath) ? (
@@ -457,14 +480,24 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
                     <span className="truncate text-sm font-semibold text-slate-900 dark:text-white">
                       {displayName(item)}
                     </span>
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-500">
+                    <span
+                      className={clsx(
+                        "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                        item.mediaType === "movie"
+                          ? "bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300"
+                          : "bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300",
+                      )}
+                    >
+                      {item.mediaType === "movie" ? "Movie" : "TV Series"}
+                    </span>
                     {rating && (
                       <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                         <StarSolidIcon className="h-3 w-3" />
                         {rating}
                       </span>
                     )}
-                  </div>
-                  <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-500">
                     {exists && (
                       <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[11px] font-medium text-red-600 dark:bg-red-900/30 dark:text-red-400">
                         Already in Library
@@ -519,17 +552,28 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
                   )}
                 </div>
               )}
-
               <div className="min-w-0 flex-1">
-                <p className="font-semibold text-slate-900 dark:text-white">
-                  {displayName(selected)}
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-semibold text-slate-900 dark:text-white">
+                    {displayName(selected)}
+                  </p>
+                  <span
+                    className={clsx(
+                      "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                      selected.mediaType === "movie"
+                        ? "bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300"
+                        : "bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300",
+                    )}
+                  >
+                    {selected.mediaType === "movie" ? "Movie" : "TV"}
+                  </span>
                   {selected.voteAverage && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                    <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                       <StarSolidIcon className="h-3 w-3" />
-                      {selected.voteAverage}
+                      {selected.voteAverage.toFixed(1)}
                     </span>
                   )}
-                </p>
+                </div>
                 <p className="mt-1 line-clamp-3 text-xs text-slate-500 dark:text-slate-400">
                   {selected.overview || "No overview"}
                 </p>
@@ -570,7 +614,9 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
             ? "Adding..."
             : selected?.mediaType === "movie"
               ? "Add movie"
-              : "Add series"}
+              : selected
+                ? "Add series"
+                : "Add to library"}
         </button>
       </div>
     </form>
