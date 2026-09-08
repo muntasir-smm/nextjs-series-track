@@ -1,3 +1,5 @@
+// app/ui/tvSeries/add-series-form.tsx
+
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -7,107 +9,107 @@ import {
   ExclamationTriangleIcon,
   CheckCircleIcon,
   TvIcon,
+  FilmIcon,
   CalendarIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { getUserSeries } from "@/app/lib/series";
+import clsx from "clsx";
+import {
+  getUserSeries,
+  addSeries as addSeriesAction,
+  addMovie as addMovieAction,
+  type MediaType,
+} from "@/app/lib/series";
+import { formatRating } from "@/app/lib/format";
 
-interface TMDBResult {
+interface SearchResult {
   id: number;
+  mediaType: MediaType;
   name: string;
-  totalSeasons: number;
   overview: string;
   posterPath: string | null;
   backdropPath: string | null;
-  firstAirDate: string;
+  date: string | null;
   voteAverage: number;
+  totalSeasons?: number;
 }
 
 interface AddSeriesFormProps {
-  addSeries: (
-    tmdbId: number,
-    name: string,
-    totalSeasons: number,
-    upcomingSeasons: string[],
-    posterPath?: string | null,
-    backdropPath?: string | null,
-    overview?: string | null,
-  ) => Promise<{
-    success?: boolean;
-    error?: string;
-    duplicate?: boolean;
-  } | void>;
-  isSubmitting?: boolean;
+  onSuccess?: () => void;
   onCancel?: () => void;
+  onError?: (message: string) => void;
+  isSubmitting?: boolean;
+}
+
+function libraryKey(mediaType: MediaType, tmdbId: number) {
+  return `${mediaType}:${tmdbId}`;
 }
 
 const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
-  addSeries,
-  isSubmitting = false,
+  onSuccess,
   onCancel,
+  onError,
+  isSubmitting: externalSubmitting = false,
 }) => {
+  const [mediaType, setMediaType] = useState<MediaType>("tv");
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<TMDBResult[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [selectedSeries, setSelectedSeries] = useState<TMDBResult | null>(null);
+  const [selected, setSelected] = useState<SearchResult | null>(null);
   const [isLocalSubmitting, setIsLocalSubmitting] = useState(false);
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [existingTmdbIds, setExistingTmdbIds] = useState<Set<number>>(
-    new Set(),
-  );
+  const [libraryKeys, setLibraryKeys] = useState<Set<string>>(new Set());
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
-  // Fetch existing series TMDB IDs
   useEffect(() => {
-    const loadExistingSeries = async () => {
+    const load = async () => {
       try {
         const series = await getUserSeries();
-        const tmdbIds = new Set(
-          series
-            .map((s) => s.tmdbId)
-            .filter((id): id is number => id !== undefined && id !== null),
+        setLibraryKeys(
+          new Set(
+            series
+              .filter((s) => s.tmdbId != null)
+              .map((s) =>
+                libraryKey(
+                  (s.mediaType || "tv") as MediaType,
+                  s.tmdbId as number,
+                ),
+              ),
+          ),
         );
-        setExistingTmdbIds(tmdbIds);
-      } catch (error) {
-        console.error("Error loading existing series:", error);
+      } catch (e) {
+        console.error(e);
       }
     };
-    loadExistingSeries();
+    load();
   }, []);
 
-  const getPosterUrl = (posterPath: string | null, size: string = "w92") => {
+  useEffect(() => {
+    setSelected(null);
+    setSearchQuery("");
+    setSearchResults([]);
+    setShowResults(false);
+    setDuplicateError(null);
+  }, [mediaType]);
+
+  const getPosterUrl = (posterPath: string | null, size = "w92") => {
     if (!posterPath) return null;
+    if (posterPath.startsWith("http")) return posterPath;
     return `https://image.tmdb.org/t/p/${size}${posterPath}`;
   };
 
-  // Check duplicate by TMDB ID only
-  const isDuplicateSeries = (tmdbId: number): boolean => {
-    return existingTmdbIds.has(tmdbId);
-  };
+  const isInLibrary = (item: SearchResult) =>
+    libraryKeys.has(libraryKey(item.mediaType, item.id));
 
-  const selectSeries = (series: TMDBResult) => {
-    setSelectedSeries(series);
-    setShowResults(false);
-    setSearchQuery("");
-    setSearchResults([]);
-    setDuplicateError(null);
-  };
-
-  const isDuplicateSelected = selectedSeries
-    ? isDuplicateSeries(selectedSeries.id)
-    : false;
-
-  // Debounced search
   useEffect(() => {
-    const trimmedQuery = searchQuery.trim();
-
-    if (trimmedQuery.length < 2) {
+    const q = searchQuery.trim();
+    if (q.length < 2) {
       setSearchResults([]);
       setShowResults(false);
       return;
@@ -122,29 +124,45 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
 
       try {
         setIsSearching(true);
-        const response = await fetch(
-          `/api/tmdb/search?query=${encodeURIComponent(trimmedQuery)}`,
+        const res = await fetch(
+          `/api/tmdb/search?query=${encodeURIComponent(q)}&type=${mediaType}`,
           { signal: controller.signal },
         );
-        const data = await response.json();
+        const data = await res.json();
+        if (controller.signal.aborted) return;
 
-        if (!controller.signal.aborted) {
-          const results = (data.series || []).map((show: any) => ({
-            id: show.id,
-            name: show.name,
-            totalSeasons: show.totalSeasons || 0,
-            overview: show.overview,
-            posterPath: show.posterPath,
-            backdropPath: show.backdropPath,
-            firstAirDate: show.firstAirDate,
-            voteAverage: show.voteAverage,
-          }));
-          setSearchResults(results);
-          setShowResults(true);
-        }
-      } catch (error) {
-        if (error instanceof Error && error.name !== "AbortError") {
-          console.error("Search failed:", error);
+        const raw =
+          data.results || data.series || (Array.isArray(data) ? data : []);
+
+        const results: SearchResult[] = raw.map((item: any) => {
+          const mt: MediaType =
+            item.mediaType === "movie" || item.media_type === "movie"
+              ? "movie"
+              : mediaType;
+          return {
+            id: Number(item.tmdbId ?? item.id),
+            mediaType: mt,
+            name: item.name || item.title || "Unknown",
+            overview: item.overview || "",
+            posterPath: item.posterPath ?? item.poster_path ?? null,
+            backdropPath: item.backdropPath ?? item.backdrop_path ?? null,
+            date:
+              item.releaseDate ||
+              item.release_date ||
+              item.firstAirDate ||
+              item.first_air_date ||
+              null,
+            voteAverage: Number(item.voteAverage ?? item.vote_average ?? 0),
+            totalSeasons:
+              item.totalSeasons ?? item.number_of_seasons ?? undefined,
+          };
+        });
+
+        setSearchResults(results);
+        setShowResults(true);
+      } catch (e) {
+        if (e instanceof Error && e.name !== "AbortError") {
+          console.error("Search failed:", e);
         }
       } finally {
         if (!controller.signal.aborted) setIsSearching(false);
@@ -155,79 +173,198 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
       if (abortControllerRef.current) abortControllerRef.current.abort();
     };
-  }, [searchQuery]);
+  }, [searchQuery, mediaType]);
+
+  const selectItem = (item: SearchResult) => {
+    if (isInLibrary(item)) return;
+    setSelected(item);
+    setShowResults(false);
+    setSearchQuery("");
+    setSearchResults([]);
+    setDuplicateError(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedSeries) return;
-    if (isLocalSubmitting || isSubmitting) return;
+    if (!selected) return;
+    if (isLocalSubmitting || externalSubmitting) return;
 
-    if (isDuplicateSelected) {
-      setDuplicateError(
-        `"${selectedSeries.name}" is already in your collection!`,
-      );
+    if (isInLibrary(selected)) {
+      const msg = `"${selected.name}" is already in your library`;
+      setDuplicateError(msg);
+      onError?.(msg);
       return;
     }
 
+    setIsLocalSubmitting(true);
+    setDuplicateError(null);
+
     try {
-      setIsLocalSubmitting(true);
+      if (selected.mediaType === "movie") {
+        const res = await fetch(`/api/tmdb/movie/${selected.id}`);
+        if (!res.ok) throw new Error("Failed to load movie details");
+        const d = await res.json();
 
-      const result = await addSeries(
-        selectedSeries.id,
-        selectedSeries.name,
-        selectedSeries.totalSeasons,
-        [],
-        selectedSeries.posterPath,
-        selectedSeries.backdropPath,
-        selectedSeries.overview,
-      );
+        const result = await addMovieAction({
+          tmdbId: d.id,
+          name: d.name || d.title,
+          overview: d.overview,
+          posterPath: d.posterPath,
+          backdropPath: d.backdropPath,
+          voteAverage: d.voteAverage,
+          voteCount: d.voteCount,
+          releaseDate: d.releaseDate,
+          runtime: d.runtime,
+          genres: d.genres,
+          status: d.status,
+          tagline: d.tagline,
+          originalName: d.originalName,
+          originalLanguage: d.originalLanguage,
+          popularity: d.popularity,
+        });
 
-      if (result?.duplicate) {
-        setDuplicateError(result.error || "Series already exists");
-        return;
+        if (result.duplicate) {
+          const msg = result.error || "Already in your library";
+          setDuplicateError(msg);
+          onError?.(msg);
+          setLibraryKeys((prev) =>
+            new Set(prev).add(libraryKey("movie", selected.id)),
+          );
+          return;
+        }
+
+        if (!result.success) {
+          const msg = result.error || "Failed to add movie";
+          setDuplicateError(msg);
+          onError?.(msg);
+          return;
+        }
+
+        setLibraryKeys((prev) =>
+          new Set(prev).add(libraryKey("movie", selected.id)),
+        );
+        setSuccessMessage(`${d.name || selected.name} added!`);
+      } else {
+        const res = await fetch(`/api/tmdb/tv/${selected.id}`);
+        if (!res.ok) throw new Error("Failed to load TV details");
+        const d = await res.json();
+
+        const result = await addSeriesAction(
+          d.id,
+          d.name,
+          d.totalSeasons || 0,
+          [],
+          d.posterPath,
+          d.backdropPath,
+          d.overview,
+          d.voteAverage,
+          d.voteCount,
+          d.firstAirDate,
+          d.lastAirDate,
+          d.genres,
+          d.status,
+          d.tagline,
+          d.originalName,
+          d.originalLanguage,
+          d.popularity,
+          d.inProduction,
+          d.networks,
+          d.totalEpisodes,
+          d.seasons,
+        );
+
+        if (result.duplicate) {
+          const msg = result.error || "Already in your library";
+          setDuplicateError(msg);
+          onError?.(msg);
+          setLibraryKeys((prev) =>
+            new Set(prev).add(libraryKey("tv", selected.id)),
+          );
+          return;
+        }
+
+        if (!result.success) {
+          const msg = result.error || "Failed to add series";
+          setDuplicateError(msg);
+          onError?.(msg);
+          return;
+        }
+
+        setLibraryKeys((prev) =>
+          new Set(prev).add(libraryKey("tv", selected.id)),
+        );
+        setSuccessMessage(`${d.name || selected.name} added!`);
       }
 
-      if (result?.success) {
-        // Add to existing TMDB IDs set
-        setExistingTmdbIds((prev) => new Set([...prev, selectedSeries.id]));
-        setSuccessMessage(`${selectedSeries.name} added successfully!`);
-        setTimeout(() => {
-          setSuccessMessage(null);
-          setSelectedSeries(null);
-          if (onCancel) onCancel();
-        }, 1500);
-      }
-    } catch (error) {
-      console.error("Error adding series:", error);
-      setDuplicateError("Failed to add series. Please try again.");
+      setTimeout(() => {
+        setSuccessMessage(null);
+        setSelected(null);
+        onSuccess?.();
+      }, 900);
+    } catch (err) {
+      console.error(err);
+      const msg = "Failed to add. Please try again.";
+      setDuplicateError(msg);
+      onError?.(msg);
     } finally {
       setIsLocalSubmitting(false);
     }
   };
 
-  const isSubmitDisabled =
-    isLocalSubmitting || isSubmitting || !selectedSeries || isDuplicateSelected;
+  const busy = isLocalSubmitting || externalSubmitting;
+  const isDuplicateSelected = selected ? isInLibrary(selected) : false;
+  const submitDisabled = busy || !selected || isDuplicateSelected;
 
-  // Get series display name with year
-  const getSeriesDisplayName = (series: TMDBResult): string => {
-    const year = series.firstAirDate?.split("-")[0];
-    return year ? `${series.name} (${year})` : series.name;
+  const displayName = (item: SearchResult) => {
+    const year = item.date?.split("-")[0];
+    return year ? `${item.name} (${year})` : item.name;
   };
 
+  const ratingLabel = (v: number) => formatRating(v);
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Success Message */}
+    <form onSubmit={handleSubmit} className="space-y-2">
+      {/* TV | Movies tabs */}
+      <div className="inline-flex w-full rounded-xl bg-slate-100 dark:bg-slate-800">
+        <button
+          type="button"
+          onClick={() => setMediaType("tv")}
+          className={clsx(
+            "flex flex-1 items-center justify-center gap-2 rounded-lg p-2 text-sm font-medium transition",
+            mediaType === "tv"
+              ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white"
+              : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200",
+          )}
+        >
+          <TvIcon className="h-4 w-4" />
+          TV
+        </button>
+        <button
+          type="button"
+          onClick={() => setMediaType("movie")}
+          className={clsx(
+            "flex flex-1 items-center justify-center gap-2 rounded-lg p-2 text-sm font-medium transition",
+            mediaType === "movie"
+              ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white"
+              : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200",
+          )}
+        >
+          <FilmIcon className="h-4 w-4" />
+          Movies
+        </button>
+      </div>
+
       <AnimatePresence>
         {successMessage && (
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="rounded-lg bg-green-50 p-3 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+            exit={{ opacity: 0 }}
+            className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900/50 dark:bg-emerald-950/30"
           >
             <div className="flex items-center gap-2">
-              <CheckCircleIcon className="h-4 w-4 text-green-500" />
-              <p className="text-sm text-green-600 dark:text-green-400">
+              <CheckCircleIcon className="h-4 w-4 text-emerald-500" />
+              <p className="text-sm text-emerald-700 dark:text-emerald-400">
                 {successMessage}
               </p>
             </div>
@@ -235,211 +372,205 @@ const AddSeriesForm: React.FC<AddSeriesFormProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Search Section */}
-      <div className="relative">
-        <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search for a TV series..."
-            className="w-full rounded-xl border-2 border-gray-200 bg-white py-3 pl-10 pr-10 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:placeholder:text-gray-500 dark:focus:border-blue-500 dark:focus:bg-gray-900 dark:focus:ring-blue-500/20"
-            autoFocus
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearchQuery("");
-                setSearchResults([]);
-                setShowResults(false);
-              }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-            >
-              <XMarkIcon className="h-4 w-4" />
-            </button>
-          )}
+      {duplicateError && (
+        <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 dark:border-red-900/50 dark:bg-red-950/30">
+          <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+          <p className="text-sm text-red-600 dark:text-red-400">
+            {duplicateError}
+          </p>
         </div>
+      )}
 
-        {/* Search Results */}
-        {showResults && searchResults.length > 0 && (
-          <div className="absolute z-10 mt-2 max-h-80 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800">
-            {searchResults.map((show) => {
-              // Check by TMDB ID only - this disables the button and shows the badge
-              const alreadyExists = isDuplicateSeries(show.id);
-              const displayName = getSeriesDisplayName(show);
-
-              return (
-                <button
-                  key={show.id}
-                  type="button"
-                  onClick={() => !alreadyExists && selectSeries(show)}
-                  disabled={alreadyExists}
-                  className={`flex w-full items-center gap-3 border-b border-gray-100 p-4 text-left transition-all last:border-0 ${
-                    alreadyExists
-                      ? "opacity-60 cursor-not-allowed bg-gray-50 dark:bg-gray-800/50"
-                      : "hover:bg-gray-50 dark:hover:bg-gray-700"
-                  }`}
-                >
-                  {getPosterUrl(show.posterPath) ? (
-                    <div className="relative h-14 w-10 flex-shrink-0 overflow-hidden rounded">
-                      <Image
-                        src={getPosterUrl(show.posterPath)!}
-                        alt={show.name}
-                        width={40}
-                        height={56}
-                        className="object-cover"
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex h-14 w-10 items-center justify-center rounded bg-gray-100 dark:bg-gray-700">
-                      <TvIcon className="h-5 w-5 text-gray-400" />
-                    </div>
-                  )}
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-gray-900 dark:text-white">
-                        {displayName}
-                      </span>
-                      {show.voteAverage > 0 && (
-                        <span className="inline-flex items-center gap-0.5 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
-                          <StarSolidIcon className="h-3 w-3" />
-                          {show.voteAverage.toFixed(1)}
-                        </span>
-                      )}
-                      {alreadyExists && (
-                        <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600 dark:bg-red-900/30 dark:text-red-400">
-                          Already Added
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-1 flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-                      <span className="flex items-center gap-1">
-                        <CalendarIcon className="h-3 w-3" />
-                        {show.firstAirDate?.split("-")[0] || "Unknown"}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <TvIcon className="h-3 w-3" />
-                        {show.totalSeasons || "?"} seasons
-                      </span>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {isSearching && (
-          <div className="absolute z-10 mt-2 w-full rounded-xl border border-gray-200 bg-white p-6 text-center shadow-xl dark:border-gray-700 dark:bg-gray-800">
-            <div className="flex flex-col items-center gap-2">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                Searching...
-              </span>
-            </div>
-          </div>
+      {/* Search */}
+      <div className="relative">
+        <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder={
+            mediaType === "movie" ? "Search movies..." : "Search TV series..."
+          }
+          className="w-full rounded-xl border-2 border-slate-200 bg-white py-3 pl-10 pr-10 text-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+          autoFocus
+        />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery("");
+              setSearchResults([]);
+              setShowResults(false);
+            }}
+            className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+          >
+            <XMarkIcon className="h-4 w-4" />
+          </button>
         )}
       </div>
 
-      {/* Selected Series Preview */}
+      {/* Results — in-flow so modal can show 2–3 rows without clipping */}
+      {isSearching && (
+        <div className="rounded-xl border border-slate-200 bg-white p-6 text-center dark:border-slate-700 dark:bg-slate-800">
+          <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
+          <p className="mt-2 text-sm text-slate-500">Searching...</p>
+        </div>
+      )}
+
+      {showResults && !isSearching && searchResults.length > 0 && (
+        <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          {searchResults.map((item) => {
+            const exists = isInLibrary(item);
+            const rating = ratingLabel(item.voteAverage);
+            return (
+              <button
+                key={`${item.mediaType}-${item.id}`}
+                type="button"
+                disabled={exists}
+                onClick={() => selectItem(item)}
+                className={clsx(
+                  "flex w-full items-center gap-3 border-b border-slate-100 p-2.5 text-left last:border-0 dark:border-slate-700",
+                  exists
+                    ? "cursor-not-allowed bg-slate-50 opacity-60 dark:bg-slate-800/50"
+                    : "hover:bg-slate-50 dark:hover:bg-slate-700",
+                )}
+              >
+                {getPosterUrl(item.posterPath) ? (
+                  <Image
+                    src={getPosterUrl(item.posterPath)!}
+                    alt={item.name}
+                    width={40}
+                    height={56}
+                    className="h-12 w-8 shrink-0 rounded object-cover"
+                  />
+                ) : (
+                  <div className="flex h-12 w-8 shrink-0 items-center justify-center rounded bg-slate-100 dark:bg-slate-700">
+                    {item.mediaType === "movie" ? (
+                      <FilmIcon className="h-4 w-4 text-slate-400" />
+                    ) : (
+                      <TvIcon className="h-4 w-4 text-slate-400" />
+                    )}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                      {displayName(item)}
+                    </span>
+                    {rating && (
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                        <StarSolidIcon className="h-3 w-3" />
+                        {rating}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-500">
+                    {exists && (
+                      <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[11px] font-medium text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                        Already in Library
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {showResults &&
+        !isSearching &&
+        searchResults.length === 0 &&
+        searchQuery.trim().length >= 2 && (
+          <p className="text-center text-sm text-slate-500">
+            No results found.
+          </p>
+        )}
+
+      {/* Selected preview */}
       <AnimatePresence>
-        {selectedSeries && (
+        {selected && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className={`overflow-hidden rounded-xl p-4 border ${
+            exit={{ opacity: 0 }}
+            className={clsx(
+              "overflow-hidden rounded-xl border p-4",
               isDuplicateSelected
-                ? "bg-red-50 border-red-300 dark:bg-red-950/30 dark:border-red-800"
-                : "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 dark:from-blue-950/30 dark:to-indigo-950/30 dark:border-blue-800"
-            }`}
+                ? "border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/20"
+                : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50",
+            )}
           >
             <div className="flex gap-3">
-              {getPosterUrl(selectedSeries.posterPath, "w92") ? (
-                <div className="relative h-16 w-11 flex-shrink-0 overflow-hidden rounded-lg shadow">
-                  <Image
-                    src={getPosterUrl(selectedSeries.posterPath, "w92")!}
-                    alt={selectedSeries.name}
-                    width={44}
-                    height={64}
-                    className="object-cover"
-                  />
-                </div>
+              {getPosterUrl(selected.posterPath, "w185") ? (
+                <Image
+                  src={getPosterUrl(selected.posterPath, "w185")!}
+                  alt={selected.name}
+                  width={64}
+                  height={96}
+                  className="h-24 w-16 shrink-0 rounded-lg object-cover"
+                />
               ) : (
-                <div className="flex h-16 w-11 items-center justify-center rounded-lg bg-white/50 dark:bg-gray-800/50">
-                  <TvIcon className="h-6 w-6 text-gray-400" />
+                <div className="flex h-24 w-16 shrink-0 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-700">
+                  {selected.mediaType === "movie" ? (
+                    <FilmIcon className="h-6 w-6 text-slate-400" />
+                  ) : (
+                    <TvIcon className="h-6 w-6 text-slate-400" />
+                  )}
                 </div>
               )}
-              <div className="flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-gray-900 dark:text-white">
-                    {getSeriesDisplayName(selectedSeries)}
-                  </span>
-                  <span className="inline-flex items-center gap-0.5 rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
-                    <StarSolidIcon className="h-3 w-3" />
-                    {selectedSeries.voteAverage.toFixed(1)}
-                  </span>
-                </div>
-                <div className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-                  {selectedSeries.totalSeasons} seasons
-                </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-slate-900 dark:text-white">
+                  {displayName(selected)}
+                  {selected.voteAverage && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                      <StarSolidIcon className="h-3 w-3" />
+                      {selected.voteAverage}
+                    </span>
+                  )}
+                </p>
+                <p className="mt-1 line-clamp-3 text-xs text-slate-500 dark:text-slate-400">
+                  {selected.overview || "No overview"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setSelected(null)}
+                  className="mt-2 text-xs font-medium text-brand-600 hover:underline"
+                >
+                  Clear selection
+                </button>
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Error Alert */}
-      <AnimatePresence>
-        {duplicateError && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="rounded-lg bg-red-50 p-3 border border-red-200 dark:bg-red-900/20 dark:border-red-800"
+      <div className="flex gap-2 pt-1">
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
           >
-            <div className="flex items-center gap-2">
-              <ExclamationTriangleIcon className="h-4 w-4 text-red-500" />
-              <p className="text-sm text-red-600 dark:text-red-400">
-                {duplicateError}
-              </p>
-            </div>
-          </motion.div>
+            Cancel
+          </button>
         )}
-      </AnimatePresence>
-
-      {/* Action Buttons */}
-      <div className="flex gap-3 pt-2">
         <button
           type="submit"
-          disabled={isSubmitDisabled}
-          className={`flex-1 rounded-xl py-3 text-white font-semibold text-sm transition-all shadow-lg ${
-            isDuplicateSelected
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
-          }`}
-        >
-          {isLocalSubmitting ? (
-            <div className="flex items-center justify-center gap-2">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              <span>Adding...</span>
-            </div>
-          ) : isDuplicateSelected ? (
-            <span>Already in Collection</span>
-          ) : (
-            <span>Add to Collection</span>
+          disabled={submitDisabled}
+          className={clsx(
+            "flex-1 rounded-xl px-4 py-2.5 text-sm font-medium text-white transition",
+            submitDisabled
+              ? "cursor-not-allowed bg-slate-300 dark:bg-slate-700"
+              : "bg-brand-600 hover:bg-brand-700",
           )}
-        </button>
-
-        <button
-          type="button"
-          onClick={onCancel}
-          className="flex-1 rounded-xl border-2 border-gray-300 bg-white py-3 text-gray-700 font-semibold text-sm transition-all hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
         >
-          Cancel
+          {busy
+            ? "Adding..."
+            : selected?.mediaType === "movie"
+              ? "Add movie"
+              : "Add series"}
         </button>
       </div>
     </form>

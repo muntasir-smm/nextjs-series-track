@@ -8,7 +8,6 @@ import {
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import AddSeriesForm from "@/app/ui/tvSeries/add-series-form";
-import { addSeries as addSeriesAction } from "@/app/lib/series";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface AddSeriesModalProps {
@@ -22,7 +21,6 @@ export default function AddSeriesModal({
   onClose,
   onSeriesAdded,
 }: AddSeriesModalProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -55,55 +53,16 @@ export default function AddSeriesModal({
     };
   }, [isOpen, onClose]);
 
-  const handleAddSeries = async (
-    tmdbId: number,
-    name: string,
-    totalSeasons: number,
-    upcomingSeasons: string[],
-    posterPath?: string | null,
-    backdropPath?: string | null,
-    overview?: string | null,
-  ) => {
-    setIsSubmitting(true);
-    setDuplicateError(null);
-
-    try {
-      const result = await addSeriesAction(
-        tmdbId,
-        name,
-        totalSeasons,
-        upcomingSeasons,
-        posterPath,
-        backdropPath,
-        overview,
-      );
-
-      if (result.duplicate) {
-        setDuplicateError(
-          result.error || `"${name}" is already in your collection`,
-        );
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (result.success) {
-        window.dispatchEvent(new CustomEvent("series-added"));
-        onSeriesAdded();
-        onClose();
-      }
-    } catch (error) {
-      console.error("Error adding series:", error);
-      setDuplicateError("Failed to add series. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleSuccess = () => {
+    window.dispatchEvent(new CustomEvent("series-added"));
+    onSeriesAdded();
+    onClose();
   };
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -112,37 +71,37 @@ export default function AddSeriesModal({
             onClick={onClose}
           />
 
-          {/* Modal */}
           <motion.div
             ref={modalRef}
             initial={{ opacity: 0, scale: 0.95, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 16 }}
             transition={{ type: "spring", damping: 28, stiffness: 320 }}
-            className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft-lg dark:border-slate-700 dark:bg-slate-900"
+            className="relative z-10 flex w-full max-w-lg max-h-[min(90vh,40rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft-lg dark:border-slate-700 dark:bg-slate-900"
           >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
-              <div>
+            <div className="grid grid-cols-12 items-center justify-between border-b border-slate-100 p-2 dark:border-slate-800">
+              <div className="col-span-11 text-center">
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                  Add Series
+                  Add to library
                 </h2>
                 <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                  Search and select a series to track
+                  Search and add a movie or TV series
                 </p>
               </div>
               <button
+                type="button"
                 onClick={onClose}
-                className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+                className="col-span-1 rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
               >
                 <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
 
-            {/* Body */}
-            <div className="p-5">
+            {/* Body — scrolls if needed; results list is in-flow */}
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-2">
               {duplicateError && (
-                <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 dark:border-red-900/50 dark:bg-red-950/30">
+                <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 dark:border-red-900/50 dark:bg-red-950/30">
                   <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
                   <p className="text-sm text-red-600 dark:text-red-400">
                     {duplicateError}
@@ -151,9 +110,9 @@ export default function AddSeriesModal({
               )}
 
               <AddSeriesForm
-                addSeries={handleAddSeries}
-                isSubmitting={isSubmitting}
+                onSuccess={handleSuccess}
                 onCancel={onClose}
+                onError={(msg) => setDuplicateError(msg)}
               />
             </div>
           </motion.div>
