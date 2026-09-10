@@ -73,6 +73,16 @@
 │   │       │   └── route.ts
 │   │       └── profile
 │   │           └── route.ts
+│   ├── components
+│   │   └── landing
+│   │       ├── featured-section.tsx
+│   │       ├── features.tsx
+│   │       ├── final-cta.tsx
+│   │       ├── hero.tsx
+│   │       ├── media-card.tsx
+│   │       ├── popular-section.tsx
+│   │       ├── social-proof.tsx
+│   │       └── types.ts
 │   ├── dashboard
 │   │   ├── (overview)
 │   │   │   ├── components
@@ -112,12 +122,20 @@
 │   │   │   │   └── page.tsx
 │   │   │   └── page.tsx
 │   │   └── layout.tsx
+│   ├── explore
+│   │   ├── movie
+│   │   │   └── [id]
+│   │   │       └── page.tsx
+│   │   └── tv
+│   │       └── [id]
+│   │           └── page.tsx
 │   ├── lib
 │   │   ├── actions.ts
 │   │   ├── auth.ts
 │   │   ├── csrf.ts
 │   │   ├── db.ts
 │   │   ├── definitions.ts
+│   │   ├── format.ts
 │   │   ├── guards.ts
 │   │   ├── placeholder-data.js
 │   │   ├── progress.ts
@@ -186,6 +204,6 @@
 └── tsconfig.json
 
 ::::::::::::::::::::::::
-📁 Folders : 55
-📄 Files   : 130
-⏰Generated: 07/09/2026, 11:10:54 am
+📁 Folders : 62
+📄 Files   : 141
+⏰Generated: 10/09/2026, 10:49:11 am
