@@ -1,6 +1,7 @@
 // app/dashboard/layout.tsx
 
 import TopNav from "@/app/ui/dashboard/topnav";
+import SiteFooter from "@/app/ui/site-footer";
 import Announcements from "@/app/ui/announcements";
 import { auth } from "@/app/lib/auth";
 import { getSeriesCount } from "@/app/lib/series";
@@ -20,10 +21,10 @@ export default async function DashboardLayout({
   const seriesCount = await getSeriesCount(session.user.id);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-950">
       <TopNav user={session.user} seriesCount={seriesCount} />
 
-      <main className="pt-6 pb-12">
+      <main className="flex-1 pt-6 pb-12">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Announcements />
 
@@ -38,6 +39,8 @@ export default async function DashboardLayout({
           </Suspense>
         </div>
       </main>
+
+      <SiteFooter variant="app" />
     </div>
   );
 }

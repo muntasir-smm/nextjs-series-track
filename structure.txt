@@ -126,9 +126,10 @@
 │   │   ├── movie
 │   │   │   └── [id]
 │   │   │       └── page.tsx
-│   │   └── tv
-│   │       └── [id]
-│   │           └── page.tsx
+│   │   ├── tv
+│   │   │   └── [id]
+│   │   │       └── page.tsx
+│   │   └── layout.tsx
 │   ├── lib
 │   │   ├── actions.ts
 │   │   ├── auth.ts
@@ -143,8 +144,10 @@
 │   │   ├── series.ts
 │   │   └── signout-action.ts
 │   ├── login
+│   │   ├── layout.tsx
 │   │   └── page.tsx
 │   ├── signup
+│   │   ├── layout.tsx
 │   │   └── page.tsx
 │   ├── ui
 │   │   ├── dashboard
@@ -167,9 +170,11 @@
 │   │   ├── login-form.tsx
 │   │   ├── page-transition.tsx
 │   │   ├── pagination.tsx
+│   │   ├── public-navbar.tsx
 │   │   ├── search.tsx
 │   │   ├── series-card.tsx
 │   │   ├── signup-form.tsx
+│   │   ├── site-footer.tsx
 │   │   └── skeletons.tsx
 │   ├── layout.tsx
 │   ├── not-found.tsx
@@ -205,5 +210,5 @@
 
 ::::::::::::::::::::::::
 📁 Folders : 62
-📄 Files   : 141
-⏰Generated: 10/09/2026, 10:49:11 am
+📄 Files   : 146
+⏰Generated: 10/09/2026, 12:11:05 pm

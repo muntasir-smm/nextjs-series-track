@@ -13,6 +13,8 @@ import type {
   FeaturedSeries,
   PopularItem,
 } from "@/app/components/landing/types";
+import PublicNavbar from "@/app/ui/public-navbar";
+import SiteFooter from "@/app/ui/site-footer";
 
 const CACHE_DURATION = 60 * 60 * 1000;
 
@@ -94,24 +96,28 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <Hero />
-      <Features />
-      <FeaturedSection items={featuredSeries} loading={isFeaturedLoading} />
-      <PopularSection
-        kind="tv"
-        items={popularSeries}
-        loading={isLoading}
-        error={error}
-      />
-      <PopularSection
-        kind="movie"
-        items={popularMovies}
-        loading={isLoading}
-        error={error}
-      />
-      <SocialProof />
-      <FinalCta />
-    </main>
+    <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-950">
+      <PublicNavbar />
+      <main className="flex-1">
+        <Hero />
+        <Features />
+        <FeaturedSection items={featuredSeries} loading={isFeaturedLoading} />
+        <PopularSection
+          kind="tv"
+          items={popularSeries}
+          loading={isLoading}
+          error={error}
+        />
+        <PopularSection
+          kind="movie"
+          items={popularMovies}
+          loading={isLoading}
+          error={error}
+        />
+        <SocialProof />
+        <FinalCta />
+      </main>
+      <SiteFooter variant="public" />
+    </div>
   );
 }
