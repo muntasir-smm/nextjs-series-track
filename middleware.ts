@@ -3,20 +3,20 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { auth } from "@/app/lib/auth";
-import { cache } from "react";
 
-// Cache auth in middleware
-const getSession = cache(async () => {
-  return await auth();
-});
+function safeInternalPath(value: string | null): string | null {
+  if (!value) return null;
+  // Only allow same-origin relative paths (block open redirects)
+  if (!value.startsWith("/") || value.startsWith("//")) return null;
+  return value;
+}
 
 export async function middleware(request: NextRequest) {
-  // Use cached session
-  const session = await getSession();
+  const session = await auth();
   const isLoggedIn = !!session?.user;
   const pathname = request.nextUrl.pathname;
 
-  // Check if user is active (for dashboard routes)
+  // Banned / inactive users cannot use the dashboard
   if (isLoggedIn && pathname.startsWith("/dashboard")) {
     if (
       session?.user?.is_banned === true ||
@@ -31,26 +31,32 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Admin routes - extra protection
+  // Admin routes — admin + active only
   if (isLoggedIn && pathname.startsWith("/admin")) {
     if (session?.user?.role !== "admin" || session?.user?.is_active === false) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
   }
 
-  // Redirect authenticated users away from auth pages
+  // Logged-in users leaving auth pages — honor ?next= when safe
   if (isLoggedIn && (pathname === "/login" || pathname === "/signup")) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    const next = safeInternalPath(request.nextUrl.searchParams.get("next"));
+    const dest = next || "/dashboard";
+    return NextResponse.redirect(new URL(dest, request.url));
   }
 
-  // Protect dashboard routes
+  // Guests cannot access dashboard — preserve destination for after login
   if (!isLoggedIn && pathname.startsWith("/dashboard")) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const url = new URL("/login", request.url);
+    url.searchParams.set("callbackUrl", pathname + request.nextUrl.search);
+    return NextResponse.redirect(url);
   }
 
-  // Protect admin routes
+  // Guests cannot access admin
   if (!isLoggedIn && pathname.startsWith("/admin")) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const url = new URL("/login", request.url);
+    url.searchParams.set("callbackUrl", pathname + request.nextUrl.search);
+    return NextResponse.redirect(url);
   }
 
   return NextResponse.next();
