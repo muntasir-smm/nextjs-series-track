@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
   getUserSeries,
   addSeries as addSeriesAction,
+  addMovie as addMovieAction,
   updateWatchProgress,
   deleteSeries as deleteSeriesAction,
   updateSeries as updateSeriesAction,
@@ -105,16 +106,21 @@ export default function Page() {
     popularAbortControllerRef.current = controller;
 
     try {
-      const res = await fetch("/api/tmdb/popular?page=1&limit=9", {
+      const res = await fetch("/api/tmdb/popular?type=all&page=1&limit=12", {
         signal: controller.signal,
       });
       const data = await res.json();
       if (isMounted.current && !controller.signal.aborted) {
-        setSuggestedSeries(data.series || []);
+        // Prefer mixed list; fall back to series+movies
+        const mixed: SuggestedSeries[] = data.results || [
+          ...(data.series || []),
+          ...(data.movies || []),
+        ];
+        setSuggestedSeries(mixed);
       }
     } catch (err) {
       if (err instanceof Error && err.name !== "AbortError") {
-        console.error("Error loading popular series:", err);
+        console.error("Error loading popular:", err);
       }
     } finally {
       if (popularAbortControllerRef.current === controller) {
@@ -147,61 +153,96 @@ export default function Page() {
   }, [seriesData]);
 
   const handleAddSuggestedSeries = useCallback(
-    async (series: SuggestedSeries) => {
-      const key = `tv:${series.tmdbId}`;
+    async (item: SuggestedSeries) => {
+      const mediaType = item.mediaType === "movie" ? "movie" : "tv";
+      const tmdbId = Number(item.tmdbId || item.id);
+      const key = `${mediaType}:${tmdbId}`;
+
       if (existingLibraryKeys.has(key)) {
-        setDuplicateError(`"${series.name}" is already in your collection!`);
+        setDuplicateError(`"${item.name}" is already in your collection!`);
         setTimeout(() => setDuplicateError(null), 3000);
         return;
       }
 
-      setAddingSeriesId(series.id);
+      setAddingSeriesId(item.id);
       setDuplicateError(null);
 
       try {
-        // Always load full TV details before insert
-        const res = await fetch(`/api/tmdb/tv/${series.tmdbId}`);
-        if (!res.ok) throw new Error("Failed to load details");
-        const d = await res.json();
+        if (mediaType === "movie") {
+          const res = await fetch(`/api/tmdb/movie/${tmdbId}`);
+          if (!res.ok) throw new Error("Failed to load movie details");
+          const d = await res.json();
 
-        const result = await addSeriesAction(
-          d.id,
-          d.name,
-          d.totalSeasons || 0,
-          [],
-          d.posterPath,
-          d.backdropPath,
-          d.overview,
-          d.voteAverage,
-          d.voteCount,
-          d.firstAirDate,
-          d.lastAirDate,
-          d.genres,
-          d.status,
-          d.tagline,
-          d.originalName,
-          d.originalLanguage,
-          d.popularity,
-          d.inProduction,
-          d.networks,
-          d.totalEpisodes,
-          d.seasons,
-        );
+          const result = await addMovieAction({
+            tmdbId: d.id,
+            name: d.name || d.title,
+            overview: d.overview,
+            posterPath: d.posterPath,
+            backdropPath: d.backdropPath,
+            voteAverage: d.voteAverage,
+            voteCount: d.voteCount,
+            releaseDate: d.releaseDate,
+            runtime: d.runtime,
+            genres: d.genres,
+            status: d.status,
+            tagline: d.tagline,
+            originalName: d.originalName,
+            originalLanguage: d.originalLanguage,
+            popularity: d.popularity,
+          });
 
-        if (result.duplicate) {
-          setDuplicateError(
-            result.error || `"${series.name}" is already in your collection`,
+          if (result.duplicate) {
+            setDuplicateError(
+              result.error || `"${item.name}" is already in your collection`,
+            );
+            return;
+          }
+          if (!result.success) throw new Error(result.error || "Failed");
+        } else {
+          const res = await fetch(`/api/tmdb/tv/${tmdbId}`);
+          if (!res.ok) throw new Error("Failed to load TV details");
+          const d = await res.json();
+
+          const result = await addSeriesAction(
+            d.id,
+            d.name,
+            d.totalSeasons || 0,
+            [],
+            d.posterPath,
+            d.backdropPath,
+            d.overview,
+            d.voteAverage,
+            d.voteCount,
+            d.firstAirDate,
+            d.lastAirDate,
+            d.genres,
+            d.status,
+            d.tagline,
+            d.originalName,
+            d.originalLanguage,
+            d.popularity,
+            d.inProduction,
+            d.networks,
+            d.totalEpisodes,
+            d.seasons,
           );
-          return;
+
+          if (result.duplicate) {
+            setDuplicateError(
+              result.error || `"${item.name}" is already in your collection`,
+            );
+            return;
+          }
+          if (!result.success) throw new Error(result.error || "Failed");
         }
 
-        if (result.success && isMounted.current) {
+        if (isMounted.current) {
           window.dispatchEvent(new CustomEvent("series-added"));
           await loadSeries();
           await loadPopularSeries();
         }
       } catch (err) {
-        console.error("Error adding series:", err);
+        console.error("Error adding title:", err);
         setDuplicateError("Failed to add. Please try again.");
         setTimeout(() => setDuplicateError(null), 3000);
       } finally {
@@ -260,9 +301,11 @@ export default function Page() {
     };
   }, [seriesData]);
 
-  const undiscoveredSeries = suggestedSeries.filter(
-    (s) => !existingLibraryKeys.has(`tv:${s.tmdbId}`),
-  );
+  const undiscoveredSeries = suggestedSeries.filter((s) => {
+    const mediaType = s.mediaType === "movie" ? "movie" : "tv";
+    const tmdbId = s.tmdbId ?? Number(s.id);
+    return !existingLibraryKeys.has(`${mediaType}:${tmdbId}`);
+  });
   // ::::::::::::::::::::::::::
 
   const updateSeries = useCallback(
@@ -447,6 +490,7 @@ export default function Page() {
         series={undiscoveredSeries}
         onAdd={handleAddSuggestedSeries}
         addingId={addingSeriesId}
+        existingKeys={existingLibraryKeys}
       />
 
       {/* Edit Modal */}

@@ -11,13 +11,15 @@ export type SuggestedSeries = {
   id: string;
   tmdbId: number;
   name: string;
-  totalSeasons: number;
-  upcomingSeasons: string[];
-  watchProgress: number;
+  mediaType?: "tv" | "movie";
+  totalSeasons?: number;
+  upcomingSeasons?: string[];
+  watchProgress?: number;
   posterPath?: string | null;
   backdropPath?: string | null;
   overview?: string | null;
   voteAverage?: number;
+  releaseDate?: string | null;
 };
 
 export type MediaType = "movie" | "tv";
