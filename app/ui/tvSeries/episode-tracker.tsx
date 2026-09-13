@@ -169,10 +169,6 @@ export default function EpisodeTracker({
 
   return (
     <div className="space-y-3">
-      <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-        Episode tracker
-      </h3>
-
       {seasons.map((season) => {
         const sn = season.seasonNumber;
         const isOpen = openSeason === sn;
