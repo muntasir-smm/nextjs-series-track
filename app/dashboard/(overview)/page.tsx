@@ -491,6 +491,11 @@ export default function Page() {
         onAdd={handleAddSuggestedSeries}
         addingId={addingSeriesId}
         existingKeys={existingLibraryKeys}
+        title="Trending Now"
+        subtitle="Popular on TMDB this week"
+        viewAllHref="/dashboard/discover"
+        limit={12}
+        isLoading={isLoading}
       />
 
       {/* Edit Modal */}
