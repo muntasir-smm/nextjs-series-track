@@ -19,6 +19,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { StarIcon } from "@heroicons/react/24/solid";
 import { formatRating } from "@/app/lib/format";
+import ExploreLibraryActions from "@/app/components/explore/library-actions";
 
 function imgUrl(path: string | null | undefined, size = "w500") {
   if (!path) return null;
@@ -218,21 +219,7 @@ export default function PublicMoviePage() {
             )}
 
             {/* Action buttons */}
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                href={`/signup?next=/explore/movie/${id}`}
-                className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-lg hover:shadow-brand-500/20"
-              >
-                <PlusIcon className="h-4 w-4" />
-                Add to library
-              </Link>
-              <Link
-                href="/login"
-                className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-              >
-                Sign in
-              </Link>
-            </div>
+            <ExploreLibraryActions mediaType="tv" tmdbId={id} data={data} />
           </div>
         </div>
 

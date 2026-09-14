@@ -463,6 +463,26 @@ export async function isInLibrary(
   }
 }
 
+/** Library row id for this TMDB title, or null */
+export async function getLibraryEntryId(
+  tmdbId: number,
+  mediaType: MediaType,
+): Promise<string | null> {
+  try {
+    const userId = await requireUserId();
+    const rows = await sql`
+      SELECT series_id as id
+      FROM user_series
+      WHERE user_id = ${userId}::uuid
+        AND tmdb_id = ${tmdbId}
+        AND media_type = ${mediaType}
+      LIMIT 1
+    `;
+    return rows[0]?.id ?? null;
+  } catch {
+    return null;
+  }
+}
 /* =========================
    ADD MOVIE
 ========================= */
