@@ -56,6 +56,22 @@ export default function LoginForm() {
     }
   }, [searchParams]);
 
+  const rawCallback =
+    searchParams?.get("callbackUrl") || searchParams?.get("next") || "";
+  const callbackUrl =
+    rawCallback.startsWith("/") && !rawCallback.startsWith("//")
+      ? rawCallback
+      : "";
+
+  const signupHref = callbackUrl
+    ? `/signup?next=${encodeURIComponent(callbackUrl)}`
+    : "/signup";
+  useEffect(() => {
+    const err = searchParams?.get("error");
+    if (err === "banned") {
+      setSuccessMessage(null);
+    }
+  }, [searchParams]);
   useEffect(() => {
     if (
       errorMessage &&
@@ -143,6 +159,10 @@ export default function LoginForm() {
           </div>
         )}
 
+        {callbackUrl ? (
+          <input type="hidden" name="callbackUrl" value={callbackUrl} />
+        ) : null}
+
         {/* Fields */}
         <div className="space-y-4">
           <div className="space-y-1.5">
@@ -222,7 +242,7 @@ export default function LoginForm() {
             type="button"
             onClick={(e) => {
               e.preventDefault();
-              navigateTo("/signup");
+              navigateTo(signupHref);
             }}
             className="text-xs font-semibold text-brand-600 hover:underline dark:text-brand-400"
           >
@@ -246,7 +266,7 @@ export default function LoginForm() {
             type="button"
             onClick={(e) => {
               e.preventDefault();
-              navigateTo("/signup");
+              navigateTo(signupHref);
             }}
             className="font-semibold text-brand-600 hover:underline dark:text-brand-400"
           >

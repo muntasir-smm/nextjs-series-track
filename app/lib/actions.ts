@@ -5,15 +5,32 @@
 import { signIn } from "@/app/lib/auth";
 import { AuthError } from "next-auth";
 
+function safeRedirectPath(value: FormDataEntryValue | null): string {
+  if (typeof value !== "string" || !value) return "/dashboard";
+  if (!value.startsWith("/") || value.startsWith("//")) return "/dashboard";
+  if (
+    value.startsWith("/login") ||
+    value.startsWith("/signup") ||
+    value.startsWith("/forgot-password")
+  ) {
+    return "/dashboard";
+  }
+  return value;
+}
+
 export async function authenticate(
   prevState: string | undefined,
   formData: FormData,
 ): Promise<string | undefined> {
+  const redirectTo = safeRedirectPath(
+    formData.get("callbackUrl") ?? formData.get("next"),
+  );
+
   try {
     await signIn("credentials", {
       email: formData.get("email"),
       password: formData.get("password"),
-      redirectTo: "/dashboard",
+      redirectTo,
     });
     return undefined;
   } catch (error) {
