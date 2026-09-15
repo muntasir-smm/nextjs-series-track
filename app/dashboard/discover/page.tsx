@@ -2,116 +2,107 @@
 
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
   SparklesIcon,
   ArrowPathIcon,
-  MagnifyingGlassIcon,
-  XMarkIcon,
   ArrowUpIcon,
-  FilmIcon,
-  TvIcon,
-  CheckIcon,
-  PlusIcon,
 } from "@heroicons/react/24/outline";
-import {
-  addSeries as addSeriesAction,
-  addMovie as addMovieAction,
-  getUserSeries,
-} from "@/app/lib/series";
+import { getUserSeries } from "@/app/lib/series";
+import { addToLibrary } from "@/app/lib/add-to-library";
+import { libraryKey } from "@/app/lib/library-key";
 import { useDebouncedCallback } from "use-debounce";
-import Image from "next/image";
-import clsx from "clsx";
 
-type MediaTypeFilter = "tv" | "movie";
-
-interface DiscoverItem {
-  id: string;
-  tmdbId: number;
-  mediaType: MediaTypeFilter;
-  name: string;
-  overview?: string;
-  posterPath?: string | null;
-  backdropPath?: string | null;
-  voteAverage?: number;
-  firstAirDate?: string | null;
-  releaseDate?: string | null;
-  totalSeasons?: number;
-  genres?: string[];
-}
-
-function libraryKey(mediaType: string, tmdbId: number) {
-  return `${mediaType}:${tmdbId}`;
-}
+import {
+  normalizeResults,
+  buildUrl,
+  type MediaTypeFilter,
+  type DiscoverItem,
+  type TmdbListResponse,
+} from "./utils";
+import { DiscoverCard } from "./components/discover-card";
+import { SearchInput } from "./components/search-input";
+import { MediaTypeTabs } from "./components/media-type-tabs";
+import {
+  MessageBanner,
+  type Message,
+  type MessageKind,
+} from "./components/message-banner";
+import { DiscoverSkeleton } from "./components/discover-skeleton";
 
 export default function DiscoverPage() {
-  const [mediaType, setMediaType] = useState<MediaTypeFilter>("tv");
+  const [mediaType, setMediaType] = useState<MediaTypeFilter>("all");
   const [items, setItems] = useState<DiscoverItem[]>([]);
-  const [inLibrary, setInLibrary] = useState<Set<string>>(new Set());
+  const [libraryMap, setLibraryMap] = useState<Map<string, string>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [addingId, setAddingId] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [addingKey, setAddingKey] = useState<string | null>(null);
+  const [message, setMessage] = useState<Message | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalResults, setTotalResults] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
-  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const loadMoreNodeRef = useRef<HTMLDivElement>(null);
+  const loadMoreFnRef = useRef<() => void>(() => {});
+  const fetchAbortRef = useRef<AbortController | null>(null);
+  const fetchIdRef = useRef(0);
+  const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadingMoreRef = useRef(false);
+
+  const showMessage = useCallback((kind: MessageKind, text: string) => {
+    if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+    setMessage({ kind, text });
+    messageTimerRef.current = setTimeout(() => {
+      setMessage(null);
+      messageTimerRef.current = null;
+    }, 3500);
+  }, []);
 
   useEffect(() => {
-    const onScroll = () => setShowScrollTop(window.scrollY > 500);
-    window.addEventListener("scroll", onScroll);
+    return () => {
+      if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+      fetchAbortRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        setShowScrollTop(window.scrollY > 500);
+        ticking = false;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const loadLibraryKeys = useCallback(async () => {
+  const loadLibraryMap = useCallback(async () => {
     try {
       const lib = await getUserSeries();
-      const keys = new Set(
-        lib
-          .filter((s) => s.tmdbId != null)
-          .map((s) => libraryKey(s.mediaType || "tv", s.tmdbId as number)),
-      );
-      setInLibrary(keys);
+      const map = new Map<string, string>();
+      for (const s of lib) {
+        if (s.tmdbId == null) continue;
+        map.set(libraryKey(s.mediaType || "tv", s.tmdbId), s.id);
+      }
+      setLibraryMap(map);
     } catch (e) {
-      console.error(e);
+      console.error("Failed to load library map:", e);
     }
   }, []);
 
   useEffect(() => {
-    loadLibraryKeys();
-  }, [loadLibraryKeys]);
+    loadLibraryMap();
+  }, [loadLibraryMap]);
 
-  const normalizeResults = (
-    data: any,
-    type: MediaTypeFilter,
-  ): DiscoverItem[] => {
-    const raw =
-      data.results || data.series || (Array.isArray(data) ? data : []);
-
-    return raw.map((item: any) => {
-      const mt = item.mediaType || item.media_type || type;
-      const tmdbId = Number(item.tmdbId ?? item.id);
-      return {
-        id: String(tmdbId),
-        tmdbId,
-        mediaType: mt === "movie" ? "movie" : "tv",
-        name: item.name || item.title,
-        overview: item.overview || "",
-        posterPath: item.posterPath ?? item.poster_path,
-        backdropPath: item.backdropPath ?? item.backdrop_path,
-        voteAverage: item.voteAverage ?? item.vote_average ?? 0,
-        firstAirDate: item.firstAirDate ?? item.first_air_date ?? null,
-        releaseDate: item.releaseDate ?? item.release_date ?? null,
-        totalSeasons: item.totalSeasons ?? item.number_of_seasons ?? 0,
-        genres: item.genres || [],
-      };
-    });
-  };
+  const itemsRef = useRef<DiscoverItem[]>([]);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   const fetchPage = useCallback(
     async (
@@ -119,26 +110,56 @@ export default function DiscoverPage() {
       page: number,
       type: MediaTypeFilter,
       append: boolean,
-    ) => {
-      let url: string;
-      if (query.trim()) {
-        url = `/api/tmdb/search?query=${encodeURIComponent(query)}&page=${page}&type=${type}`;
-      } else if (type === "movie") {
-        url = `/api/tmdb/movie/popular?page=${page}`;
-      } else {
-        url = `/api/tmdb/popular?page=${page}`;
+    ): Promise<boolean> => {
+      fetchAbortRef.current?.abort();
+      const controller = new AbortController();
+      fetchAbortRef.current = controller;
+      const myId = ++fetchIdRef.current;
+
+      try {
+        const res = await fetch(buildUrl(query, page, type), {
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+        const data: TmdbListResponse = await res.json();
+
+        if (myId !== fetchIdRef.current) return false;
+
+        const next = normalizeResults(data, type);
+
+        let unique = next;
+        if (append) {
+          const seen = new Set(
+            itemsRef.current.map((i) => libraryKey(i.mediaType, i.tmdbId)),
+          );
+          unique = next.filter((i) => {
+            const k = libraryKey(i.mediaType, i.tmdbId);
+            if (seen.has(k)) return false;
+            seen.add(k);
+            return true;
+          });
+          setItems((prev) => [...prev, ...unique]);
+        } else {
+          setItems(next);
+        }
+
+        const totalPages = data.totalPages ?? data.total_pages;
+        if (typeof totalPages === "number" && totalPages > 0) {
+          setHasMore(page < totalPages);
+        } else {
+          setHasMore(next.length >= 12 && (!append || unique.length > 0));
+        }
+        return true;
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return false;
+        console.error("Fetch failed:", err);
+        if (myId === fetchIdRef.current) {
+          showMessage("error", "Failed to load. Please try again.");
+        }
+        return false;
       }
-
-      const res = await fetch(url);
-      const data = await res.json();
-      const next = normalizeResults(data, type);
-
-      setItems((prev) => (append ? [...prev, ...next] : next));
-      setTotalPages(data.totalPages || data.total_pages || 1);
-      setTotalResults(data.totalResults || data.total_results || 0);
-      setHasMore(page < (data.totalPages || data.total_pages || 1));
     },
-    [],
+    [showMessage],
   );
 
   const debouncedSearch = useDebouncedCallback(
@@ -154,145 +175,102 @@ export default function DiscoverPage() {
     500,
   );
 
-  // Initial + tab change
   useEffect(() => {
-    let cancelled = false;
+    setItems([]);
+    setCurrentPage(1);
+    setHasMore(true);
+    setSearchQuery("");
+    setIsLoading(true);
     (async () => {
-      setIsLoading(true);
-      setCurrentPage(1);
-      setSearchQuery("");
-      try {
-        if (!cancelled) await fetchPage("", 1, mediaType, false);
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
+      await fetchPage("", 1, mediaType, false);
+      setIsLoading(false);
     })();
-    return () => {
-      cancelled = true;
-    };
   }, [mediaType, fetchPage]);
 
   const loadMore = useCallback(async () => {
-    if (isLoadingMore || !hasMore) return;
+    if (loadingMoreRef.current || !hasMore || isSearching) return;
+    loadingMoreRef.current = true;
     setIsLoadingMore(true);
+
     const nextPage = currentPage + 1;
-    await fetchPage(searchQuery, nextPage, mediaType, true);
-    setCurrentPage(nextPage);
+    const ok = await fetchPage(searchQuery, nextPage, mediaType, true);
+    if (ok) setCurrentPage(nextPage);
+
     setIsLoadingMore(false);
-  }, [isLoadingMore, hasMore, currentPage, searchQuery, mediaType, fetchPage]);
+    loadingMoreRef.current = false;
+  }, [hasMore, isSearching, currentPage, searchQuery, mediaType, fetchPage]);
 
   useEffect(() => {
+    loadMoreFnRef.current = loadMore;
+  }, [loadMore]);
+
+  useEffect(() => {
+    if (isLoading || items.length === 0) return;
+    const node = loadMoreNodeRef.current;
+    if (!node) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (
-          entries[0].isIntersecting &&
-          hasMore &&
-          !isLoadingMore &&
-          !isSearching
-        ) {
-          loadMore();
-        }
+        if (entries[0].isIntersecting) loadMoreFnRef.current();
       },
-      { threshold: 0.1 },
+      { threshold: 0.1, rootMargin: "200px" },
     );
-    if (loadMoreRef.current) observer.observe(loadMoreRef.current);
+    observer.observe(node);
     return () => observer.disconnect();
-  }, [hasMore, isLoadingMore, isSearching, loadMore]);
+  }, [isLoading, items.length > 0]);
 
-  /** Fetch full details then add — never trust search-only payload */
-  const handleAdd = async (item: DiscoverItem) => {
-    const key = libraryKey(item.mediaType, item.tmdbId);
-    if (inLibrary.has(key)) {
-      setMessage("Already in your library");
-      return;
-    }
-
-    setAddingId(item.id);
-    setMessage(null);
-
-    try {
-      if (item.mediaType === "movie") {
-        const res = await fetch(`/api/tmdb/movie/${item.tmdbId}`);
-        if (!res.ok) throw new Error("Failed to load movie details");
-        const d = await res.json();
-
-        const result = await addMovieAction({
-          tmdbId: d.id,
-          name: d.name,
-          overview: d.overview,
-          posterPath: d.posterPath,
-          backdropPath: d.backdropPath,
-          voteAverage: d.voteAverage,
-          voteCount: d.voteCount,
-          releaseDate: d.releaseDate,
-          runtime: d.runtime,
-          genres: d.genres,
-          status: d.status,
-          tagline: d.tagline,
-          originalName: d.originalName,
-          originalLanguage: d.originalLanguage,
-          popularity: d.popularity,
-        });
-
-        if (result.duplicate) {
-          setMessage(result.error || "Already in your library");
-          setInLibrary((prev) => new Set(prev).add(key));
-        } else if (result.success) {
-          setInLibrary((prev) => new Set(prev).add(key));
-          setMessage(`Added “${d.name}”`);
-        } else {
-          setMessage(result.error || "Failed to add");
-        }
-      } else {
-        const res = await fetch(`/api/tmdb/tv/${item.tmdbId}`);
-        if (!res.ok) throw new Error("Failed to load TV details");
-        const d = await res.json();
-
-        const result = await addSeriesAction(
-          d.id,
-          d.name,
-          d.totalSeasons || 0,
-          [],
-          d.posterPath,
-          d.backdropPath,
-          d.overview,
-          d.voteAverage,
-          d.voteCount,
-          d.firstAirDate,
-          d.lastAirDate,
-          d.genres,
-          d.status,
-          d.tagline,
-          d.originalName,
-          d.originalLanguage,
-          d.popularity,
-          d.inProduction,
-          d.networks,
-          d.totalEpisodes,
-          d.seasons,
-        );
-
-        if (result.duplicate) {
-          setMessage(result.error || "Already in your library");
-          setInLibrary((prev) => new Set(prev).add(key));
-        } else if (result.success) {
-          setInLibrary((prev) => new Set(prev).add(key));
-          setMessage(`Added “${d.name}”`);
-        } else {
-          setMessage(result.error || "Failed to add");
-        }
+  const handleAdd = useCallback(
+    async (item: DiscoverItem) => {
+      const key = libraryKey(item.mediaType, item.tmdbId);
+      if (libraryMap.has(key)) {
+        showMessage("info", "Already in your library");
+        return;
       }
-    } catch (e) {
-      console.error(e);
-      setMessage("Failed to add. Please try again.");
-    } finally {
-      setAddingId(null);
-    }
-  };
 
-  const visible = items.filter(
-    (i) => !inLibrary.has(libraryKey(i.mediaType, i.tmdbId)),
+      setAddingKey(key);
+      const result = await addToLibrary(item.mediaType, item.tmdbId);
+
+      if (result.duplicate) {
+        if (result.seriesId) {
+          setLibraryMap((prev) => new Map(prev).set(key, result.seriesId!));
+        } else {
+          await loadLibraryMap();
+        }
+        showMessage("info", result.error || "Already in your library");
+      } else if (result.success) {
+        if (result.seriesId) {
+          setLibraryMap((prev) => new Map(prev).set(key, result.seriesId!));
+        } else {
+          await loadLibraryMap();
+        }
+        showMessage("success", `Added “${result.name ?? item.name}”`);
+        window.dispatchEvent(new CustomEvent("series-added"));
+      } else {
+        showMessage("error", result.error || "Failed to add");
+      }
+      setAddingKey(null);
+    },
+    [libraryMap, showMessage, loadLibraryMap],
   );
+
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchQuery(value);
+      debouncedSearch(value, mediaType);
+    },
+    [debouncedSearch, mediaType],
+  );
+
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery("");
+    setCurrentPage(1);
+    fetchPage("", 1, mediaType, false);
+  }, [fetchPage, mediaType]);
+
+  const searchPlaceholder = useMemo(() => {
+    if (mediaType === "movie") return "Search movies...";
+    if (mediaType === "tv") return "Search TV series...";
+    return "Search movies & TV...";
+  }, [mediaType]);
 
   return (
     <div className="space-y-6">
@@ -300,175 +278,78 @@ export default function DiscoverPage() {
         <button
           type="button"
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-24 right-6 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg md:bottom-8"
+          className="fixed bottom-24 right-6 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg transition hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 md:bottom-8"
+          aria-label="Scroll to top"
         >
           <ArrowUpIcon className="h-5 w-5" />
         </button>
       )}
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-2.5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-950/40">
-            <SparklesIcon className="h-5 w-5 text-violet-600" />
+            <SparklesIcon className="h-5 w-5 text-violet-600 dark:text-violet-400" />
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
               Discover
             </h1>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               Browse and add movies &amp; TV series
             </p>
           </div>
         </div>
 
-        {/* Media type tabs */}
-        <div className="inline-flex rounded-xl border border-slate-200 bg-slate-100 p-1 dark:border-slate-700 dark:bg-slate-800">
-          <button
-            type="button"
-            onClick={() => setMediaType("tv")}
-            className={clsx(
-              "inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-medium transition",
-              mediaType === "tv"
-                ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white"
-                : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200",
-            )}
-          >
-            <TvIcon className="h-4 w-4" />
-            TV
-          </button>
-          <button
-            type="button"
-            onClick={() => setMediaType("movie")}
-            className={clsx(
-              "inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-medium transition",
-              mediaType === "movie"
-                ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white"
-                : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200",
-            )}
-          >
-            <FilmIcon className="h-4 w-4" />
-            Movies
-          </button>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <SearchInput
+            value={searchQuery}
+            onChange={handleSearchChange}
+            onClear={handleClearSearch}
+            placeholder={searchPlaceholder}
+          />
+          <MediaTypeTabs value={mediaType} onChange={setMediaType} />
         </div>
-      </div>
-
-      {message && (
-        <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-          {message}
-          <button
-            type="button"
-            className="ml-3 text-brand-600 hover:underline"
-            onClick={() => setMessage(null)}
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      <div className="relative">
-        <MagnifyingGlassIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            debouncedSearch(e.target.value, mediaType);
-          }}
-          placeholder={
-            mediaType === "movie" ? "Search movies..." : "Search TV series..."
-          }
-          className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-12 pr-12 text-sm outline-none transition focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-        />
-        {searchQuery && (
-          <button
-            type="button"
-            onClick={() => {
-              setSearchQuery("");
-              setCurrentPage(1);
-              fetchPage("", 1, mediaType, false);
-            }}
-            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-          >
-            <XMarkIcon className="h-4 w-4" />
-          </button>
-        )}
       </div>
 
       {isSearching && (
-        <div className="flex items-center justify-center gap-2 py-2 text-sm text-slate-500">
+        <div className="flex items-center justify-center gap-2 py-1 text-sm text-slate-500">
           <ArrowPathIcon className="h-4 w-4 animate-spin text-brand-500" />
           Searching...
         </div>
       )}
 
-      {isLoading ? (
-        <div className="flex min-h-[240px] items-center justify-center">
-          <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-brand-500 border-t-transparent" />
-        </div>
-      ) : visible.length > 0 ? (
-        <>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-            {visible.map((item) => {
-              const poster = item.posterPath
-                ? `https://image.tmdb.org/t/p/w342${item.posterPath}`
-                : null;
-              const year = item.releaseDate || item.firstAirDate;
-              const yearLabel = year ? new Date(year).getFullYear() : null;
-              const isAdding = addingId === item.id;
+      {message && (
+        <MessageBanner message={message} onDismiss={() => setMessage(null)} />
+      )}
 
+      {isLoading ? (
+        <DiscoverSkeleton />
+      ) : items.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-300 py-16 text-center dark:border-slate-700">
+          <p className="text-slate-500 dark:text-slate-400">
+            {searchQuery
+              ? `No results for “${searchQuery}”. Try another search.`
+              : "Nothing to show right now."}
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8">
+            {items.map((item) => {
+              const key = libraryKey(item.mediaType, item.tmdbId);
               return (
-                <div
-                  key={`${item.mediaType}-${item.tmdbId}`}
-                  className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900"
-                >
-                  <div className="relative aspect-[2/3] bg-slate-100 dark:bg-slate-800">
-                    {poster ? (
-                      <Image
-                        src={poster}
-                        alt={item.name}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width:768px) 50vw, 16vw"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-2xl font-bold text-slate-400">
-                        {item.name.charAt(0)}
-                      </div>
-                    )}
-                    {item.voteAverage != null && item.voteAverage > 0 && (
-                      <span className="absolute right-2 top-2 rounded-lg bg-black/70 px-1.5 py-0.5 text-xs font-semibold text-amber-400">
-                        ★ {item.voteAverage.toFixed(1)}
-                      </span>
-                    )}
-                  </div>
-                  <div className="p-2.5">
-                    <h3 className="line-clamp-1 text-sm font-semibold text-slate-900 dark:text-white">
-                      {item.name}
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      {yearLabel ||
-                        (item.mediaType === "movie" ? "Movie" : "TV")}
-                    </p>
-                    <button
-                      type="button"
-                      disabled={isAdding}
-                      onClick={() => handleAdd(item)}
-                      className="mt-2 flex w-full items-center justify-center gap-1 rounded-lg bg-brand-600 py-1.5 text-xs font-medium text-white transition hover:bg-brand-700 disabled:opacity-50"
-                    >
-                      {isAdding ? (
-                        <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <PlusIcon className="h-3.5 w-3.5" />
-                      )}
-                      Add
-                    </button>
-                  </div>
-                </div>
+                <DiscoverCard
+                  key={key}
+                  item={item}
+                  isAdding={addingKey === key}
+                  librarySeriesId={libraryMap.get(key)}
+                  onAdd={handleAdd}
+                />
               );
             })}
           </div>
 
-          <div ref={loadMoreRef} className="py-8 text-center">
+          <div ref={loadMoreNodeRef} className="py-8 text-center">
             {isLoadingMore && (
               <ArrowPathIcon className="mx-auto h-5 w-5 animate-spin text-brand-500" />
             )}
@@ -476,21 +357,18 @@ export default function DiscoverPage() {
               <button
                 type="button"
                 onClick={loadMore}
-                className="rounded-xl bg-brand-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
+                className="rounded-xl bg-brand-600 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               >
                 Load more
               </button>
             )}
+            {!hasMore && items.length > 0 && (
+              <p className="text-xs text-slate-400 dark:text-slate-500">
+                You&apos;ve reached the end.
+              </p>
+            )}
           </div>
         </>
-      ) : (
-        <div className="rounded-2xl border border-dashed border-slate-300 py-16 text-center dark:border-slate-700">
-          <p className="text-slate-500">
-            {searchQuery
-              ? "No results. Try another search."
-              : "Everything here is already in your library."}
-          </p>
-        </div>
       )}
     </div>
   );

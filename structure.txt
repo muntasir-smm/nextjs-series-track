@@ -1,4 +1,6 @@
 .
+├── .vscode
+│   └── settings.json
 ├── app
 │   ├── admin
 │   │   ├── components
@@ -97,7 +99,16 @@
 │   │   │   ├── loading.tsx
 │   │   │   └── page.tsx
 │   │   ├── discover
-│   │   │   └── page.tsx
+│   │   │   ├── components
+│   │   │   │   ├── add-button.tsx
+│   │   │   │   ├── discover-card.tsx
+│   │   │   │   ├── discover-skeleton.tsx
+│   │   │   │   ├── media-badge.tsx
+│   │   │   │   ├── media-type-tabs.tsx
+│   │   │   │   ├── message-banner.tsx
+│   │   │   │   └── search-input.tsx
+│   │   │   ├── page.tsx
+│   │   │   └── utils.ts
 │   │   ├── movie
 │   │   │   └── [id]
 │   │   │       └── page.tsx
@@ -118,7 +129,6 @@
 │   │   │   │   ├── components
 │   │   │   │   │   ├── series-edit-modal.tsx
 │   │   │   │   │   ├── series-hero.tsx
-│   │   │   │   │   ├── series-seasons-grid.tsx
 │   │   │   │   │   ├── series-sidebar.tsx
 │   │   │   │   │   └── series-synopsis.tsx
 │   │   │   │   └── page.tsx
@@ -134,12 +144,15 @@
 │   │   └── layout.tsx
 │   ├── lib
 │   │   ├── actions.ts
+│   │   ├── add-to-library.ts
 │   │   ├── auth.ts
 │   │   ├── csrf.ts
 │   │   ├── db.ts
 │   │   ├── definitions.ts
 │   │   ├── format.ts
 │   │   ├── guards.ts
+│   │   ├── library-key.ts
+│   │   ├── media-href.ts
 │   │   ├── placeholder-data.js
 │   │   ├── progress.ts
 │   │   ├── rate-limit.ts
@@ -211,6 +224,6 @@
 └── tsconfig.json
 
 ::::::::::::::::::::::::
-📁 Folders : 63
-📄 Files   : 147
-⏰Generated: 14/09/2026, 9:52:30 pm
+📁 Folders : 65
+📄 Files   : 158
+⏰Generated: 15/09/2026, 10:55:34 pm

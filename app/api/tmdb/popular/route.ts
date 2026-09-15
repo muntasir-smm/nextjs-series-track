@@ -11,9 +11,12 @@ export async function GET(request: NextRequest) {
     request,
     async () => {
       const searchParams = request.nextUrl.searchParams;
-      const page = parseInt(searchParams.get("page") || "1");
-      const limit = Math.min(parseInt(searchParams.get("limit") || "24"), 50);
-      const type = (searchParams.get("type") || "tv").toLowerCase(); // tv | movie | all
+      const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+      const limit = Math.min(
+        Math.max(1, parseInt(searchParams.get("limit") || "20", 10)),
+        40,
+      );
+      const type = (searchParams.get("type") || "tv").toLowerCase();
 
       if (!TMDB_API_KEY) {
         return NextResponse.json(
@@ -31,7 +34,7 @@ export async function GET(request: NextRequest) {
           if (!response.ok)
             throw new Error(`TMDB TV error: ${response.status}`);
           const data = await response.json();
-          return (data.results || []).slice(0, limit).map((show: any) => ({
+          const list = (data.results || []).map((show: any) => ({
             id: String(show.id),
             tmdbId: show.id,
             mediaType: "tv" as const,
@@ -45,6 +48,10 @@ export async function GET(request: NextRequest) {
             voteCount: show.vote_count || 0,
             popularity: show.popularity || 0,
           }));
+          return {
+            list,
+            totalPages: Number(data.total_pages) || 1,
+          };
         };
 
         const fetchMovies = async () => {
@@ -55,7 +62,7 @@ export async function GET(request: NextRequest) {
           if (!response.ok)
             throw new Error(`TMDB movie error: ${response.status}`);
           const data = await response.json();
-          return (data.results || []).slice(0, limit).map((m: any) => ({
+          const list = (data.results || []).map((m: any) => ({
             id: String(m.id),
             tmdbId: m.id,
             mediaType: "movie" as const,
@@ -69,33 +76,58 @@ export async function GET(request: NextRequest) {
             voteCount: m.vote_count || 0,
             popularity: m.popularity || 0,
           }));
+          return {
+            list,
+            totalPages: Number(data.total_pages) || 1,
+          };
         };
 
         if (type === "movie") {
-          const movies = await fetchMovies();
-          return NextResponse.json({ series: [], movies, results: movies });
+          const { list: movies, totalPages } = await fetchMovies();
+          const results = movies.slice(0, limit);
+          return NextResponse.json({
+            series: [],
+            movies: results,
+            results,
+            totalPages,
+            total_pages: totalPages,
+            currentPage: page,
+          });
         }
 
         if (type === "all") {
           const per = Math.max(1, Math.ceil(limit / 2));
-          const [tv, movies] = await Promise.all([
-            fetchTv().then((list) => list.slice(0, per)),
-            fetchMovies().then((list) => list.slice(0, per)),
+          const [tvRes, movieRes] = await Promise.all([
+            fetchTv(),
+            fetchMovies(),
           ]);
-          // Interleave roughly by popularity
+          const tv = tvRes.list.slice(0, per);
+          const movies = movieRes.list.slice(0, per);
           const mixed = [...tv, ...movies].sort(
             (a, b) => (b.popularity || 0) - (a.popularity || 0),
           );
+
+          const totalPages = Math.min(tvRes.totalPages, movieRes.totalPages);
           return NextResponse.json({
             series: tv,
             movies,
             results: mixed.slice(0, limit),
+            totalPages,
+            total_pages: totalPages,
+            currentPage: page,
           });
         }
 
-        // default: tv
-        const series = await fetchTv();
-        return NextResponse.json({ series, movies: [], results: series });
+        const { list: series, totalPages } = await fetchTv();
+        const results = series.slice(0, limit);
+        return NextResponse.json({
+          series: results,
+          movies: [],
+          results,
+          totalPages,
+          total_pages: totalPages,
+          currentPage: page,
+        });
       } catch (error) {
         console.error("TMDB popular error:", error);
         return NextResponse.json(
