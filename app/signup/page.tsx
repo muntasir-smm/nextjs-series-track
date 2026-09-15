@@ -1,5 +1,6 @@
 // app/signup/page.tsx
 
+import { Suspense } from "react";
 import SignupForm from "@/app/ui/signup-form";
 import PageTransition from "@/app/ui/page-transition";
 import Link from "next/link";
@@ -9,6 +10,12 @@ export const metadata = {
   title: "Join Series Tracker - Create Your Account",
 };
 
+function SignupFormFallback() {
+  return (
+    <div className="h-[28rem] w-full max-w-[420px] animate-pulse rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900" />
+  );
+}
+
 export default function SignupPage() {
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 px-4 py-12 dark:bg-slate-950 md:py-16">
@@ -17,13 +24,13 @@ export default function SignupPage() {
         <div className="absolute -left-[5%] -top-[10%] h-[50vh] w-[50vw] rounded-full bg-brand-400/10 blur-[120px] dark:bg-brand-900/20" />
         <div className="absolute -bottom-[15%] -right-[10%] h-[45vh] w-[45vw] rounded-full bg-violet-400/10 blur-[120px] dark:bg-violet-900/20" />
       </div>
-
       <div className="relative z-10 w-full max-w-5xl">
         <PageTransition direction="left">
           <div className="grid items-center gap-10 md:grid-cols-2">
-            {/* Form side */}
             <div className="order-2 mx-auto w-full max-w-[420px] md:order-1">
-              <SignupForm />
+              <Suspense fallback={<SignupFormFallback />}>
+                <SignupForm />
+              </Suspense>
             </div>
 
             {/* Brand side */}
@@ -75,7 +82,6 @@ export default function SignupPage() {
           </div>
         </PageTransition>
       </div>
-
       <footer className="absolute bottom-5 left-0 w-full px-4 text-center md:hidden">
         <p className="text-[11px] text-slate-500 dark:text-slate-600">
           By joining, you agree to Series Tracker&apos;s{" "}

@@ -2,9 +2,10 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
+
 import {
   AtSymbolIcon,
   KeyIcon,
@@ -40,6 +41,35 @@ export default function SignupForm() {
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [csrfToken, setCsrfToken] = useState("");
+  const searchParams = useSearchParams();
+
+  const rawNext =
+    searchParams?.get("next") || searchParams?.get("callbackUrl") || "";
+  const callbackUrl = useMemo(() => {
+    if (!rawNext.startsWith("/") || rawNext.startsWith("//")) return "";
+    if (
+      rawNext.startsWith("/login") ||
+      rawNext.startsWith("/signup") ||
+      rawNext.startsWith("/forgot-password")
+    ) {
+      return "";
+    }
+    return rawNext;
+  }, [rawNext]);
+
+  const loginHref = useMemo(() => {
+    const params = new URLSearchParams();
+    if (callbackUrl) params.set("callbackUrl", callbackUrl);
+    const q = params.toString();
+    return q ? `/login?${q}` : "/login";
+  }, [callbackUrl]);
+
+  const loginHrefAfterSignup = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set("message", "Account created! Please sign in.");
+    if (callbackUrl) params.set("callbackUrl", callbackUrl);
+    return `/login?${params.toString()}`;
+  }, [callbackUrl]);
 
   useEffect(() => {
     const fetchCSRFToken = async () => {
@@ -117,9 +147,14 @@ export default function SignupForm() {
         setSuccessMessage(
           data.message || "Account created! Awaiting admin approval.",
         );
-        setFormData({ name: "", email: "", password: "", confirmPassword: "" });
+        setFormData({
+          name: "",
+          email: "",
+          password: "",
+          confirmPassword: "",
+        });
       } else {
-        router.push("/login?message=Account created! Please sign in.");
+        router.push(loginHrefAfterSignup);
       }
     } catch (err: any) {
       setError(err.message || "Something went wrong.");
@@ -131,7 +166,7 @@ export default function SignupForm() {
   const handleLoginRedirect = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsTransitioning(true);
-    setTimeout(() => router.push("/login"), 480);
+    setTimeout(() => router.push(loginHref), 480);
   };
 
   const passwordRequirements: PasswordRequirement[] = [
@@ -188,7 +223,7 @@ export default function SignupForm() {
               </p>
               <button
                 type="button"
-                onClick={() => router.push("/login")}
+                onClick={() => router.push(loginHref)}
                 className="text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-300"
               >
                 Continue to Login →
