@@ -20,6 +20,7 @@ import clsx from "clsx";
 import { signOutAction } from "@/app/lib/signout-action";
 import Avatar from "./avatar";
 import AddSeriesModal from "./add-series-modal";
+import ThemeToggle from "@/app/ui/theme-toggle";
 
 type SessionUser = {
   id: string;
@@ -188,59 +189,63 @@ export default function TopNav({ user, seriesCount }: TopNavProps) {
             </div>
 
             {/* Desktop Profile */}
-            <div className="hidden md:block relative" ref={dropdownRef}>
-              <button
-                onClick={toggleProfile}
-                className="flex items-center gap-2 rounded-full p-1 transition hover:bg-slate-100 dark:hover:bg-slate-800"
-              >
-                <Avatar src={avatarUrl} name={userName} size="md" />
-              </button>
+            <div className="hidden md:flex md:items-center md:gap-2">
+              <ThemeToggle />
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={toggleProfile}
+                  className="flex items-center gap-2 rounded-full p-1 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  <Avatar src={avatarUrl} name={userName} size="md" />
+                </button>
 
-              {isProfileOpen && (
-                <div className="absolute right-0 mt-2 w-64 origin-top-right rounded-2xl border border-slate-200 bg-white p-2 shadow-soft-lg dark:border-slate-700 dark:bg-slate-900 animate-fade-in">
-                  <div className="border-b border-slate-100 px-3 py-3 dark:border-slate-800">
-                    <p className="truncate font-semibold text-slate-900 dark:text-white">
-                      {userName}
-                    </p>
-                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                      {userEmail}
-                    </p>
-                  </div>
+                {isProfileOpen && (
+                  <div className="absolute right-0 mt-2 w-64 origin-top-right rounded-2xl border border-slate-200 bg-white p-2 shadow-soft-lg dark:border-slate-700 dark:bg-slate-900 animate-fade-in">
+                    <div className="border-b border-slate-100 px-3 py-3 dark:border-slate-800">
+                      <p className="truncate font-semibold text-slate-900 dark:text-white">
+                        {userName}
+                      </p>
+                      <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                        {userEmail}
+                      </p>
+                    </div>
 
-                  <div className="mt-1 space-y-0.5">
-                    <Link
-                      href="/dashboard/profile"
-                      className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
-                    >
-                      <UserIcon className="h-4 w-4 text-brand-500" />
-                      Profile
-                    </Link>
-
-                    {userRole === "admin" && (
+                    <div className="mt-1 space-y-0.5">
                       <Link
-                        href="/admin"
+                        href="/dashboard/profile"
                         className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
                       >
-                        <ShieldCheckIcon className="h-4 w-4 text-violet-500" />
-                        Admin Panel
+                        <UserIcon className="h-4 w-4 text-brand-500" />
+                        Profile
                       </Link>
-                    )}
-                  </div>
 
-                  <button
-                    onClick={handleSignOut}
-                    disabled={isSigningOut}
-                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-100 dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-950/60"
-                  >
-                    <ArrowRightOnRectangleIcon className="h-4 w-4" />
-                    {isSigningOut ? "Signing out..." : "Sign Out"}
-                  </button>
-                </div>
-              )}
+                      {userRole === "admin" && (
+                        <Link
+                          href="/admin"
+                          className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                        >
+                          <ShieldCheckIcon className="h-4 w-4 text-violet-500" />
+                          Admin Panel
+                        </Link>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={handleSignOut}
+                      disabled={isSigningOut}
+                      className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-red-50 px-3 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-100 dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-950/60"
+                    >
+                      <ArrowRightOnRectangleIcon className="h-4 w-4" />
+                      {isSigningOut ? "Signing out..." : "Sign Out"}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Mobile controls */}
             <div className="flex items-center gap-2 md:hidden">
+              <ThemeToggle />
               <Link href="/dashboard/profile">
                 <Avatar src={avatarUrl} name={userName} size="sm" />
               </Link>

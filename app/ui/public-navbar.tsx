@@ -7,6 +7,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import clsx from "clsx";
+import ThemeToggle from "@/app/ui/theme-toggle";
 
 export default function PublicNavbar() {
   const [open, setOpen] = useState(false);
@@ -14,7 +15,7 @@ export default function PublicNavbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/80 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/80">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center gap-2.5 shrink-0">
+        <Link href="/" className="flex shrink-0 items-center gap-2.5">
           <Image
             src="/images/logo.png"
             alt="Series Tracker"
@@ -28,37 +29,40 @@ export default function PublicNavbar() {
         </Link>
 
         {/* Desktop */}
-        <nav className="hidden items-center gap-1 md:flex">
-          <Link
-            href="/signup"
-            className="ml-1 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700"
-          >
-            Create Account
-          </Link>
+        <nav className="hidden items-center gap-2 md:flex">
+          <ThemeToggle />
           <Link
             href="/login"
             className="rounded-xl px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
           >
             Sign in
           </Link>
+          <Link
+            href="/signup"
+            className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700"
+          >
+            Create Account
+          </Link>
         </nav>
 
-        {/* Mobile toggle */}
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="rounded-xl p-2 text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 md:hidden"
-          aria-label="Toggle menu"
-        >
-          {open ? (
-            <XMarkIcon className="h-6 w-6" />
-          ) : (
-            <Bars3Icon className="h-6 w-6" />
-          )}
-        </button>
+        {/* Mobile: theme + menu */}
+        <div className="flex items-center gap-1 md:hidden">
+          <ThemeToggle />
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="rounded-xl p-2 text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+            aria-label="Toggle menu"
+          >
+            {open ? (
+              <XMarkIcon className="h-6 w-6" />
+            ) : (
+              <Bars3Icon className="h-6 w-6" />
+            )}
+          </button>
+        </div>
       </div>
 
-      {/* Mobile menu */}
       <div
         className={clsx(
           "border-t border-slate-200 bg-white px-4 pb-4 pt-2 dark:border-slate-800 dark:bg-slate-950 md:hidden",

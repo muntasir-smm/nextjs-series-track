@@ -190,7 +190,8 @@
 │   │   ├── series-card.tsx
 │   │   ├── signup-form.tsx
 │   │   ├── site-footer.tsx
-│   │   └── skeletons.tsx
+│   │   ├── skeletons.tsx
+│   │   └── theme-toggle.tsx
 │   ├── layout.tsx
 │   ├── not-found.tsx
 │   └── page.tsx
@@ -210,6 +211,7 @@
 ├── .gitignore
 ├── .nvmrc
 ├── auth.config.ts
+├── global.d.ts
 ├── middleware.ts
 ├── next.config.js
 ├── package-lock.json
@@ -225,5 +227,5 @@
 
 ::::::::::::::::::::::::
 📁 Folders : 65
-📄 Files   : 158
-⏰Generated: 15/09/2026, 10:55:34 pm
+📄 Files   : 160
+⏰Generated: 15/09/2026, 11:44:39 pm
