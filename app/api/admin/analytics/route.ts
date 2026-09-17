@@ -34,12 +34,12 @@ export async function GET() {
 
     // Most tracked series
     const mostTracked = await sql`
-      SELECT name, COUNT(*) as count 
-      FROM user_series 
-      GROUP BY name 
-      ORDER BY count DESC 
-      LIMIT 10
-    `;
+  SELECT name, COALESCE(media_type, 'tv') as media_type, COUNT(*)::int as count
+  FROM user_series
+  GROUP BY name, COALESCE(media_type, 'tv')
+  ORDER BY count DESC
+  LIMIT 10
+`;
 
     // Popular genres from TMDB (approximated from user_series)
     const popularGenres = await sql`

@@ -16,6 +16,7 @@ import {
   UserPlusIcon,
   CalendarIcon,
   ArrowTrendingUpIcon,
+  FilmIcon,
 } from "@heroicons/react/24/outline";
 import StatCard from "./components/StatCard";
 import UserTable from "./components/UserTable";
@@ -29,7 +30,13 @@ interface Analytics {
   totalUsers: number;
   activeUsers: number;
   totalSeries: number;
-  mostTrackedSeries: Array<{ name: string; count: number }>;
+  totalMovies?: number;
+  totalTv?: number;
+  mostTrackedSeries: Array<{
+    name: string;
+    count: number;
+    media_type?: string;
+  }>;
   popularGenres: Array<{ genre: string; count: number }>;
   averageProgress: number;
   newUsersThisMonth: number;
@@ -151,7 +158,7 @@ export default function AdminPanel() {
         {/* Overview */}
         {activeTab === "overview" && analytics && (
           <div className="p-6">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
               <StatCard
                 title="Total Users"
                 value={analytics.totalUsers}
@@ -165,10 +172,22 @@ export default function AdminPanel() {
                 color="green"
               />
               <StatCard
-                title="Total Series Tracked"
+                title="Library items"
                 value={analytics.totalSeries}
                 icon={<TvIcon className="h-6 w-6" />}
                 color="purple"
+              />
+              <StatCard
+                title="TV tracked"
+                value={analytics.totalTv ?? 0}
+                icon={<TvIcon className="h-6 w-6" />}
+                color="blue"
+              />
+              <StatCard
+                title="Movies tracked"
+                value={analytics.totalMovies ?? 0}
+                icon={<FilmIcon className="h-6 w-6" />}
+                color="orange"
               />
               <StatCard
                 title="Avg Watch Progress"
@@ -184,7 +203,7 @@ export default function AdminPanel() {
                 <div className="mb-3 flex items-center gap-2">
                   <ArrowTrendingUpIcon className="h-5 w-5 text-brand-500" />
                   <h2 className="font-semibold text-slate-900 dark:text-white">
-                    Most Tracked Series
+                    Most Tracked
                   </h2>
                 </div>
                 <div className="space-y-2">
@@ -192,7 +211,7 @@ export default function AdminPanel() {
                     .slice(0, 5)
                     .map((series, index) => (
                       <div
-                        key={series.name}
+                        key={`${series.name}-${series.media_type || "tv"}`}
                         className="flex items-center justify-between rounded-xl bg-white p-3 dark:bg-slate-900"
                       >
                         <div className="flex items-center gap-3">
@@ -213,6 +232,11 @@ export default function AdminPanel() {
                           <span className="font-medium text-slate-900 dark:text-white">
                             {series.name}
                           </span>
+                          {series.media_type && (
+                            <span className="ml-2 text-[10px] uppercase text-slate-400">
+                              {series.media_type}
+                            </span>
+                          )}
                         </div>
                         <span className="text-sm text-slate-500">
                           {series.count} users
