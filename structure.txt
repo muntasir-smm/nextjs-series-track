@@ -45,8 +45,9 @@
 │   │   │   │   └── route.ts
 │   │   │   ├── session
 │   │   │   │   └── route.ts
-│   │   │   └── signup
-│   │   │       └── route.ts
+│   │   │   ├── signup
+│   │   │   │   └── route.ts
+│   │   │   └── verify-email
 │   │   ├── public
 │   │   │   ├── featured
 │   │   │   │   └── route.ts
@@ -112,6 +113,15 @@
 │   │   ├── movie
 │   │   │   └── [id]
 │   │   │       └── page.tsx
+│   │   ├── myLibrary
+│   │   │   ├── [id]
+│   │   │   │   ├── components
+│   │   │   │   │   ├── edit-modal.tsx
+│   │   │   │   │   ├── hero.tsx
+│   │   │   │   │   ├── sidebar.tsx
+│   │   │   │   │   └── synopsis.tsx
+│   │   │   │   └── page.tsx
+│   │   │   └── page.tsx
 │   │   ├── profile
 │   │   │   ├── components
 │   │   │   │   ├── edit-profile-form.tsx
@@ -123,15 +133,6 @@
 │   │   │   │   ├── QuickActions.tsx
 │   │   │   │   ├── SecurityTab.tsx
 │   │   │   │   └── stats-cards.tsx
-│   │   │   └── page.tsx
-│   │   ├── tvSeries
-│   │   │   ├── [id]
-│   │   │   │   ├── components
-│   │   │   │   │   ├── series-edit-modal.tsx
-│   │   │   │   │   ├── series-hero.tsx
-│   │   │   │   │   ├── series-sidebar.tsx
-│   │   │   │   │   └── series-synopsis.tsx
-│   │   │   │   └── page.tsx
 │   │   │   └── page.tsx
 │   │   └── layout.tsx
 │   ├── explore
@@ -226,6 +227,6 @@
 └── tsconfig.json
 
 ::::::::::::::::::::::::
-📁 Folders : 65
+📁 Folders : 66
 📄 Files   : 160
-⏰Generated: 18/09/2026, 11:20:19 pm
+⏰Generated: 22/09/2026, 7:47:17 pm
