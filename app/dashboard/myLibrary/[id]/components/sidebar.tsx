@@ -1,4 +1,4 @@
-// app/dashboard/tvSeries/[id]/components/series-sidebar.tsx
+// app/dashboard/myLibrary/[id]/components/sidebar.tsx
 
 "use client";
 

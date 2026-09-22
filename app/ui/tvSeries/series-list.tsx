@@ -27,7 +27,7 @@ const getPosterUrl = (
 function detailHref(item: Series) {
   return item.mediaType === "movie"
     ? `/dashboard/movie/${item.id}`
-    : `/dashboard/tvSeries/${item.id}`;
+    : `/dashboard/myLibrary/${item.id}`;
 }
 
 interface Series {

@@ -36,15 +36,15 @@ Built with **Next.js 15** (App Router), **NextAuth v5**, **Neon/Vercel Postgres*
 
 ## Tech stack
 
-| Layer | Choice |
-| --- | --- |
-| Framework | Next.js 15.3 (App Router) |
-| UI | React 18, Tailwind CSS 3, Heroicons, Framer Motion |
-| Auth | NextAuth.js 5 (credentials) |
-| Database | Neon / Vercel Postgres (`@neondatabase/serverless`) |
-| Media data | [The Movie Database (TMDB)](https://www.themoviedb.org/) |
-| Email (optional) | Resend |
-| Uploads (optional) | Vercel Blob |
+| Layer              | Choice                                                   |
+| ------------------ | -------------------------------------------------------- |
+| Framework          | Next.js 15.3 (App Router)                                |
+| UI                 | React 18, Tailwind CSS 3, Heroicons, Framer Motion       |
+| Auth               | NextAuth.js 5 (credentials)                              |
+| Database           | Neon / Vercel Postgres (`@neondatabase/serverless`)      |
+| Media data         | [The Movie Database (TMDB)](https://www.themoviedb.org/) |
+| Email (optional)   | Resend                                                   |
+| Uploads (optional) | Vercel Blob                                              |
 
 ---
 
@@ -141,14 +141,14 @@ pnpm dev
 
 ### Scripts
 
-| Command | Description |
-| --- | --- |
-| `pnpm dev` | Development server |
-| `pnpm build` | Production build |
-| `pnpm start` | Run production build |
-| `pnpm lint` | ESLint |
-| `pnpm seed` | Seed database (if configured) |
-| `pnpm prettier` | Format code |
+| Command         | Description                   |
+| --------------- | ----------------------------- |
+| `pnpm dev`      | Development server            |
+| `pnpm build`    | Production build              |
+| `pnpm start`    | Run production build          |
+| `pnpm lint`     | ESLint                        |
+| `pnpm seed`     | Seed database (if configured) |
+| `pnpm prettier` | Format code                   |
 
 ---
 
@@ -174,18 +174,18 @@ middleware.ts            # Protects /dashboard, /admin; public explore OK
 
 ## Key routes
 
-| Path | Access | Description |
-| --- | --- | --- |
-| `/` | Public | Landing |
-| `/explore/tv/[tmdbId]` | Public | TV details |
-| `/explore/movie/[tmdbId]` | Public | Movie details |
-| `/login` · `/signup` | Public | Auth (`?next=` / `callbackUrl` supported) |
-| `/dashboard` | Auth | Overview |
-| `/dashboard/discover` | Auth | Search & add |
-| `/dashboard/tvSeries` | Auth | Library list |
-| `/dashboard/tvSeries/[id]` | Auth | Series + episode tracking |
-| `/dashboard/movie/[id]` | Auth | Movie in library |
-| `/admin` | Admin | Users, featured, stats, health, backup |
+| Path                        | Access | Description                               |
+| --------------------------- | ------ | ----------------------------------------- |
+| `/`                         | Public | Landing                                   |
+| `/explore/tv/[tmdbId]`      | Public | TV details                                |
+| `/explore/movie/[tmdbId]`   | Public | Movie details                             |
+| `/login` · `/signup`        | Public | Auth (`?next=` / `callbackUrl` supported) |
+| `/dashboard`                | Auth   | Overview                                  |
+| `/dashboard/discover`       | Auth   | Search & add                              |
+| `/dashboard/myLibrary`      | Auth   | Library list                              |
+| `/dashboard/myLibrary/[id]` | Auth   | Series + episode tracking                 |
+| `/dashboard/movie/[id]`     | Auth   | Movie in library                          |
+| `/admin`                    | Admin  | Users, featured, stats, health, backup    |
 
 ---
 

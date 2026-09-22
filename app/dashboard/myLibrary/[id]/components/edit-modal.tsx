@@ -1,4 +1,4 @@
-// app/dashboard/tvSeries/[id]/components/series-edit-modal.tsx
+// app/dashboard/myLibrary/[id]/components/edit-modal.tsx
 
 "use client";
 

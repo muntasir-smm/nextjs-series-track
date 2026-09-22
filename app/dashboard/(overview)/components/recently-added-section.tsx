@@ -39,7 +39,7 @@ export const RecentlyAddedSection: React.FC<RecentlyAddedSectionProps> = ({
       <div className="flex items-center gap-3">
         <ViewToggle value={viewMode} onChange={onViewModeChange} />
         <Link
-          href="/dashboard/tvSeries"
+          href="/dashboard/myLibrary"
           className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-medium text-brand-600 transition hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-950/30"
         >
           View all

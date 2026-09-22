@@ -75,7 +75,7 @@ export function FeaturedSection() {
         {featured.map((series) => (
           <Link
             key={series.id}
-            href={`/dashboard/tvSeries/${series.series_id}`}
+            href={`/dashboard/myLibrary/${series.series_id}`}
             className="group flex gap-4 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-soft dark:border-slate-700 dark:bg-slate-900"
           >
             {series.poster_path && (

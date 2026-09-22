@@ -1,4 +1,4 @@
-// app/dashboard/tvSeries/page.tsx
+// app/dashboard/myLibrary/page.tsx
 
 "use client";
 

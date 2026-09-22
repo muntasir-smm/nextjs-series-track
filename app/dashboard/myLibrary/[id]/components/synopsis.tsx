@@ -1,4 +1,4 @@
-// app/dashboard/tvSeries/[id]/components/series-synopsis.tsx
+// app/dashboard/myLibrary/[id]/components/synopsis.tsx
 
 "use client";
 

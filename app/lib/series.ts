@@ -371,7 +371,7 @@ export async function addSeries(
     `;
 
     revalidatePath("/dashboard");
-    revalidatePath("/dashboard/tvSeries");
+    revalidatePath("/dashboard/myLibrary");
 
     return { success: true, seriesId };
   } catch (error: any) {
@@ -582,7 +582,7 @@ export async function addMovie(input: {
     `;
 
     revalidatePath("/dashboard");
-    revalidatePath("/dashboard/tvSeries");
+    revalidatePath("/dashboard/myLibrary");
 
     return { success: true, seriesId };
   } catch (error: any) {
@@ -621,7 +621,7 @@ export async function updateSeries(updated: Series) {
         AND series_id = ${updated.id}
     `;
 
-    revalidatePath("/dashboard/tvSeries");
+    revalidatePath("/dashboard/myLibrary");
     return { success: true };
   } catch (error) {
     console.error("Error updating series:", error);
@@ -643,7 +643,7 @@ export async function deleteSeries(seriesId: string) {
         AND series_id = ${seriesId}
     `;
 
-    revalidatePath("/dashboard/tvSeries");
+    revalidatePath("/dashboard/myLibrary");
     revalidatePath("/dashboard");
     return { success: true };
   } catch (error) {
@@ -681,8 +681,8 @@ export async function updateWatchProgress(
         AND media_type = 'tv'
     `;
 
-    revalidatePath("/dashboard/tvSeries");
-    revalidatePath(`/dashboard/tvSeries/${seriesId}`);
+    revalidatePath("/dashboard/myLibrary");
+    revalidatePath(`/dashboard/myLibrary/${seriesId}`);
 
     return { success: true, watchProgress: progress };
   } catch (error) {
@@ -730,8 +730,8 @@ export async function toggleEpisodeWatched(
         AND series_id = ${seriesId}
     `;
 
-    revalidatePath("/dashboard/tvSeries");
-    revalidatePath(`/dashboard/tvSeries/${seriesId}`);
+    revalidatePath("/dashboard/myLibrary");
+    revalidatePath(`/dashboard/myLibrary/${seriesId}`);
 
     return { success: true, watchedEpisodes: next, watchProgress: progress };
   } catch (error) {
@@ -778,8 +778,8 @@ export async function setSeasonEpisodesWatched(
         AND series_id = ${seriesId}
     `;
 
-    revalidatePath("/dashboard/tvSeries");
-    revalidatePath(`/dashboard/tvSeries/${seriesId}`);
+    revalidatePath("/dashboard/myLibrary");
+    revalidatePath(`/dashboard/myLibrary/${seriesId}`);
 
     return { success: true, watchedEpisodes: next, watchProgress: progress };
   } catch (error) {
@@ -808,7 +808,7 @@ export async function toggleMovieWatched(seriesId: string, watched: boolean) {
     `;
 
     revalidatePath("/dashboard");
-    revalidatePath("/dashboard/tvSeries");
+    revalidatePath("/dashboard/myLibrary");
 
     return { success: true, watched, watchProgress: watched ? 100 : 0 };
   } catch (error) {

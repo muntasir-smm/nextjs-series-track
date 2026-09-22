@@ -135,7 +135,7 @@ export default function ExploreLibraryActions({
           return;
         }
         if (result.seriesId) {
-          router.push(`/dashboard/tvSeries/${result.seriesId}`);
+          router.push(`/dashboard/myLibrary/${result.seriesId}`);
           return;
         }
       }
@@ -184,7 +184,7 @@ export default function ExploreLibraryActions({
     const href =
       mediaType === "movie"
         ? `/dashboard/movie/${libraryId}`
-        : `/dashboard/tvSeries/${libraryId}`;
+        : `/dashboard/myLibrary/${libraryId}`;
 
     return (
       <div className="mt-6 flex flex-wrap gap-3">
@@ -196,7 +196,7 @@ export default function ExploreLibraryActions({
           In library — open
         </Link>
         <Link
-          href="/dashboard/tvSeries"
+          href="/dashboard/myLibrary"
           className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
         >
           View library

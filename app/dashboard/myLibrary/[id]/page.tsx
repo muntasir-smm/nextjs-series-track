@@ -1,4 +1,4 @@
-// app/dashboard/tvSeries/[id]/page.tsx
+// app/dashboard/myLibrary/[id]/page.tsx
 
 "use client";
 
@@ -28,7 +28,7 @@ import {
   type Series,
 } from "@/app/lib/series";
 import EpisodeTracker from "@/app/ui/tvSeries/episode-tracker";
-import { SeriesEditModal } from "./components/series-edit-modal";
+import { SeriesEditModal } from "./components/edit-modal";
 import { formatRating } from "@/app/lib/format";
 import type { WatchedEpisodesMap } from "@/app/lib/definitions";
 
@@ -189,7 +189,7 @@ export default function SeriesDetailPage() {
     if (!seriesId || !confirm("Remove this series from your library?")) return;
     setIsDeleting(true);
     const result = await deleteSeriesAction(seriesId);
-    if (result.success) router.push("/dashboard/tvSeries");
+    if (result.success) router.push("/dashboard/myLibrary");
     else setIsDeleting(false);
   }, [seriesId, router]);
 
@@ -216,7 +216,7 @@ export default function SeriesDetailPage() {
         <TvIcon className="h-12 w-12 text-slate-400" />
         <p className="text-slate-500 dark:text-slate-400">Series not found</p>
         <Link
-          href="/dashboard/tvSeries"
+          href="/dashboard/myLibrary"
           className="inline-flex items-center gap-2 text-brand-600 hover:underline"
         >
           <ArrowLeftIcon className="h-4 w-4" />

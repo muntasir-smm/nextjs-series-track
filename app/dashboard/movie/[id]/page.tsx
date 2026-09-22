@@ -129,7 +129,7 @@ export default function MovieDetailPage() {
     if (!movieId || !confirm("Remove this movie from your library?")) return;
     setBusy(true);
     const result = await deleteSeries(movieId);
-    if (result.success) router.push("/dashboard/tvSeries");
+    if (result.success) router.push("/dashboard/myLibrary");
     else setBusy(false);
   };
 
@@ -149,7 +149,7 @@ export default function MovieDetailPage() {
           Movie not found in your library.
         </p>
         <Link
-          href="/dashboard/tvSeries"
+          href="/dashboard/myLibrary"
           className="inline-flex items-center gap-2 text-brand-600 hover:underline"
         >
           <ArrowLeftIcon className="h-4 w-4" />

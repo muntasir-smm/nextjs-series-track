@@ -8,7 +8,7 @@ export function mediaDetailHref(
   if (librarySeriesId) {
     return mediaType === "movie"
       ? `/dashboard/movie/${librarySeriesId}`
-      : `/dashboard/tvSeries/${librarySeriesId}`;
+      : `/dashboard/myLibrary/${librarySeriesId}`;
   }
   return `/explore/${mediaType}/${tmdbId}`;
 }

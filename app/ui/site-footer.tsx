@@ -82,7 +82,7 @@ export default function SiteFooter({ variant = "public" }: SiteFooterProps) {
                     </li>
                     <li>
                       <Link
-                        href="/dashboard/tvSeries"
+                        href="/dashboard/myLibrary"
                         className="text-slate-600 hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400"
                       >
                         Library
