@@ -121,6 +121,8 @@ npm run seed
 
 ## Setup
 
+This project uses **pnpm**. Do not commit `package-lock.json`.
+
 ```bash
 # Clone
 git clone https://github.com/muntasir-smm/nextjs-series-track.git
