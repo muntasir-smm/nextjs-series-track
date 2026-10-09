@@ -19,5 +19,6 @@ export interface FeaturedSeries {
   name: string;
   posterPath: string | null;
   reason: string;
+  mediaType?: "tv" | "movie";
   tmdbId?: number | null;
 }

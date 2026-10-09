@@ -21,23 +21,24 @@ export function FeaturedSection({ items, loading }: FeaturedSectionProps) {
             Editor&apos;s picks
           </div>
           <h2 className="text-3xl font-bold text-slate-900 dark:text-white">
-            Featured series
+            Featured titles
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-lg text-slate-500 dark:text-slate-400">
-            Hand-picked shows worth starting
+            Hand-picked movies and shows worth starting
           </p>
         </div>
 
         <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {items.map((series) => {
-            const href = series.tmdbId
-              ? `/explore/tv/${series.tmdbId}`
-              : "/signup";
+            const mediaType = series.mediaType === "movie" ? "movie" : "tv";
+            const tmdbId = series.tmdbId ?? series.seriesId;
+            const href = tmdbId ? `/explore/${mediaType}/${tmdbId}` : "/signup";
+
             return (
               <MediaCard
                 key={series.id}
                 href={href}
-                badge="Featured"
+                badge={mediaType === "movie" ? "Movie" : "TV"}
                 item={{
                   id: series.id,
                   name: series.name,

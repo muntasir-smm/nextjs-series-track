@@ -7,18 +7,20 @@ import { StarIcon } from "@heroicons/react/24/solid";
 import { StarIcon as StarOutlineIcon } from "@heroicons/react/24/outline";
 import Image from "next/image";
 import Link from "next/link";
+import clsx from "clsx";
 
-interface FeaturedSeries {
-  id: number;
-  series_id: string;
-  series_name: string;
-  poster_path: string;
+interface FeaturedItem {
+  id: string;
+  seriesId: string;
+  name: string;
+  posterPath: string | null;
   reason: string;
-  is_active: boolean;
+  mediaType?: "tv" | "movie";
+  tmdbId?: number | null;
 }
 
 export function FeaturedSection() {
-  const [featured, setFeatured] = useState<FeaturedSeries[]>([]);
+  const [featured, setFeatured] = useState<FeaturedItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -27,9 +29,10 @@ export function FeaturedSection() {
 
   const loadFeatured = async () => {
     try {
-      const response = await fetch("/api/admin/featured");
+      // Public endpoint — works for all signed-in users
+      const response = await fetch("/api/public/featured");
       const data = await response.json();
-      setFeatured(data);
+      setFeatured(Array.isArray(data.series) ? data.series : []);
     } catch (error) {
       console.error("Error loading featured:", error);
     } finally {
@@ -63,53 +66,73 @@ export function FeaturedSection() {
         </div>
         <div>
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-            Featured Series
+            Featured
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Curated by our team
+            Curated movies &amp; series
           </p>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {featured.map((series) => (
-          <Link
-            key={series.id}
-            href={`/dashboard/myLibrary/${series.series_id}`}
-            className="group flex gap-4 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-soft dark:border-slate-700 dark:bg-slate-900"
-          >
-            {series.poster_path && (
-              <div className="relative h-24 w-16 shrink-0 overflow-hidden rounded-xl">
-                <Image
-                  src={`https://image.tmdb.org/t/p/w185${series.poster_path}`}
-                  alt={series.series_name}
-                  fill
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-              </div>
-            )}
+        {featured.map((item) => {
+          const mediaType = item.mediaType === "movie" ? "movie" : "tv";
+          const tmdbId = item.tmdbId ?? item.seriesId;
+          const href = `/explore/${mediaType}/${tmdbId}`;
 
-            <div className="flex min-w-0 flex-1 flex-col">
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="font-semibold text-slate-900 dark:text-white line-clamp-2">
-                  {series.series_name}
-                </h3>
-                <StarIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
-              </div>
+          return (
+            <Link
+              key={item.id}
+              href={href}
+              className="group flex gap-4 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-soft dark:border-slate-700 dark:bg-slate-900"
+            >
+              {item.posterPath && (
+                <div className="relative h-24 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+                  <Image
+                    src={
+                      item.posterPath.startsWith("http")
+                        ? item.posterPath
+                        : `https://image.tmdb.org/t/p/w185${item.posterPath}`
+                    }
+                    alt={item.name}
+                    fill
+                    className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                </div>
+              )}
 
-              <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400 line-clamp-2">
-                {series.reason || "Staff pick"}
-              </p>
+              <div className="flex min-w-0 flex-1 flex-col">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="line-clamp-2 font-semibold text-slate-900 dark:text-white">
+                    {item.name}
+                  </h3>
+                  <StarIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+                </div>
 
-              <div className="mt-auto pt-2">
-                <span className="inline-flex items-center gap-1 rounded-lg bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-950/40 dark:text-brand-300">
-                  <StarOutlineIcon className="h-3 w-3" />
-                  Featured
-                </span>
+                <p className="mt-1.5 line-clamp-2 text-sm text-slate-500 dark:text-slate-400">
+                  {item.reason || "Staff pick"}
+                </p>
+
+                <div className="mt-auto flex items-center gap-2 pt-2">
+                  <span
+                    className={clsx(
+                      "rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase",
+                      mediaType === "movie"
+                        ? "bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300"
+                        : "bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300",
+                    )}
+                  >
+                    {mediaType === "movie" ? "Movie" : "TV"}
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-950/40 dark:text-brand-300">
+                    <StarOutlineIcon className="h-3 w-3" />
+                    Featured
+                  </span>
+                </div>
               </div>
-            </div>
-          </Link>
-        ))}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
