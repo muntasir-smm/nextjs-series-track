@@ -37,7 +37,7 @@ export default function SiteFooter({ variant = "public" }: SiteFooterProps) {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 sm:gap-12">
+          <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 sm:gap-12">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Product
@@ -111,6 +111,30 @@ export default function SiteFooter({ variant = "public" }: SiteFooterProps) {
 
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Legal
+              </p>
+              <ul className="mt-3 space-y-2 text-sm">
+                <li>
+                  <Link
+                    href="/terms"
+                    className="text-slate-600 hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400"
+                  >
+                    Terms of Service
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/privacy"
+                    className="text-slate-600 hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400"
+                  >
+                    Privacy Policy
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Data
               </p>
               <ul className="mt-3 space-y-2 text-sm">
@@ -135,7 +159,24 @@ export default function SiteFooter({ variant = "public" }: SiteFooterProps) {
 
         <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-slate-100 pt-6 text-xs text-slate-400 dark:border-slate-800 dark:text-slate-500 sm:flex-row">
           <p>© {year} Series Tracker. All rights reserved.</p>
-          <p>Movies & TV · Episode-level tracking</p>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/terms"
+              className="hover:text-brand-600 dark:hover:text-brand-400"
+            >
+              Terms
+            </Link>
+            <Link
+              href="/privacy"
+              className="hover:text-brand-600 dark:hover:text-brand-400"
+            >
+              Privacy
+            </Link>
+            <span className="hidden sm:inline">·</span>
+            <span className="hidden sm:inline">
+              Movies &amp; TV · Episode-level tracking
+            </span>
+          </div>
         </div>
       </div>
     </footer>
